@@ -1,23 +1,13 @@
 <template>
   <div id="cesiumContainer">
-    <!-- 修改进度条容器 -->
-    <div v-if="simulationProgress < 1" class="progress-bar-container">
-      <div class="progress-label">仿真进度</div>
-      <div class="progress-bar-vertical">
-        <div 
-          class="progress-bar-fill"
-          :style="{ height: `${Math.round(simulationProgress * 100)}%` }"
-        ></div>
-      </div>
-      <div class="progress-text">{{ Math.round(simulationProgress * 100) }}%</div>
-    </div>
+    <!-- 进度条容器已删除 -->
   </div>
 </template>
 
 <script setup>
 import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
-import { onMounted, ref, onUnmounted } from "vue";
+import { onMounted, ref, onUnmounted, provide } from "vue";
 import topoData from '../../topo.json';
 Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5ZmExMzZkNC1hMGI2LTQ0ZTUtYTA2OS1lMTRkYWFlYTAyZWUiLCJpZCI6MzEyNjQzLCJpYXQiOjE3NTAwNzUyNDB9.-9M-9Wqg-IH2FBXb12RsWEMBXSFTOvKOISePRAZsSy8';
 const nodeCount = ref(0);
@@ -45,6 +35,7 @@ const satelliteEntities = [];
 const satelliteLinkEntities = [];
 
 const simulationProgress = ref(0);
+const simulationTime = ref({ start: '', end: '' });
 let progressPollingTimer = null;
 
 // 添加一个变量存储 simulator ID
@@ -86,6 +77,7 @@ async function fetchProgress() {
 
         const data = await response.json();
         simulationProgress.value = data.progress;
+        simulationTime.value = { start: data.start_time, end: data.end_time };
         console.log('仿真进度:', simulationProgress.value);
 
         if (simulationProgress.value >= 1) {
@@ -1008,70 +1000,5 @@ onUnmounted(() => {
     color: #f39c12;
 }
 
-.progress-bar-container {
-  position: fixed;
-  left: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  z-index: 1000;
-  background-color: rgba(255, 255, 255, 0.1);
-  padding: 15px;
-  border-radius: 8px;
-  backdrop-filter: blur(5px);
-}
-
-.progress-label {
-  color: white;
-  font-size: 14px;
-  font-weight: bold;
-  margin-bottom: 5px;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-  background-color: rgba(0, 0, 0, 0.3);
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-
-.progress-bar-vertical {
-  width: 8px;
-  height: 200px;
-  background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  position: relative;
-  overflow: hidden;
-}
-
-.progress-bar-fill {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  background-color: #f39c12;
-  transition: height 0.3s ease;
-  border-radius: 4px;
-}
-
-.progress-text {
-  color: white;
-  font-size: 14px;
-  font-weight: bold;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-}
-
-/* 可以移除之前的进度信息样式 */
-.frame-info {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  background-color: rgba(40, 40, 40, 0.7);
-  padding: 5px;
-  border-radius: 5px;
-}
-
-.progress-info {
-  display: none; /* 隐藏原来的进度显示 */
-}
+/* 已删除 .progress-bar-container 及相关样式 */
 </style>

@@ -1,55 +1,66 @@
 <template>
+  <!-- 新增顶部细导航栏 -->
+  <div class="top-thin-navbar">
+    <div class="thin-nav-item">场景</div>
+    <div class="thin-nav-item">模型</div>
+    <div class="thin-nav-item">设置</div>
+    <div class="thin-nav-item">计算分析</div>
+    <div class="thin-nav-item">信息显示</div>
+    <div class="thin-nav-item">窗口</div>
+  </div>
   <div class="navigation-bar">
-    <!-- <div class="nav-item dropdown" @click="toggleDropdown('scenario')">
-      想定管理
-      <span class="dropdown-icon">▼</span>
-      <div class="dropdown-menu" v-show="activeDropdown === 'scenario'">
-        <div class="dropdown-item" @click="showNewScenarioDialog">新建想定</div>
-        <div class="dropdown-item">加载想定</div>
-        <div class="dropdown-item">保存想定</div>
-        <div class="dropdown-item">另存为想定</div>
+    <!-- 操作下拉菜单 -->
+
+      <div class="nav-item" @click="openActionMenu">
+        Open
       </div>
+      <div class="nav-item" @click="saveActionMenu">
+        Save
+      </div>
+      <div class="nav-item" @click="saveAsActionMenu">
+        Save As
+      </div>
+
+      <!-- 仿真相关菜单 -->
+      <div class="nav-item"
+      @click="startSimulation" 
+      :disabled="isSimulating"
+      >
+        <!-- <button 
+          class="simulation-btn" 
+          @click="startSimulation" 
+          :disabled="isSimulating"
+        > -->
+          {{ isSimulating ? '运行中...' : '开始仿真' }}
+        <!-- </button> -->
+      </div>
+      <div class="nav-item">
+        暂停仿真
+      </div>
+      <div class="nav-item">
+        停止
+      </div>
+      <div class="nav-item">
+        加速
+      </div>
+  
+    <div class="nav-item">
+      减速
     </div>
-    <div class="nav-item dropdown" @click="toggleDropdown('analysis')">
-      分析计算
-      <span class="dropdown-icon">▼</span>
-      <div class="dropdown-menu" v-show="activeDropdown === 'analysis'">
-        <div class="dropdown-item">访问分析计算</div>
-        <div class="dropdown-item">覆盖分析计算</div>
-      </div>
+    <div class="nav-item">
+      链路
     </div>
-    <div class="nav-item dropdown" @click="toggleDropdown('database')">
-      数据库管理
-      <span class="dropdown-icon">▼</span>
-      <div class="dropdown-menu" v-show="activeDropdown === 'database'">
-        <div class="dropdown-item">卫星数据库</div>
-        <div class="dropdown-item">地面站数据库</div>
-        <div class="dropdown-item">城市数据库</div>
-        <div class="dropdown-item">恒星数据库</div>
-        <div class="dropdown-item">发射站数据库</div>
-      </div>
-    </div> -->
+    <div class="nav-item">
+      任务命令
+    </div>
+
     <div class="nav-item" @click="showBusinessDesignDialog">
       业务设置
     </div>
     <div class="nav-item" @click="showSimulationResultDialog">
       仿真结果展示
     </div>
-    <!-- <div class="nav-item">
-      星座设计
-    </div>
-    <div class="nav-item">
-      需求规划
-    </div>
-    <div class="nav-item dropdown">
-      帮助
-      <span class="dropdown-icon">▼</span>
-    </div>
-    <div class="nav-item dropdown">
-      工具
-      <span class="dropdown-icon">▼</span>
-    </div> -->
-    <div class="nav-center">
+    
       <div class="nav-item" :class="{ active: currentView === 'sat' }">
         <div id="satButton" class="nav-link" @click="switchToSatView">
           三维场景展示
@@ -60,13 +71,24 @@
           天地一体化展示
         </div>
       </div>
+      <div  class="nav-center">
+      <div class="progress-bar-nav">
+        <div class="progress-time">
+          <span class="progress-label"><b>仿真时间</b></span>
+          <input class="time-input" :value="simulationTime.start" readonly />
+          <span style="margin: 0 4px;">→</span>
+          <input class="time-input" :value="simulationTime.end" readonly />
+        </div>
+        <div class="progress-bar-row">
+          <span class="progress-label"><b>进度条</b></span>
+          <div class="progress-bar-outer">
+            <div class="progress-bar-inner" :style="{ width: (simulationProgress * 100) + '%' }"></div>
+          </div>
+        </div>
+      </div>
     </div>
-    <!-- <div class="nav-item">
-      我的MAC
-    </div> -->
-
-    <div class="nav-spacer"></div>  <!-- 添加这个空间占位器 -->
-    <div class="header-buttons">
+    <div class="nav-spacer"></div>
+    <!-- <div class="header-buttons">
       <button 
         class="simulation-btn" 
         @click="startSimulation" 
@@ -74,7 +96,7 @@
       >
         {{ isSimulating ? '运行中...' : '开始仿真' }}
       </button>
-    </div>
+    </div> -->
   </div>
   
   <!-- 新建想定对话框 -->
@@ -91,16 +113,21 @@
     @close="showBusinessDialog = false"
     @settings-confirmed="handleBusinessSettings"
   />
+  
+  
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, inject } from 'vue';
 import ScenarioDialog from './ScenarioDialog.vue';
 import SimulationResultDialog from './SimulationResultDialog.vue';
 import BusinessDesignDialog from './BusinessDesignDialog.vue';
 
 const isSimulating = ref(false);
 
+// 仿真进度和时间
+const simulationProgress = inject('simulationProgress', ref(0));
+const simulationTime = inject('simulationTime', ref({ start: '', end: '' }));
 
 // 添加开始仿真方法
 async function startSimulation() {
@@ -262,15 +289,43 @@ const switchToTopographyView = () => {
 </script>
 
 <style scoped>
+.top-thin-navbar {
+  width: 100%;
+  height: 28px;
+  background: #232323;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #333;
+  font-size: 13px;
+  z-index: 10;
+}
+.thin-nav-item {
+  color: #eee;
+  padding: 0 18px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.thin-nav-item:hover {
+  background: #333;
+  color: #ffd700;
+}
+
 .nav-spacer {
   flex: 1;  /* 添加这个样式让空间占位器占据所有剩余空间 */
 }
 
 .header-buttons {
+   padding: 0 15px;
+  height: 100%;
   display: flex;
-  gap: 10px;
   align-items: center;
-  margin-right: 20px;  /* 添加右侧边距 */
+  cursor: pointer;
+  font-size: 14px;
+  white-space: nowrap;
+  position: relative;  /* 添加右侧边距 */
 }
 
 .simulation-btn {
@@ -301,14 +356,16 @@ const switchToTopographyView = () => {
   background-color: #1a1a1a;
   color: white;
   padding: 0;
-  height: 80px;  /* 修改为80px */
+  height: 80px;
   align-items: center;
   width: 100%;
   border-bottom: 1px solid #333;
-  position: relative;  /* 添加这行 */
+  /* 新增：让内容靠左排列 */
+  justify-content: flex-start;
 }
 
 .nav-item {
+  width: 6.5%;
   padding: 0 15px;
   height: 100%;
   display: flex;
@@ -325,6 +382,7 @@ const switchToTopographyView = () => {
 
 .dropdown {
   position: relative;
+  user-select: none;
 }
 
 .dropdown-icon {
@@ -341,16 +399,20 @@ const switchToTopographyView = () => {
   top: 100%;
   left: 0;
   background-color: #333;
-  min-width: 150px;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  min-width: 120px;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.2);
   z-index: 1000;
   border-left: 3px solid #f39c12;
+  border-radius: 0 0 4px 4px;
+  padding: 4px 0;
 }
 
 .dropdown-item {
-  padding: 10px 15px;
-  text-align: left;
+  padding: 8px 16px;
+  color: #fff;
   cursor: pointer;
+  font-size: 13px;
+  transition: background 0.2s;
 }
 
 .dropdown-item:hover {
@@ -380,6 +442,13 @@ const switchToTopographyView = () => {
   align-items: center;
 }
 
+/* .nav-center {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  height: 100%;
+  margin-left: 20px; /* 可根据需要微调间距 */
+
 .nav-center {
   display: flex;
   align-items: center;
@@ -393,5 +462,147 @@ const switchToTopographyView = () => {
 .nav-right {
   display: flex;
   align-items: center;
+}
+
+.progress-bar-nav {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: #232323;
+  color: #fff;
+  border: none;
+  border-radius: 0 4px 4px 0;
+  padding: 6px 14px 6px 14px;
+  margin-left: 0;
+  min-width: 220px;
+  max-width: 300px;
+  height: 56px;
+  box-sizing: border-box;
+  font-size: 12px;
+  margin-top: 0;
+  margin-bottom: 0;
+  box-shadow: none;
+}
+
+.progress-time,
+.progress-bar-row,
+.progress-label-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.progress-label {
+  min-width: 48px;
+  font-size: 12px;
+  color: #fff;
+  font-weight: bold;
+}
+
+.time-input {
+  background-color: #181818;
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 6px;
+  width: 60px;
+  text-align: center;
+  margin: 0 2px;
+  height: 20px;
+  font-size: 12px;
+  padding: 0 4px;
+}
+
+.progress-bar-row {
+  margin-bottom: 2px;
+}
+
+.progress-bar-outer {
+  flex: 1;
+  height: 10px;
+  background-color: #444;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-left: 8px;
+  border: 1px solid #222;
+  min-width: 80px;
+  max-width: 140px;
+}
+
+.progress-bar-inner {
+  height: 100%;
+  background: linear-gradient(90deg, #f39c12, #ffd700);
+  transition: width 0.3s;
+}
+
+.progress-label-row {
+  justify-content: flex-start;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.progress-percent {
+  font-weight: bold;
+  color: #ffd700;
+  font-size: 12px;
+}
+
+.object-viewer {
+  width: 280px;
+  height: 100%;
+  background: #232323;
+  border-right: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+  color: #f1f1f1;
+}
+.header {
+  font-weight: bold;
+  padding: 10px 16px;
+  background: #181818;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #333;
+  color: #fff;
+  letter-spacing: 1px;
+}
+.nav-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px;
+  background: #232323;
+  border-bottom: 1px solid #333;
+}
+.nav-btn {
+  background: #181818;
+  color: #ffd700;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-bottom: 2px;
+  transition: background 0.2s, color 0.2s;
+}
+.nav-btn:hover {
+  background: #ffd700;
+  color: #181818;
+}
+.content {
+  flex: 1;
+  padding: 16px;
+  overflow: auto;
+}
+ul {
+  list-style: disc inside;
+  padding: 0;
+  margin: 0;
+}
+li {
+  margin: 12px 0;
+  font-size: 15px;
+  color: #e0e0e0;
+  letter-spacing: 1px;
 }
 </style>
