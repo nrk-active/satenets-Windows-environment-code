@@ -11,18 +11,18 @@
   <div class="navigation-bar">
     <!-- 操作下拉菜单 -->
 
-      <div class="nav-item" @click="openActionMenu">
+    <div class="nav-item-left" @click="openActionMenu">
         Open
-      </div>
-      <div class="nav-item" @click="saveActionMenu">
+    </div>
+    <div class="nav-item-left" @click="saveActionMenu">
         Save
-      </div>
-      <div class="nav-item" @click="saveAsActionMenu">
+    </div>
+    <div class="nav-item-left" @click="saveAsActionMenu">
         Save As
-      </div>
+     </div>
 
       <!-- 仿真相关菜单 -->
-      <div class="nav-item"
+    <div class="nav-item-left"
       @click="startSimulation" 
       :disabled="isSimulating"
       >
@@ -33,45 +33,51 @@
         > -->
           {{ isSimulating ? '运行中...' : '开始仿真' }}
         <!-- </button> -->
-      </div>
-      <div class="nav-item">
+    </div>
+    <div class="nav-item-left">
         暂停仿真
-      </div>
-      <div class="nav-item">
+    </div>
+    <div class="nav-item-left">
         停止
-      </div>
-      <div class="nav-item">
+    </div>
+    <div class="nav-item-left">
         加速
-      </div>
+    </div>
   
-    <div class="nav-item">
+    <div class="nav-item-left">
       减速
     </div>
-    <div class="nav-item">
+    <div class="nav-item-left">
       链路
     </div>
-    <div class="nav-item">
+    <div class="nav-item-left">
+    </div>
+    <div class="nav-item-left">
+    </div>
+    <div class="nav-item-left">
+    </div>
+    <div class="nav-item-right">
       任务命令
     </div>
 
-    <div class="nav-item" @click="showBusinessDesignDialog">
+    <div class="nav-item-right" @click="showBusinessDesignDialog">
       业务设置
     </div>
-    <div class="nav-item" @click="showSimulationResultDialog">
+    <div class="nav-item-right" @click="showSimulationResultDialog">
       仿真结果展示
     </div>
     
-      <div class="nav-item" :class="{ active: currentView === 'sat' }">
-        <div id="satButton" class="nav-link" @click="switchToSatView">
+    <div class="nav-item-right" :class="{ active: currentView === 'sat' }">
+      <div id="satButton" class="nav-link" @click="switchToSatView">
           三维场景展示
-        </div>
       </div>
-      <div class="nav-item" :class="{ active: currentView === 'topography' }">
-        <div id="topographyButton" class="nav-link" @click="switchToTopographyView">
+    </div>
+    <div class="nav-item-right" :class="{ active: currentView === 'topography' }">
+      <div id="topographyButton" class="nav-link" @click="switchToTopographyView">
           天地一体化展示
-        </div>
       </div>
-      <div  class="nav-center">
+    </div>
+    <div  class="nav-center">
       <div class="progress-bar-nav">
         <div class="progress-time">
           <span class="progress-label"><b>仿真时间</b></span>
@@ -87,7 +93,9 @@
         </div>
       </div>
     </div>
-    <div class="nav-spacer"></div>
+    <div class="nav-spacer">
+
+    </div>
     <!-- <div class="header-buttons">
       <button 
         class="simulation-btn" 
@@ -364,8 +372,8 @@ const switchToTopographyView = () => {
   justify-content: flex-start;
 }
 
-.nav-item {
-  width: 6.5%;
+.nav-item-left {
+  width: 60px;
   padding: 0 15px;
   height: 100%;
   display: flex;
@@ -375,9 +383,36 @@ const switchToTopographyView = () => {
   white-space: nowrap;
   position: relative;
 }
-
-.nav-item:hover {
+.nav-item-left:hover {
   background-color: #333;
+}
+.nav-item-left.active {
+  background-color: #444;
+}
+
+.nav-item-left.active:hover {
+  background-color: #555;
+}
+.nav-item-right {
+  width: 85px;
+  padding: 0 15px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 14px;
+  white-space: nowrap;
+  position: relative;
+}
+.nav-item-right:hover {
+  background-color: #333;
+}
+.nav-item-right.active {
+  background-color: #444;
+}
+
+.nav-item-:right:hover {
+  background-color: #555;
 }
 
 .dropdown {
@@ -429,26 +464,6 @@ const switchToTopographyView = () => {
   cursor: pointer;
 }
 
-.nav-item.active {
-  background-color: #444;
-}
-
-.nav-item.active:hover {
-  background-color: #555;
-}
-
-.nav-left {
-  display: flex;
-  align-items: center;
-}
-
-/* .nav-center {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  height: 100%;
-  margin-left: 20px; /* 可根据需要微调间距 */
-
 .nav-center {
   display: flex;
   align-items: center;
@@ -459,10 +474,6 @@ const switchToTopographyView = () => {
   transform: translateX(-50%);
 }
 
-.nav-right {
-  display: flex;
-  align-items: center;
-}
 
 .progress-bar-nav {
   display: flex;
