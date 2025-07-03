@@ -2,11 +2,35 @@
   <!-- 新增顶部细导航栏 -->
   <div class="top-thin-navbar">
     <div class="thin-nav-item">场景</div>
-    <div class="thin-nav-item">模型</div>
-    <div class="thin-nav-item">设置</div>
+    <!-- 模型下拉菜单 -->
+    <div
+      class="thin-nav-item dropdown"
+      @click.stop="showModelDropdown = !showModelDropdown"
+    >
+      模型
+      <div class="dropdown-menu" v-if="showModelDropdown">
+        <div class="dropdown-item" @click="selectModel('backend')">backend</div>
+        <div class="dropdown-item" @click="selectModel('NS3')">NS3</div>
+      </div>
+    </div>
+    <!-- 设置按钮，点击弹出设置弹窗 -->
+    <div class="thin-nav-item" @click="openSettingDialog">设置</div>
     <div class="thin-nav-item">计算分析</div>
     <div class="thin-nav-item">信息显示</div>
     <div class="thin-nav-item">窗口</div>
+    <!-- 顶部右侧 登录/注册 或 用户名/退出 -->
+    <div class="thin-nav-auth">
+      <template v-if="!isLoggedIn">
+        <button class="thin-nav-signin" @click="openLoginDialog">登录</button>
+        <button class="thin-nav-signup" @click="openRegisterDialog">注册</button>
+      </template>
+      <template v-else>
+        <span class="thin-nav-username">{{ username }}</span>
+        <button class="thin-nav-signout" @click="logout">退出</button>
+      </template>
+    </div>
+    <login ref="loginRef" @login-success="handleLoginSuccess" />
+    <setting ref="settingRef" />
   </div>
   <div class="navigation-bar">
     <div class="nav-left-group">
@@ -76,7 +100,6 @@
       <div class="nav-item-right" @click="showSimulationResultDialog">
         仿真结果展示
       </div>
-      
       <div class="nav-item-right" :class="{ active: currentView === 'sat' }">
         <div id="satButton" @click="switchToSatView">
             三维场景展示
@@ -113,6 +136,8 @@ import { ref, onMounted, onUnmounted, inject } from 'vue';
 import ScenarioDialog from './ScenarioDialog.vue';
 import SimulationResultDialog from './SimulationResultDialog.vue';
 import BusinessDesignDialog from './BusinessDesignDialog.vue';
+import Login from './login.vue'
+import Setting from './setting.vue'
 
 const isSimulating = ref(false);
 
@@ -277,6 +302,50 @@ const switchToTopographyView = () => {
   });
   window.dispatchEvent(event);
 };
+
+const showModelDropdown = ref(false)
+function selectModel(model) {
+  // 这里可以根据需要处理选中逻辑
+  console.log('选择模型:', model)
+  showModelDropdown.value = false
+}
+
+// 点击页面其他地方关闭下拉菜单
+function handleClickOutside(event) {
+  if (!event.target.closest('.dropdown')) {
+    showModelDropdown.value = false
+  }
+}
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+
+const loginRef = ref(null)
+const settingRef = ref(null)
+function openLoginDialog() {
+  loginRef.value && loginRef.value.openLogin()
+}
+function openRegisterDialog() {
+  loginRef.value && loginRef.value.openRegister()
+}
+function openSettingDialog() {
+  settingRef.value && settingRef.value.open()
+}
+
+const isLoggedIn = ref(false)
+const username = ref('')
+
+function handleLoginSuccess(user) {
+  isLoggedIn.value = true
+  username.value = user || 'admin'
+}
+function logout() {
+  isLoggedIn.value = false
+  username.value = ''
+}
 </script>
 
 <style scoped>
@@ -289,6 +358,7 @@ const switchToTopographyView = () => {
   border-bottom: 1px solid #333;
   font-size: 13px;
   z-index: 10;
+  position: relative;
 }
 .thin-nav-item {
   color: #eee;
@@ -316,7 +386,7 @@ const switchToTopographyView = () => {
   cursor: pointer;
   font-size: 14px;
   white-space: nowrap;
-  position: relative;  /* 添加右侧边距 */
+  position: relative  /* 添加右侧边距 */
 }
 
 .simulation-btn {
@@ -371,12 +441,9 @@ const switchToTopographyView = () => {
 }
 
 .nav-right-group {
-  width: 10%;
   display: flex;
   align-items: center;
-  flex: 1 1 auto; /* 关键：宽度自适应内容 */
-  min-width: 0;
-  /* justify-content: flex-end; */
+  margin-left: auto;
 }
 
 .nav-left-group,
@@ -520,5 +587,81 @@ li {
   font-size: 15px;
   color: #e0e0e0;
   letter-spacing: 1px;
+}
+
+.dropdown {
+  position: relative;
+}
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #232323;
+  border: 1px solid #333;
+  min-width: 100px;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.dropdown-item {
+  color: #eee;
+  padding: 8px 18px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s;
+}
+.dropdown-item:hover {
+  background: #333;
+  color: #ffd700;
+}
+
+.thin-nav-auth {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 登录/注册按钮：绿色风格 */
+.thin-nav-signin,
+.thin-nav-signup {
+  border: none;
+  background: #27ae60;
+  color: #fff;
+  padding: 3px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  height: 24px;
+  line-height: 24px;
+  font-weight: 500;
+}
+
+.thin-nav-signin:hover,
+.thin-nav-signup:hover {
+  background: #219150;
+  color: #fff;
+}
+
+.thin-nav-username {
+  color: #fff;
+  font-size: 14px;
+  margin-right: 8px;
+}
+.thin-nav-signout {
+  border: none;
+  background: #e74c3c;
+  color: #fff;
+  padding: 3px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  height: 24px;
+  line-height: 24px;
+  font-weight: 500;
+}
+.thin-nav-signout:hover {
+  background: #c0392b;
 }
 </style>
