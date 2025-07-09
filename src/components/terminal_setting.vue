@@ -135,6 +135,8 @@ async function submit() {
     alert('网络错误，保存失败')
   }
 }
+
+defineExpose({ open })
 </script>
 
 <style scoped>

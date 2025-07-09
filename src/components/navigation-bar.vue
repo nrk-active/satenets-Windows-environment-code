@@ -173,7 +173,7 @@
 import { ref, onMounted, onUnmounted, inject } from 'vue';
 import ScenarioDialog from './ScenarioDialog.vue';
 import SimulationResultDialog from './SimulationResultDialog.vue';
-import BusinessDesignDialog from './BusinessDesignDialog.vue';
+import BusinessDesignDialog from './Service_setting.vue'; //'./BusinessDesignDialog.vue';
 import Login from './login.vue'
 import Setting from './setting.vue'
 import TopologySettingDialog from './TopologySettingDialog.vue'
