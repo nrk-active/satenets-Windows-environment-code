@@ -17,6 +17,10 @@
           <label class="sim-setting-label">采样间隔</label>
           <input class="sim-setting-input" type="number" v-model.number="samplingInterval" min="1" />
         </div>
+        <div class="sim-setting-row">
+          <label class="sim-setting-label">结果步长</label>
+          <input class="sim-setting-input" type="number" v-model.number="dumpReqResultsTimesteps" min="1" />
+        </div>
       </div>
       <div class="sim-setting-actions">
         <button class="sim-btn-cancel" @click="close">取消</button>
@@ -28,11 +32,15 @@
 
 <script setup>
 import { ref } from 'vue'
+// 新增：引入 js-yaml
+import yaml from 'js-yaml'
 
 const show = ref(false)
 const orbitingStep = ref(10)
 const simulationSec = ref(1000)
 const samplingInterval = ref(5)
+// 新增：结果步长参数
+const dumpReqResultsTimesteps = ref(60)
 
 function open() {
   show.value = true
@@ -42,14 +50,19 @@ function close() {
 }
 async function submit() {
   try {
+    // 构造对象
+    const data = {
+      orbiting_step_sec: orbitingStep.value,
+      simulation_sec: simulationSec.value,
+      sampling_interval_orbit: samplingInterval.value,
+      dump_req_results_timesteps: dumpReqResultsTimesteps.value
+    }
+    // 转为yaml字符串
+    const yamlStr = yaml.dump(data)
     const res = await fetch('/api/simulation/setting', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        orbiting_step_sec: orbitingStep.value,
-        simulation_sec: simulationSec.value,
-        sampling_interval_orbit: samplingInterval.value
-      })
+      headers: { 'Content-Type': 'application/x-yaml' },
+      body: yamlStr
     })
     if (res.ok) {
       alert('设置已保存')
@@ -61,6 +74,7 @@ async function submit() {
     alert('网络错误，设置保存失败')
   }
 }
+defineExpose({ open })
 </script>
 
 <style scoped>
