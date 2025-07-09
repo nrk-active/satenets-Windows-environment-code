@@ -43,6 +43,7 @@
         <div class="dropdown-item" @click="openTerminalSetting">终端设置</div>
         <div class="dropdown-item" @click="openTopologyDialog">拓扑设置</div>
         <div class="dropdown-item" @click="">地面站设置</div>
+        <div class="dropdown-item" @click="openTrafficMatrix">流量矩阵设置</div>
         <div class="dropdown-item" @click="openSettingDialog">界面设置</div>
       </div>
     </div>
@@ -165,6 +166,7 @@
   />
   <SimulationSetting ref="simulationSettingRef" />
   <TerminalSetting ref="terminalSettingRef" />
+  <TrafficMatrix ref="trafficMatrixRef" />
   
   
 </template>
@@ -179,6 +181,7 @@ import Setting from './setting.vue'
 import TopologySettingDialog from './TopologySettingDialog.vue'
 import SimulationSetting from './simulation_setting.vue'
 import TerminalSetting from './terminal_setting.vue'
+import TrafficMatrix from './traffic_matrix.vue' // 确认路径和文件名一致
 
 const isSimulating = ref(false);
 
@@ -304,12 +307,17 @@ const showBusinessDesignDialog = () => {
 const showTopologyDialog = ref(false);
 const simulationSettingRef = ref(null)
 const terminalSettingRef = ref(null)
+const trafficMatrixRef = ref(null) // 新增
+
 function openSimulationSetting() {
   simulationSettingRef.value && simulationSettingRef.value.open()
 };
 function openTerminalSetting() {
   terminalSettingRef.value && terminalSettingRef.value.open()
 };
+function openTrafficMatrix() { // 新增
+  trafficMatrixRef.value && trafficMatrixRef.value.open()
+}
 // 显示拓扑设置对话框
 const openTopologyDialog = () => {
   showTopologyDialog.value = true;

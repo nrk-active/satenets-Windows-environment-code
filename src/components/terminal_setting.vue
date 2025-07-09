@@ -65,6 +65,8 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
+// 新增：引入 js-yaml
+import yaml from 'js-yaml'
 
 const show = ref(false)
 const numTerminals = ref(0)
@@ -102,28 +104,26 @@ async function submit() {
     num_terminals: numTerminals.value,
     distribution_pattern: distributionPattern.value,
     elevation: elevation.value,
-    azimuth: azimuth.value
-  }
-  if (distributionPattern.value === 'population_based') {
-    params.population_based = {
+    azimuth: azimuth.value,
+    population_based: {
       regions: populationRegions.map(r => ({
         name: r.name,
         location: r.location,
         percentage: r.percentage
       }))
-    }
-  } else {
-    params.normal_distribution = {
+    },
+    normal_distribution: {
       mean_location: normalMean.value,
       stddev: normalStddev.value
     }
   }
-  // 这里可以调用后端接口
+  // 发送yaml格式
   try {
+    const yamlStr = yaml.dump(params)
     const res = await fetch('/api/terminal/setting', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params)
+      headers: { 'Content-Type': 'application/x-yaml' },
+      body: yamlStr
     })
     if (res.ok) {
       alert('终端参数设置已保存')
@@ -135,7 +135,6 @@ async function submit() {
     alert('网络错误，保存失败')
   }
 }
-
 defineExpose({ open })
 </script>
 
