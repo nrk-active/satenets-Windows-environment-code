@@ -32,7 +32,7 @@
 </template>
 
 <script setup>
-import { ref, defineExpose, defineEmits } from 'vue'
+import { ref } from 'vue'
 
 const emit = defineEmits(['login-success'])
 

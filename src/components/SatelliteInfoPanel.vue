@@ -23,20 +23,22 @@
     <div class="passes">
       <div class="passes-title">Passes</div>
       <table>
-        <tr>
-          <td>Countdown</td>
-          <td>Start</td>
-          <td>End</td>
-          <td>El</td>
-          <td>Az</td>
-        </tr>
-        <tr>
-          <td>00:05:12</td>
-          <td>12:00</td>
-          <td>12:10</td>
-          <td>45°</td>
-          <td>180°</td>
-        </tr>
+        <tbody>
+          <tr>
+            <td>Countdown</td>
+            <td>Start</td>
+            <td>End</td>
+            <td>El</td>
+            <td>Az</td>
+          </tr>
+          <tr>
+            <td>00:05:12</td>
+            <td>12:00</td>
+            <td>12:10</td>
+            <td>45°</td>
+            <td>180°</td>
+          </tr>
+        </tbody>
       </table>
     </div>
     <div class="tle">

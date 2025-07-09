@@ -1,11 +1,28 @@
 <template>
   <!-- 新增顶部细导航栏 -->
   <div class="top-thin-navbar">
-    <div class="thin-nav-item">场景</div>
+    <div
+      class="thin-nav-item dropdown"
+      @click="toggleSceneDropdown"
+    >
+      场景
+      <div class="dropdown-menu" v-if="showSceneDropdown">
+        <div class="dropdown-item" :class="{ active: currentView === 'sat' }">
+          <div @click.stop="switchToSatView(); showSceneDropdown = false">
+              三维场景展示
+          </div>
+        </div>
+        <div class="dropdown-item" :class="{ active: currentView === 'topography' }">
+          <div @click.stop="switchToTopographyView(); showSceneDropdown = false">
+              天地一体化展示
+          </div>
+        </div>
+      </div>
+    </div>
     <!-- 模型下拉菜单 -->
     <div
       class="thin-nav-item dropdown"
-      @click.stop="showModelDropdown = !showModelDropdown"
+      @click.stop="showModelDropdown = !showModelDropdown; showSceneDropdown = false; showSettingDropdown = false"
     >
       模型
       <div class="dropdown-menu" v-if="showModelDropdown">
@@ -14,7 +31,21 @@
       </div>
     </div>
     <!-- 设置按钮，点击弹出设置弹窗 -->
-    <div class="thin-nav-item" @click="openSettingDialog">设置</div>
+    <div
+      class="thin-nav-item dropdown"
+      @click.stop="showSettingDropdown = !showSettingDropdown; showSceneDropdown = false; showModelDropdown = false"
+    >
+      设置
+      <div class="dropdown-menu" v-if="showSettingDropdown">
+        <div class="dropdown-item" @click="">星座设置</div>
+        <div class="dropdown-item" @click="showBusinessDesignDialog">业务设置</div>
+        <div class="dropdown-item" @click="openSimulationSetting">仿真设置</div>
+        <div class="dropdown-item" @click="openTerminalSetting">终端设置</div>
+        <div class="dropdown-item" @click="openTopologyDialog">拓扑设置</div>
+        <div class="dropdown-item" @click="">地面站设置</div>
+        <div class="dropdown-item" @click="openSettingDialog">界面设置</div>
+      </div>
+    </div>
     <div class="thin-nav-item">计算分析</div>
     <div class="thin-nav-item">信息显示</div>
     <div class="thin-nav-item">窗口</div>
@@ -94,9 +125,9 @@
     </div>
     <div class="nav-right-group">
       <!-- 右侧按钮 -->
-      <div class="nav-item-right" @click="showBusinessDesignDialog">
+      <!-- <div class="nav-item-right" @click="showBusinessDesignDialog">
         业务设置
-      </div>
+      </div> -->
       <div class="nav-item-right" @click="showSimulationResultDialog">
         仿真结果展示
       </div>
@@ -127,6 +158,13 @@
     @close="showBusinessDialog = false"
     @settings-confirmed="handleBusinessSettings"
   />
+  <TopologySettingDialog
+    v-if="showTopologyDialog"
+    @save="handleTopologySave"
+    @close="showTopologyDialog = false"
+  />
+  <SimulationSetting ref="simulationSettingRef" />
+  <TerminalSetting ref="terminalSettingRef" />
   
   
 </template>
@@ -138,13 +176,21 @@ import SimulationResultDialog from './SimulationResultDialog.vue';
 import BusinessDesignDialog from './BusinessDesignDialog.vue';
 import Login from './login.vue'
 import Setting from './setting.vue'
+import TopologySettingDialog from './TopologySettingDialog.vue'
+import SimulationSetting from './simulation_setting.vue'
+import TerminalSetting from './terminal_setting.vue'
 
 const isSimulating = ref(false);
 
 // 仿真进度和时间
 const simulationProgress = inject('simulationProgress', ref(0));
 const simulationTime = inject('simulationTime', ref({ start: '', end: '' }));
-
+function toggleSceneDropdown(event) {
+  showSceneDropdown.value = !showSceneDropdown.value;
+  showModelDropdown.value = false;
+  showSettingDropdown.value = false;
+  event && event.stopPropagation();
+}
 // 添加开始仿真方法
 async function startSimulation() {
   try {
@@ -254,6 +300,21 @@ const showBusinessDesignDialog = () => {
   showBusinessDialog.value = true;
 };
 
+// 控制拓扑设置对话框显示
+const showTopologyDialog = ref(false);
+const simulationSettingRef = ref(null)
+const terminalSettingRef = ref(null)
+function openSimulationSetting() {
+  simulationSettingRef.value && simulationSettingRef.value.open()
+};
+function openTerminalSetting() {
+  terminalSettingRef.value && terminalSettingRef.value.open()
+};
+// 显示拓扑设置对话框
+const openTopologyDialog = () => {
+  showTopologyDialog.value = true;
+};
+
 const emit = defineEmits(['simulation-data-selected', 'business-settings-confirmed']);
 
 const handleDataSelected = (data) => {
@@ -288,7 +349,7 @@ const switchToSatView = () => {
 
 const switchToTopographyView = () => {
   if (currentView.value === 'topography') return; // 如果已经是天地一体化视图则不处理
-  
+  console.log('切换到天地一体化', currentView.value);
   currentView.value = 'topography';
   // 清理三维场景
   const satElement = document.getElementById('satContainer');
@@ -304,16 +365,22 @@ const switchToTopographyView = () => {
 };
 
 const showModelDropdown = ref(false)
+const showSettingDropdown = ref(false)
+const showSceneDropdown = ref(false)
 function selectModel(model) {
   // 这里可以根据需要处理选中逻辑
   console.log('选择模型:', model)
   showModelDropdown.value = false
+  showSettingDropdown.value = false
+  showSceneDropdown.value = false
 }
 
 // 点击页面其他地方关闭下拉菜单
 function handleClickOutside(event) {
   if (!event.target.closest('.dropdown')) {
     showModelDropdown.value = false
+    showSettingDropdown.value = false
+    showSceneDropdown.value = false
   }
 }
 onMounted(() => {
@@ -346,6 +413,7 @@ function logout() {
   isLoggedIn.value = false
   username.value = ''
 }
+
 </script>
 
 <style scoped>
@@ -455,14 +523,6 @@ function logout() {
   flex: 1 1 auto;
   min-width: 0;
   
-}
-
-.nav-center-group {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto; /* 不拉伸，内容多宽就多宽 */
-  min-width: 0;
 }
 
 .nav-item-left {

@@ -30,7 +30,7 @@
 </template>
 
 <script setup>
-import { ref, defineExpose } from 'vue'
+import { ref } from 'vue'
 
 const show = ref(false)
 const theme = ref('light')
