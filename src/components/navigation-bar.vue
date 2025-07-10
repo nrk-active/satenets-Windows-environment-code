@@ -37,7 +37,7 @@
     >
       设置
       <div class="dropdown-menu" v-if="showSettingDropdown">
-        <div class="dropdown-item" @click="">星座设置</div>
+        <div class="dropdown-item" @click="openConstellationSetting">星座设置</div>
         <div class="dropdown-item" @click="showBusinessDesignDialog">业务设置</div>
         <div class="dropdown-item" @click="openSimulationSetting">仿真设置</div>
         <div class="dropdown-item" @click="openTerminalSetting">终端设置</div>
@@ -167,6 +167,7 @@
   <SimulationSetting ref="simulationSettingRef" />
   <TerminalSetting ref="terminalSettingRef" />
   <TrafficMatrix ref="trafficMatrixRef" />
+  <ConstellationSetting ref="constellationSettingRef" />
   
   
 </template>
@@ -182,6 +183,7 @@ import TopologySettingDialog from './TopologySettingDialog.vue'
 import SimulationSetting from './simulation_setting.vue'
 import TerminalSetting from './terminal_setting.vue'
 import TrafficMatrix from './traffic_matrix.vue' // 确认路径和文件名一致
+import ConstellationSetting from './constellation_setting.vue'
 
 const isSimulating = ref(false);
 
@@ -308,6 +310,7 @@ const showTopologyDialog = ref(false);
 const simulationSettingRef = ref(null)
 const terminalSettingRef = ref(null)
 const trafficMatrixRef = ref(null) // 新增
+const constellationSettingRef = ref(null) // 星座设置引用
 
 function openSimulationSetting() {
   simulationSettingRef.value && simulationSettingRef.value.open()
@@ -317,6 +320,10 @@ function openTerminalSetting() {
 };
 function openTrafficMatrix() { // 新增
   trafficMatrixRef.value && trafficMatrixRef.value.open()
+}
+function openConstellationSetting() { // 星座设置
+  constellationSettingRef.value && constellationSettingRef.value.open()
+  showSettingDropdown.value = false // 关闭设置下拉菜单
 }
 // 显示拓扑设置对话框
 const openTopologyDialog = () => {
