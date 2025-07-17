@@ -19,7 +19,7 @@
 
 <script setup>
 import NavigationBar from "./components/navigation-bar.vue";
-import SatelliteViewer from "./components/SatelliteViewer_1.vue";
+import SatelliteViewer from "./components/SatelliteViewer.vue";
 // import LatencyTable from "./components/LatencyTable.vue";
 import SimulationDataPanel from "./components/SimulationDataPanel.vue";
 import ObjectViewer from "./components/ObjectViewer.vue";
