@@ -172,9 +172,7 @@
   
 </template>
 
-<!-- 只修改script部分，其他部分保持不变 -->
 <script setup>
-// 导入部分保持不变
 import { ref, onMounted, onUnmounted, inject } from 'vue';
 import ScenarioDialog from './ScenarioDialog.vue';
 import SimulationResultDialog from './SimulationResultDialog.vue';
@@ -186,21 +184,6 @@ import SimulationSetting from './simulation_setting.vue'
 import TerminalSetting from './terminal_setting.vue'
 import TrafficMatrix from './traffic_matrix.vue' // 确认路径和文件名一致
 import ConstellationSetting from './constellation_setting.vue'
-
-// 接收从父组件传递的登录状态和用户名
-const props = defineProps({
-  isLoggedIn: {
-    type: Boolean,
-    default: false
-  },
-  username: {
-    type: String,
-    default: ''
-  }
-});
-
-// 修改emit以包含所有需要的事件
-const emit = defineEmits(['simulation-data-selected', 'business-settings-confirmed', 'logout', 'login-success']);
 
 const isSimulating = ref(false);
 
@@ -347,6 +330,8 @@ const openTopologyDialog = () => {
   showTopologyDialog.value = true;
 };
 
+const emit = defineEmits(['simulation-data-selected', 'business-settings-confirmed']);
+
 const handleDataSelected = (data) => {
   emit('simulation-data-selected', data);
 };
@@ -432,18 +417,16 @@ function openSettingDialog() {
   settingRef.value && settingRef.value.open()
 }
 
-// 使用从父组件传递的登录状态，不再需要本地状态
-// const isLoggedIn = ref(false)
-// const username = ref('')
+const isLoggedIn = ref(false)
+const username = ref('')
 
 function handleLoginSuccess(user) {
-  // 通知父组件登录成功
-  emit('login-success', user);
+  isLoggedIn.value = true
+  username.value = user || 'admin'
 }
-
 function logout() {
-  // 通知父组件登出
-  emit('logout');
+  isLoggedIn.value = false
+  username.value = ''
 }
 
 </script>
