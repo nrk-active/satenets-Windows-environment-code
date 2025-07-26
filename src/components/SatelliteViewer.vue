@@ -23,6 +23,7 @@
   </div>
 </template>
 
+<!-- 在现有的SatelliteViewer.vue文件中添加以下方法 -->
 <script setup>
 import { onMounted, onUnmounted, watch } from 'vue';
 import ControlPanel from './ControlPanel.vue';
@@ -168,6 +169,28 @@ function handleTogglePlayback() {
   togglePlayback(loadTimeFrame);
 }
 
+function highlightEntity(entityId) {
+  if (!currentGraphData) return null;
+  
+  // 查找实体信息
+  const entity = currentGraphData.nodes.find(node => node.id === entityId);
+  
+  if (entity) {
+    // 高亮显示链接
+    if (entity.type === 'satellite') {
+      highlightSatelliteLinks(entityId, currentGraphData);
+    }
+    
+    // 返回实体信息
+    return {
+      entity,
+      rawData: currentGraphData
+    };
+  }
+  
+  return null;
+}
+
 function handleVisibilityChange(type, checked) {
   switch(type) {
     case 'satellite':
@@ -215,6 +238,36 @@ onMounted(async () => {
 onUnmounted(() => {
   cleanupAnimation();
   cleanupCesium();
+});
+
+// <!-- 修改现有的highlightEntity函数 -->
+// <script setup>
+// // 添加高亮实体的方法
+// function highlightEntity(entityId) {
+//   if (!currentGraphData) return null;
+  
+//   // 查找实体信息
+//   const entity = currentGraphData.nodes.find(node => node.id === entityId);
+  
+//   if (entity) {
+//     // 高亮显示链接
+//     if (entity.type === 'satellite') {
+//       highlightSatelliteLinks(entityId, currentGraphData);
+//     }
+    
+//     // 返回实体信息
+//     return {
+//       entity,
+//       rawData: currentGraphData
+//     };
+//   }
+  
+//   return null;
+// }
+
+// 暴露方法给父组件
+defineExpose({
+  highlightEntity
 });
 </script>
 

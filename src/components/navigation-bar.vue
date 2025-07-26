@@ -369,7 +369,7 @@ const switchToSatView = () => {
   if (topographyElement) {
     topographyElement.innerHTML = '';
   }
-  
+
   // 重新初始化三维场景
   const event = new CustomEvent('initialize-sat-view', {
     detail: { message: 'initialize satellite view' }

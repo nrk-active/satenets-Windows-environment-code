@@ -214,7 +214,8 @@ export function useCesium() {
     viewer.scene.requestRender();
   }
 
-  function setupClickHandler(onSatelliteClick) {
+  // 修改setupClickHandler函数
+  function setupClickHandler(onEntityClick) {
     if (!viewer || handler) return;
     
     handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -224,8 +225,9 @@ export function useCesium() {
       
       if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.id)) {
         const entity = pickedObject.id;
-        if (entity.id && entity.id.startsWith('satellite')) {
-          onSatelliteClick(entity.id);
+        if (entity.id) {
+          // 处理所有类型的实体点击
+          onEntityClick(entity.id);
         } else {
           highlightedLinks.forEach(e => viewer.entities.remove(e));
           highlightedLinks = [];

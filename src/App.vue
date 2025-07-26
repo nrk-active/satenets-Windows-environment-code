@@ -14,9 +14,9 @@
       @login-success="handleLoginSuccess"
     />
     <div class="main-content-flex">
-      <ObjectViewer />
+      <ObjectViewer ref="objectViewerRef" @select-entity="handleEntitySelection" />
       <div class="main-center-content">
-        <SatelliteViewer />
+        <SatelliteViewer ref="satelliteViewerRef" />
         <LatencyTable />
         <SimulationDataPanel 
           :visible="showDataPanel"
@@ -24,7 +24,11 @@
           @close="showDataPanel = false"
         />
       </div>
-      <SatelliteInfoPanel />
+      <EntityInfoPanel 
+        :selectedEntity="selectedEntity" 
+        :graphData="selectedEntityRawData"
+        @close="clearSelectedEntity" 
+      />
     </div>
     <!-- <ServerData /> -->
   </template>
@@ -36,10 +40,11 @@ import SatelliteViewer from "./components/SatelliteViewer.vue";
 // import LatencyTable from "./components/LatencyTable.vue";
 import SimulationDataPanel from "./components/SimulationDataPanel.vue";
 import ObjectViewer from "./components/ObjectViewer.vue";
-import SatelliteInfoPanel from "./components/SatelliteInfoPanel.vue";
+import EntityInfoPanel from "./components/EntityInfoPanel.vue";
 // import ServerData from './components/serverdata.vue';
 import LoginPage from './components/LoginPage.vue';
-import { ref, provide } from 'vue';
+import { ref, provide, onMounted, watch } from 'vue';
+import { useDataLoader } from './composables/useDataLoader.js';
 
 // 登录状态管理
 const isLoggedIn = ref(false);
@@ -82,6 +87,58 @@ const handleDataSelection = (data) => {
   selectedSimulationData.value = data;
   showDataPanel.value = true;
 };
+
+// 引用组件实例
+const objectViewerRef = ref(null);
+const satelliteViewerRef = ref(null);
+
+// 初始化数据加载器
+const { loadGraphData, dataCache } = useDataLoader();
+
+// 提供数据加载器给子组件
+provide('dataLoader', { loadGraphData, dataCache });
+
+// 选中的实体信息
+const selectedEntity = ref(null);
+const selectedEntityRawData = ref(null);
+
+// 处理实体选择
+function handleEntitySelection(entityId) {
+  if (satelliteViewerRef.value) {
+    // 调用SatelliteViewer中的方法高亮显示选中的实体
+    const result = satelliteViewerRef.value.highlightEntity(entityId);
+    
+    if (result) {
+      selectedEntity.value = result.entity;
+      selectedEntityRawData.value = result.rawData;
+    }
+  }
+}
+
+// 清除选中的实体
+function clearSelectedEntity() {
+  selectedEntity.value = null;
+  selectedEntityRawData.value = null;
+}
+
+// 监听数据加载
+onMounted(async () => {
+  // 加载初始数据
+  const initialData = await loadGraphData('./data/network_state_60.00.json');
+  
+  // 更新ObjectViewer中的数据
+  if (initialData && objectViewerRef.value) {
+    objectViewerRef.value.updateData(initialData);
+  }
+  
+  // 监听数据缓存变化，当有新数据加载时更新ObjectViewer
+  watch(() => dataCache.size, () => {
+    const latestData = dataCache.get('./data/network_state_60.00.json');
+    if (latestData && objectViewerRef.value) {
+      objectViewerRef.value.updateData(latestData);
+    }
+  });
+});
 </script>
 
 <style>
@@ -100,9 +157,8 @@ const handleDataSelection = (data) => {
 }
 
 .main-content-flex {
-  flex: 1;
   display: flex;
-  height: 100%;
+  flex: 1;
   overflow: hidden;
 }
 
@@ -110,13 +166,5 @@ const handleDataSelection = (data) => {
   flex: 1;
   position: relative;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-html, body {
-  height: 100%;
-  margin: 0;
-  padding: 0;
 }
 </style>
