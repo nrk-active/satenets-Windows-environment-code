@@ -103,9 +103,9 @@
       <div class="nav-item-left">
         减速
       </div>
-      <div class="nav-item-left">
+      <!-- <div class="nav-item-left">
         链路
-      </div>
+      </div> -->
     </div>
     <div class="nav-center-group">
       <!-- 居中内容 -->
@@ -169,6 +169,12 @@
   <TrafficMatrix ref="trafficMatrixRef" />
   <ConstellationSetting ref="constellationSettingRef" />
   
+  <!-- 进程选择弹窗 -->
+  <ProcessSelectionDialog 
+    v-if="showProcessDialog"
+    @close="closeProcessDialog"
+    @process-selected="handleProcessSelected"
+  />
   
 </template>
 
@@ -186,6 +192,7 @@ import SimulationSetting from './simulation_setting.vue'
 import TerminalSetting from './terminal_setting.vue'
 import TrafficMatrix from './traffic_matrix.vue' // 确认路径和文件名一致
 import ConstellationSetting from './constellation_setting.vue'
+import ProcessSelectionDialog from './ProcessSelectionDialog.vue' // 新增
 
 // 接收从父组件传递的登录状态和用户名
 const props = defineProps({
@@ -199,10 +206,20 @@ const props = defineProps({
   }
 });
 
+// 注入用户凭据
+const userCredentials = inject('userCredentials', ref({}));
+
+// 注入全局进程ID状态
+const globalSelectedProcessId = inject('selectedProcessId', ref(null));
+
 // 修改emit以包含所有需要的事件
 const emit = defineEmits(['simulation-data-selected', 'business-settings-confirmed', 'logout', 'login-success']);
 
 const isSimulating = ref(false);
+
+// 进程选择弹窗状态
+const showProcessDialog = ref(false);
+const selectedProcessId = ref(null);
 
 // 仿真进度和时间
 const simulationProgress = inject('simulationProgress', ref(0));
@@ -415,6 +432,14 @@ function handleClickOutside(event) {
 }
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  
+  // 恢复之前缓存的进程ID
+  const cachedProcessId = localStorage.getItem('selectedProcessId');
+  if (cachedProcessId) {
+    selectedProcessId.value = cachedProcessId;
+    globalSelectedProcessId.value = cachedProcessId; // 同时更新全局状态
+    console.log('恢复缓存的进程ID:', cachedProcessId);
+  }
 })
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
@@ -430,6 +455,49 @@ function openRegisterDialog() {
 }
 function openSettingDialog() {
   settingRef.value && settingRef.value.open()
+}
+
+// 打开进程选择弹窗
+function openActionMenu() {
+  showProcessDialog.value = true;
+}
+
+// 处理进程选择
+function handleProcessSelected(process) {
+  selectedProcessId.value = process.id;
+  globalSelectedProcessId.value = process.id; // 更新全局状态
+  console.log('选择的进程:', process);
+  console.log('缓存的进程ID:', selectedProcessId.value);
+  
+  // 可以将进程ID保存到localStorage以便持久化
+  localStorage.setItem('selectedProcessId', process.id);
+  localStorage.setItem('selectedProcessInfo', JSON.stringify(process));
+  
+  alert(`已选择进程: ${process.name || process.id}`);
+}
+
+// 关闭进程选择弹窗
+function closeProcessDialog() {
+  showProcessDialog.value = false;
+}
+
+// 其他Action菜单方法
+function saveActionMenu() {
+  if (!selectedProcessId.value) {
+    alert('请先选择一个进程');
+    return;
+  }
+  console.log('保存操作，当前进程ID:', selectedProcessId.value);
+  // 这里可以实现保存逻辑
+}
+
+function saveAsActionMenu() {
+  if (!selectedProcessId.value) {
+    alert('请先选择一个进程');
+    return;
+  }
+  console.log('另存为操作，当前进程ID:', selectedProcessId.value);
+  // 这里可以实现另存为逻辑
 }
 
 // 使用从父组件传递的登录状态，不再需要本地状态

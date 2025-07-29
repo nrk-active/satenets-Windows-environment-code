@@ -5,6 +5,11 @@
       <span class="close-btn" @click="handleClose">◄</span>
     </div>
     <div class="content">
+      <!-- 显示当前进程ID -->
+      <div v-if="currentProcessId" class="current-process">
+        当前进程ID：{{ currentProcessId }}
+      </div>
+      
       <div class="category">
         <div class="category-header" @click="toggleCategory('satellite')">
           <span class="toggle-icon">{{ satelliteExpanded ? '▼' : '►' }}</span>
@@ -93,6 +98,14 @@ import { ref, onMounted, inject } from 'vue';
 
 // 定义props和事件
 const emit = defineEmits(['close', 'select-entity']);
+
+// 定义props
+const props = defineProps({
+  currentProcessId: {
+    type: [String, Number],
+    default: null
+  }
+});
 
 // 注入数据加载器
 const dataLoader = inject('dataLoader', null);
@@ -267,5 +280,15 @@ onMounted(() => {
   font-style: italic;
   color: #888;
   font-size: 14px;
+}
+
+.current-process {
+  padding: 12px 16px;
+  background: #1a4a7a;
+  color: #fff;
+  font-size: 14px;
+  font-weight: bold;
+  border-bottom: 1px solid #333;
+  margin-bottom: 8px;
 }
 </style>

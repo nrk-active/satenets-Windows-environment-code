@@ -13,6 +13,9 @@ const isLoggedIn = ref(false);
 const username = ref('');
 const isGuestMode = ref(false);
 
+// 当前选择的进程ID
+const selectedProcessId = ref(null);
+
 // 用户凭据缓存
 const userCredentials = ref({
   username: '',
@@ -25,6 +28,7 @@ provide('isLoggedIn', isLoggedIn);
 provide('username', username);
 provide('isGuestMode', isGuestMode);
 provide('userCredentials', userCredentials);
+provide('selectedProcessId', selectedProcessId);
 
 // 处理登录成功
 function handleLoginSuccess(user) {
@@ -78,6 +82,7 @@ function restoreLoginState() {
   const savedCredentials = localStorage.getItem('userCredentials');
   const savedIsLoggedIn = localStorage.getItem('isLoggedIn');
   const savedUsername = localStorage.getItem('username');
+  const savedProcessId = localStorage.getItem('selectedProcessId');
   
   if (savedCredentials && savedIsLoggedIn === 'true' && savedUsername) {
     try {
@@ -89,6 +94,12 @@ function restoreLoginState() {
       console.error('恢复登录状态失败:', error);
       handleLogout(); // 清除可能损坏的数据
     }
+  }
+  
+  // 恢复进程ID
+  if (savedProcessId) {
+    selectedProcessId.value = savedProcessId;
+    console.log('恢复进程ID:', savedProcessId);
   }
 }
 
