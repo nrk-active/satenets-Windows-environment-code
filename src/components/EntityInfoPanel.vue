@@ -163,7 +163,8 @@ const emit = defineEmits(['close']);
 // 计算实体类型
 const entityType = computed(() => {
   if (!props.selectedEntity) return null;
-  return props.selectedEntity.type;
+  // 优先使用 entityType 属性，如果没有则使用 type 属性
+  return props.selectedEntity.entityType || props.selectedEntity.type;
 });
 
 // 计算面板标题

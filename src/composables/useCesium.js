@@ -24,12 +24,14 @@ export function useCesium() {
       baseLayerPicker: false,
       requestRenderMode: true,
       maximumRenderTimeChange: Infinity,
-      targetFrameRate: 30
+      targetFrameRate: 30,
+      automaticallyTrackDataSourceClocks: false,
+      shouldAnimate: false
     });
 
-    // 设置初始视角
+    // 设置一个合适的初始视角（看到完整地球）
     viewer.camera.setView({
-      destination: Cesium.Cartesian3.fromDegrees(116.4, 39.9, 20000000.0),
+      destination: Cesium.Cartesian3.fromDegrees(0, 0, 15000000.0), // 15,000km高度
       orientation: {
         heading: 0.0,
         pitch: -Math.PI/2,
@@ -37,7 +39,8 @@ export function useCesium() {
       }
     });
     
-    // 添加图像层
+    viewer.cesiumWidget.creditContainer.style.display = "none";
+    
     viewer.imageryLayers.addImageryProvider(
       new Cesium.OpenStreetMapImageryProvider({
         url: 'https://a.tile.openstreetmap.org/'
@@ -78,9 +81,9 @@ export function useCesium() {
       }
     });
   }
-
+  
   function addRoadmLinks(frameData) {
-    if (!frameData?.edges?.nodes) return;
+    if (!frameData?.edges) return;
     
     const groundEdges = frameData.edges.filter(edge => {
       const sourceNode = frameData.nodes.find(n => n.id === edge.source);

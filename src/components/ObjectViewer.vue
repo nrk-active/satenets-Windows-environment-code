@@ -2,7 +2,7 @@
   <div class="object-viewer">
     <div class="header">
       <span>Object Viewer</span>
-      <span class="close-btn" @click="handleClose">✖</span>
+      <span class="close-btn" @click="handleClose">◄</span>
     </div>
     <div class="content">
       <div class="category">
@@ -18,7 +18,7 @@
             :class="{ 'selected': selectedEntity === satellite.id }"
             @click="selectEntity(satellite.id)"
           >
-            <img src="/satellite_model/Satellite.gltf" class="item-icon" alt="卫星" />
+            <img src="/satellite_model/卫星.png" class="item-icon" alt="卫星" />
             <span class="item-name">{{ satellite.id }}</span>
           </div>
           <div v-if="satellites.length === 0" class="empty-message">暂无数据</div>

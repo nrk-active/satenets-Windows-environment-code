@@ -1,9 +1,9 @@
 <template>
   <div class="collapsed-sidebar left-sidebar" @click="$emit('reopen')">
     <div class="arrow-icon">
-      <span>›</span>
+      <span>►</span>
     </div>
-    <div class="sidebar-text">Object Viewer</div>
+    <div class="sidebar-text">对象列表</div>
   </div>
 </template>
 

@@ -1,7 +1,7 @@
 <template>
   <div class="collapsed-sidebar right-sidebar" @click="$emit('reopen')">
     <div class="arrow-icon">
-      <span>‹</span>
+      <span>◄</span>
     </div>
     <div class="sidebar-text">信息面板</div>
   </div>

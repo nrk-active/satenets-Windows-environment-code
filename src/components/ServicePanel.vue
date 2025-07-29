@@ -8,6 +8,7 @@
         待处理: {{ serviceData.pending_requests?.length || 0 }} |
         失败: {{ serviceData.failed_requests?.length || 0 }}
       </div>
+      <span class="close-btn" @click="$emit('close')">▼</span>
     </div>
     <div class="service-list">
       <!-- 活跃业务 -->
@@ -55,7 +56,7 @@ defineProps({
   generateServiceId: Function
 });
 
-defineEmits(['selectService']);
+defineEmits(['selectService', 'close']);
 </script>
 
 <style scoped>
@@ -78,16 +79,35 @@ defineEmits(['selectService']);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: relative;
 }
 
 .service-header h3 {
   margin: 0;
   font-size: 16px;
+  flex: 0 0 auto;
 }
 
 .service-stats {
   font-size: 12px;
   color: #ccc;
+  flex: 1;
+  text-align: center;
+}
+
+.close-btn {
+  cursor: pointer;
+  font-size: 14px;
+  color: #aaa;
+  transition: color 0.2s;
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+.close-btn:hover {
+  color: #f39c12;
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .service-list {

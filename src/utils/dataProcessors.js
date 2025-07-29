@@ -29,7 +29,7 @@ export function extractCoordinates(data) {
   
   // lon, lat 对象
   if (data.lon !== undefined && data.lat !== undefined) {
-    return [data.lon, data.lat];
+    return [data.lat, data.lon];
   }
   
   return null;

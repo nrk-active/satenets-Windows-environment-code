@@ -1,5 +1,6 @@
 import { createApp } from 'vue'
 import App from './App.vue'
+import router from './router' // 引入路由配置
 import 'cesium/Build/Cesium/Widgets/widgets.css';
 import VueECharts from 'vue-echarts'
 import * as echarts from 'echarts/core'
@@ -23,4 +24,5 @@ echarts.use([
 
 const app = createApp(App)
 app.component('vue-echarts', VueECharts)
+app.use(router) // 使用路由
 app.mount('#app')
