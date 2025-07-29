@@ -103,6 +103,35 @@
         </div>
       </div>
       
+      <!-- 链路信息 -->
+      <div v-else-if="entityType === 'link'" class="entity-details">
+        <div class="info-row">
+          <div class="info-label">ID:</div>
+          <div class="info-value">{{ selectedEntity.id }}</div>
+        </div>
+        <div class="info-section-title">链路信息</div>
+        <div class="info-row">
+          <div class="info-label">源节点:</div>
+          <div class="info-value">{{ selectedEntity.source }}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">目标节点:</div>
+          <div class="info-value">{{ selectedEntity.target }}</div>
+        </div>
+        <div v-if="selectedEntity.weight" class="info-row">
+          <div class="info-label">权重:</div>
+          <div class="info-value">{{ selectedEntity.weight }}</div>
+        </div>
+        <div v-if="selectedEntity.distance" class="info-row">
+          <div class="info-label">距离:</div>
+          <div class="info-value">{{ formatNumber(selectedEntity.distance) }} km</div>
+        </div>
+        <div v-if="selectedEntity.delay" class="info-row">
+          <div class="info-label">延迟:</div>
+          <div class="info-value">{{ formatNumber(selectedEntity.delay) }} ms</div>
+        </div>
+      </div>
+      
       <!-- 未知实体类型 -->
       <div v-else class="entity-details">
         <div class="info-row">
@@ -145,6 +174,7 @@ const panelTitle = computed(() => {
     case 'satellite': return '卫星信息';
     case 'station': return '地面站信息';
     case 'roadm': return 'ROADM信息';
+    case 'link': return '链路信息';
     default: return '实体信息';
   }
 });

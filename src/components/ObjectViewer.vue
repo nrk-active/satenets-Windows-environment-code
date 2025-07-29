@@ -2,7 +2,7 @@
   <div class="object-viewer">
     <div class="header">
       <span>Object Viewer</span>
-      <span class="close-btn" @click="$emit('close')">✖</span>
+      <span class="close-btn" @click="handleClose">✖</span>
     </div>
     <div class="content">
       <div class="category">
@@ -71,6 +71,16 @@
           <span>链路</span>
         </div>
         <div v-if="linkExpanded" class="category-items">
+          <div 
+            v-for="link in links" 
+            :key="`${link.source}-${link.target}`"
+            class="item"
+            :class="{ 'selected': selectedEntity === `${link.source}-${link.target}` }"
+            @click="selectEntity(`${link.source}-${link.target}`)"
+          >
+            <span class="link-icon">🔗</span>
+            <span class="item-name">{{ link.source }} → {{ link.target }}</span>
+          </div>
           <div v-if="links.length === 0" class="empty-message">暂无数据</div>
         </div>
       </div>
@@ -122,6 +132,11 @@ function toggleCategory(category) {
 function selectEntity(entityId) {
   selectedEntity.value = entityId;
   emit('select-entity', entityId);
+}
+
+// 处理关闭
+function handleClose() {
+  emit('close');
 }
 
 // 更新数据
@@ -230,6 +245,16 @@ onMounted(() => {
   height: 20px;
   margin-right: 8px;
   object-fit: contain;
+}
+
+.link-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
 }
 .item-name {
   font-size: 14px;

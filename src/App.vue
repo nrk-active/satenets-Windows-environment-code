@@ -14,20 +14,38 @@
       @login-success="handleLoginSuccess"
     />
     <div class="main-content-flex">
-      <ObjectViewer ref="objectViewerRef" @select-entity="handleEntitySelection" />
+      <!-- 左侧面板区域 -->
+      <ObjectViewer 
+        v-if="showLeftPanel"
+        ref="objectViewerRef" 
+        @select-entity="handleEntitySelection"
+        @close="handleLeftPanelClose"
+      />
+      <LeftCollapsedSidebar 
+        v-else 
+        @reopen="reopenLeftPanel"
+      />
+      
+      <!-- 中间内容区域 -->
       <div class="main-center-content">
         <SatelliteViewer ref="satelliteViewerRef" />
-        <LatencyTable />
         <SimulationDataPanel 
           :visible="showDataPanel"
           :selectedData="selectedSimulationData"
           @close="showDataPanel = false"
         />
       </div>
+      
+      <!-- 右侧面板区域 -->
       <EntityInfoPanel 
+        v-if="showRightPanel"
         :selectedEntity="selectedEntity" 
         :graphData="selectedEntityRawData"
-        @close="clearSelectedEntity" 
+        @close="handleRightPanelClose" 
+      />
+      <RightCollapsedSidebar 
+        v-else-if="!showRightPanel && selectedEntity" 
+        @reopen="reopenRightPanel"
       />
     </div>
     <!-- <ServerData /> -->
@@ -37,10 +55,11 @@
 <script setup>
 import NavigationBar from "./components/navigation-bar.vue";
 import SatelliteViewer from "./components/SatelliteViewer.vue";
-// import LatencyTable from "./components/LatencyTable.vue";
 import SimulationDataPanel from "./components/SimulationDataPanel.vue";
 import ObjectViewer from "./components/ObjectViewer.vue";
 import EntityInfoPanel from "./components/EntityInfoPanel.vue";
+import LeftCollapsedSidebar from "./components/LeftCollapsedSidebar.vue";
+import RightCollapsedSidebar from "./components/RightCollapsedSidebar.vue";
 // import ServerData from './components/serverdata.vue';
 import LoginPage from './components/LoginPage.vue';
 import { ref, provide, onMounted, watch } from 'vue';
@@ -102,6 +121,10 @@ provide('dataLoader', { loadGraphData, dataCache });
 const selectedEntity = ref(null);
 const selectedEntityRawData = ref(null);
 
+// 添加侧边栏显示状态管理
+const showLeftPanel = ref(true);
+const showRightPanel = ref(false);
+
 // 处理实体选择
 function handleEntitySelection(entityId) {
   if (satelliteViewerRef.value) {
@@ -111,6 +134,9 @@ function handleEntitySelection(entityId) {
     if (result) {
       selectedEntity.value = result.entity;
       selectedEntityRawData.value = result.rawData;
+      // 选择实体时自动展开右侧面板和左侧面板
+      showRightPanel.value = true;
+      showLeftPanel.value = true;
     }
   }
 }
@@ -119,6 +145,27 @@ function handleEntitySelection(entityId) {
 function clearSelectedEntity() {
   selectedEntity.value = null;
   selectedEntityRawData.value = null;
+}
+
+// 处理左侧面板关闭
+function handleLeftPanelClose() {
+  showLeftPanel.value = false;
+}
+
+// 处理右侧面板关闭  
+function handleRightPanelClose() {
+  showRightPanel.value = false;
+  // 不清除选中的实体，保留数据以便重新打开
+}
+
+// 重新打开左侧面板
+function reopenLeftPanel() {
+  showLeftPanel.value = true;
+}
+
+// 重新打开右侧面板
+function reopenRightPanel() {
+  showRightPanel.value = true;
 }
 
 // 监听数据加载
@@ -160,11 +207,14 @@ onMounted(async () => {
   display: flex;
   flex: 1;
   overflow: hidden;
+  transition: all 0.3s ease;
 }
 
 .main-center-content {
   flex: 1;
   position: relative;
   overflow: hidden;
+  transition: all 0.3s ease;
+  min-width: 0; /* 确保flex子项能够收缩 */
 }
 </style>
