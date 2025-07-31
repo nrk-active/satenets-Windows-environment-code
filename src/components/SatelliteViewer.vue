@@ -52,6 +52,18 @@
           :selected-service="selectedService"
           @close="closeServiceDetail"
         />
+
+        <!-- 业务路径控制面板 -->
+        <ServicePathPanel 
+          :viewer="viewer()"
+          :service-data="serviceData"
+          :network-data="currentGraphData"
+          :draw-service-path="drawServicePath"
+          :clear-service-path="clearServicePath"
+          :clear-all-service-paths="clearAllServicePaths"
+          :draw-multiple-service-paths="drawMultipleServicePaths"
+          @service-selected="handleServiceSelected"
+        />
       </div>
       
       <!-- 右侧面板区域 -->
@@ -81,6 +93,7 @@ import BottomCollapsedSidebar from './BottomCollapsedSidebar.vue';
 import ControlPanel from './ControlPanel.vue';
 import ServicePanel from './ServicePanel.vue';
 import ServiceDetail from './ServiceDetail.vue';
+import ServicePathPanel from './ServicePathPanel.vue';
 
 import { useCesium } from '../composables/useCesium.js';
 import { useDataLoader } from '../composables/useDataLoader.js';
@@ -156,7 +169,11 @@ const {
   loadServiceData,
   generateServiceId,
   selectService,
-  closeServiceDetail
+  closeServiceDetail,
+  drawServicePath,
+  clearServicePath,
+  clearAllServicePaths,
+  drawMultipleServicePaths
 } = useServiceData();
 
 const {
@@ -351,6 +368,16 @@ function handleVisibilityChange(type, checked) {
       break;
   }
   updateVisibility();
+}
+
+function handleServiceSelected(service) {
+  console.log('从路径面板选择业务:', service);
+  selectService(service, 'active');
+  
+  // 可选：绘制单个业务路径
+  if (currentGraphData) {
+    drawServicePath(viewer(), service, currentGraphData);
+  }
 }
 
 onMounted(async () => {
