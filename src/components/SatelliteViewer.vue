@@ -446,6 +446,11 @@ function handleEntitySelect(entityId) {
     }
     
     if (entity) {
+      // 如果有业务详情面板打开，先关闭它
+      if (selectedService.value) {
+        closeServiceDetail();
+      }
+      
       selectedEntity.value = entity;
       selectedEntityRawData.value = currentGraphData;
       showRightPanel.value = true; // 选择实体时展开右侧面板

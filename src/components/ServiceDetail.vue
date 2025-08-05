@@ -110,7 +110,7 @@ function formatFieldValue(value) {
   position: relative;
   top: 0;
   right: 0;
-  width: 100%;
+  width: 300px;
   height: 100%;
   background-color: rgba(20, 20, 20, 0.95);
   border-left: 1px solid #555;
