@@ -11,6 +11,7 @@ export function useCesium() {
   const showSatellite = ref(true);
   const showStation = ref(true);
   const showRoadm = ref(true);
+  const showLinks = ref(true);
   
   let highlightedLinks = [];
 
@@ -21,12 +22,50 @@ export function useCesium() {
       animation: false,
       timeline: false,
       fullscreenButton: false,
-      baseLayerPicker: false,
+      baseLayerPicker: true, // 启用地图选择按钮
+      selectionIndicator: false, // 禁用原生选择指示器，使用自定义的
+      infoBox: false, // 禁用默认信息框
       requestRenderMode: true,
       maximumRenderTimeChange: Infinity,
       targetFrameRate: 30,
       automaticallyTrackDataSourceClocks: false,
       shouldAnimate: false
+    });
+
+    // 启用光照和阴影
+    viewer.scene.globe.enableLighting = true;
+    viewer.scene.globe.atmosphereLightIntensity = 2.0;
+    viewer.scene.globe.atmosphereBrightnessShift = 0.1;
+    
+    // 启用地球大气层
+    viewer.scene.skyAtmosphere.show = true;
+    viewer.scene.globe.showGroundAtmosphere = true;
+    
+    // 使用太阳作为光源，确保光照和太阳位置一致
+    viewer.scene.light = new Cesium.SunLight();
+    
+    // 设置当前时间，让太阳位置和光照匹配
+    const currentTime = Cesium.JulianDate.now();
+    viewer.clock.currentTime = currentTime;
+    viewer.clock.clockRange = Cesium.ClockRange.UNBOUNDED;
+    
+    // 替换星空背景为纯黑色或自定义背景
+    // viewer.scene.backgroundColor = Cesium.Color.BLACK;
+    // viewer.scene.skyBox.show = false; // 隐藏默认星空
+    
+    // 调整地球的材质属性以获得更好的光照效果
+    // viewer.scene.globe.material = undefined; // 使用默认材质
+    // viewer.scene.globe.translucency.enabled = false;
+    viewer.scene.globe.material = new Cesium.Material({
+      fabric: {
+        type: 'Grid',
+        uniforms: {
+          color: new Cesium.Color(0.3, 0.8, 1.0, 0.3), // 淡蓝色网格
+          cellAlpha: 0.1,
+          lineCount: new Cesium.Cartesian2(16, 16),
+          lineThickness: new Cesium.Cartesian2(1.0, 1.0)
+        }
+      }
     });
 
     // 设置一个合适的初始视角（看到完整地球）
@@ -41,6 +80,29 @@ export function useCesium() {
     
     viewer.cesiumWidget.creditContainer.style.display = "none";
     
+    // 添加OpenStreetMap作为额外选项，保留Cesium默认选项
+    if (viewer.baseLayerPicker) {
+      // 添加OpenStreetMap到现有的imagery providers列表
+      const openStreetMapProvider = new Cesium.ProviderViewModel({
+        name: 'OpenStreetMap',
+        iconUrl: Cesium.buildModuleUrl('Widgets/Images/ImageryProviders/openStreetMap.png'),
+        tooltip: 'OpenStreetMap - 开源地图',
+        creationFunction: function() {
+          return new Cesium.OpenStreetMapImageryProvider({
+            url: 'https://a.tile.openstreetmap.org/'
+          });
+        }
+      });
+      
+      // 将OpenStreetMap添加到现有列表的开头
+      viewer.baseLayerPicker.viewModel.imageryProviderViewModels.splice(0, 0, openStreetMapProvider);
+      
+      // 设置OpenStreetMap为默认选择
+      viewer.baseLayerPicker.viewModel.selectedImagery = openStreetMapProvider;
+    }
+    
+    // 设置默认的imagery layer为OpenStreetMap
+    viewer.imageryLayers.removeAll();
     viewer.imageryLayers.addImageryProvider(
       new Cesium.OpenStreetMapImageryProvider({
         url: 'https://a.tile.openstreetmap.org/'
@@ -198,18 +260,18 @@ export function useCesium() {
       } else if (isRoadm) {
         entity.show = showRoadm.value;
       } else if (isRoadmRoadmLink) {
-        entity.show = showRoadm.value;
+        entity.show = showRoadm.value && showLinks.value;
       } else if (isStationRoadmLink) {
-        entity.show = showStation.value && showRoadm.value;
+        entity.show = showStation.value && showRoadm.value && showLinks.value;
       } else if (isSatelliteLink) {
         // 处理卫星相关链路的可见性逻辑
         const linkId = entityId;
         if (linkId.includes('satellite') && !linkId.includes('ROADM') && !linkId.includes('station')) {
-          entity.show = showSatellite.value;
+          entity.show = showSatellite.value && showLinks.value;
         } else if (linkId.includes('satellite') && linkId.includes('station')) {
-          entity.show = showSatellite.value && showStation.value;
+          entity.show = showSatellite.value && showStation.value && showLinks.value;
         } else if (linkId.includes('satellite') && linkId.includes('ROADM')) {
-          entity.show = showSatellite.value && showRoadm.value;
+          entity.show = showSatellite.value && showRoadm.value && showLinks.value;
         }
       }
     });
@@ -259,6 +321,7 @@ export function useCesium() {
     showSatellite,
     showStation,
     showRoadm,
+    showLinks,
     initializeCesium,
     createEntities,
     addRoadmLinks,

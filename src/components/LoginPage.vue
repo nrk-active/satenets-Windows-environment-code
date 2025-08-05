@@ -2,11 +2,11 @@
   <div class="login-page">
     <div class="login-container">
       <div class="login-left">
-        <img src="../../public/images/login-illustration.png" alt="卫星网络图" />
+        <img src="../../public/images/Satellitenkommunikation.jpg" alt="卫星网络图" />
       </div>
       <div class="login-right">
         <div class="login-header">
-          <img src="../../public/images/logo.png" alt="FDControl" class="logo" />
+          <img src="../../public/images/User.png" alt="FDControl" class="logo" />
           <h2>{{ isRegister ? '用户注册' : '用户登录' }}</h2>
         </div>
         <div class="login-form" :class="isRegister ? 'register-mode' : 'login-mode'">
@@ -88,10 +88,14 @@ import { computed, onMounted, inject } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useRegister } from '../composables/register.js';
 import { useLogin } from '../composables/useLogin.js';
+import { useAuth } from '../composables/useAuth.js';
 
 const route = useRoute();
 const router = useRouter();
 const emit = defineEmits(['login-success', 'guest-login']);
+
+// 认证相关
+const { setTokens } = useAuth();
 
 // 注入App.vue提供的登录方法
 const authMethods = inject('authMethods', {});
@@ -185,12 +189,17 @@ async function handleSubmit() {
       // 注册流程
       const success = await submitRegister(
         (userData) => {
+          // 保存token到本地存储和状态管理
+          if (userData.tokens) {
+            setTokens(userData.tokens.access, userData.tokens.refresh);
+          }
+          
           // 调用App.vue的登录成功方法
           if (handleLoginSuccess) {
             handleLoginSuccess({
               username: userData.username,
-              password: password.value, // 注册时的密码
-              token: userData.token || ''
+              password: regPassword.value, // 注册时的密码
+              token: userData.token || userData.tokens?.access || ''
             });
           }
           emit('login-success', userData);
@@ -278,16 +287,15 @@ function handleSwitchMode() {
 .login-left {
   flex: 1;
   background-color: #1890ff;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 20px;
+  position: relative;
+  overflow: hidden;
 }
 
 .login-left img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
 }
 
 .login-right {
@@ -367,10 +375,6 @@ function handleSwitchMode() {
 
 .login-form.register-mode .guest-login {
   margin-top: 5px;
-}
-
-.input-group {
-  /* 基础间距由模式类控制 */
 }
 
 .input-group label {

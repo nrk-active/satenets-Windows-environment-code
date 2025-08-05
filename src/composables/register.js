@@ -148,6 +148,53 @@ export function useRegister() {
     }
   }
 
+  // 自动登录功能
+  async function performAutoLogin() {
+    try {
+      const loginData = {
+        username: username.value,
+        password: password.value
+      };
+      
+      console.log('注册成功后自动登录:', loginData);
+      
+      const response = await fetch('http://127.0.0.1:8000/api/token/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(loginData)
+      });
+      
+      const responseData = await response.json();
+      console.log('自动登录响应:', responseData);
+      
+      if (!response.ok) {
+        throw new Error(`自动登录失败: ${response.status} ${response.statusText}`);
+      }
+      
+      // 检查响应是否包含token
+      if (responseData.access && responseData.refresh) {
+        return {
+          success: true,
+          tokens: {
+            access: responseData.access,
+            refresh: responseData.refresh
+          },
+          user: {
+            username: username.value
+          }
+        };
+      } else {
+        throw new Error('自动登录响应格式错误');
+      }
+      
+    } catch (error) {
+      console.error('自动登录失败:', error);
+      throw error;
+    }
+  }
+
   // 执行注册流程
   async function performRegister() {
     try {
@@ -155,19 +202,28 @@ export function useRegister() {
       const csrfToken = await getCsrfToken();
       
       console.log('开始发送注册请求...');
-      const result = await registerUser(csrfToken);
+      const registerResult = await registerUser(csrfToken);
       
-      console.log('注册成功:', result);
+      console.log('注册成功:', registerResult);
+      
+      // 注册成功后自动登录
+      console.log('开始自动登录...');
+      const loginResult = await performAutoLogin();
+      
+      console.log('自动登录成功:', loginResult);
+      
       return {
         success: true,
-        data: result,
+        data: registerResult,
         user: {
           username: username.value,
           email: email.value
-        }
+        },
+        tokens: loginResult.tokens,
+        token: loginResult.tokens.access  // 为了向后兼容
       };
     } catch (error) {
-      console.error('注册过程失败:', error);
+      console.error('注册或自动登录过程失败:', error);
       return {
         success: false,
         error: error.message || '注册失败，请重试'
@@ -199,7 +255,13 @@ export function useRegister() {
       
       if (result.success) {
         if (onSuccess) {
-          onSuccess(result.user);
+          // 传递包含token的完整用户信息
+          onSuccess({
+            username: result.user.username,
+            email: result.user.email,
+            token: result.token,
+            tokens: result.tokens
+          });
         }
         return true;
       } else {
@@ -246,6 +308,7 @@ export function useRegister() {
     validateEmail,
     validatePassword,
     validateConfirmPassword,
-    submit
+    submit,
+    submitRegister: submit  // 为了向后兼容，同时导出为submitRegister
   };
 }

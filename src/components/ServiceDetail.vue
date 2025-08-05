@@ -107,10 +107,10 @@ function formatFieldValue(value) {
 
 <style scoped>
 .service-detail-panel {
-  position: absolute;
+  position: relative;
   top: 0;
   right: 0;
-  width: 350px;
+  width: 100%;
   height: 100%;
   background-color: rgba(20, 20, 20, 0.95);
   border-left: 1px solid #555;

@@ -12,8 +12,20 @@
       
       <div class="category">
         <div class="category-header" @click="toggleCategory('satellite')">
-          <span class="toggle-icon">{{ satelliteExpanded ? '▼' : '►' }}</span>
-          <span>卫星组</span>
+          <div class="header-left">
+            <span class="toggle-icon">{{ satelliteExpanded ? '▼' : '►' }}</span>
+            <span>卫星组</span>
+          </div>
+          <div class="header-controls">
+            <button 
+              class="control-btn visibility-btn"
+              :class="{ active: showSatellite }"
+              @click.stop="toggleVisibility('satellite')"
+              :title="showSatellite ? '隐藏卫星' : '显示卫星'"
+            >
+              {{ showSatellite ? '👁️' : '🚫' }}
+            </button>
+          </div>
         </div>
         <div v-if="satelliteExpanded" class="category-items">
           <div 
@@ -23,7 +35,7 @@
             :class="{ 'selected': selectedEntity === satellite.id }"
             @click="selectEntity(satellite.id)"
           >
-            <img src="/satellite_model/卫星.png" class="item-icon" alt="卫星" />
+            <div class="item-icon satellite-dot"></div>
             <span class="item-name">{{ satellite.id }}</span>
           </div>
           <div v-if="satellites.length === 0" class="empty-message">暂无数据</div>
@@ -32,8 +44,20 @@
 
       <div class="category">
         <div class="category-header" @click="toggleCategory('station')">
-          <span class="toggle-icon">{{ stationExpanded ? '▼' : '►' }}</span>
-          <span>地面站</span>
+          <div class="header-left">
+            <span class="toggle-icon">{{ stationExpanded ? '▼' : '►' }}</span>
+            <span>地面站</span>
+          </div>
+          <div class="header-controls">
+            <button 
+              class="control-btn visibility-btn"
+              :class="{ active: showStation }"
+              @click.stop="toggleVisibility('station')"
+              :title="showStation ? '隐藏地面站' : '显示地面站'"
+            >
+              {{ showStation ? '👁️' : '🚫' }}
+            </button>
+          </div>
         </div>
         <div v-if="stationExpanded" class="category-items">
           <div 
@@ -43,7 +67,7 @@
             :class="{ 'selected': selectedEntity === station.id }"
             @click="selectEntity(station.id)"
           >
-            <img src="/satellite_model/地面站.png" class="item-icon" alt="地面站" />
+            <div class="item-icon station-dot"></div>
             <span class="item-name">{{ station.id }}</span>
           </div>
           <div v-if="stations.length === 0" class="empty-message">暂无数据</div>
@@ -52,8 +76,20 @@
 
       <div class="category">
         <div class="category-header" @click="toggleCategory('roadm')">
-          <span class="toggle-icon">{{ roadmExpanded ? '▼' : '►' }}</span>
-          <span>ROADM</span>
+          <div class="header-left">
+            <span class="toggle-icon">{{ roadmExpanded ? '▼' : '►' }}</span>
+            <span>ROADM</span>
+          </div>
+          <div class="header-controls">
+            <button 
+              class="control-btn visibility-btn"
+              :class="{ active: showRoadm }"
+              @click.stop="toggleVisibility('roadm')"
+              :title="showRoadm ? '隐藏ROADM' : '显示ROADM'"
+            >
+              {{ showRoadm ? '👁️' : '🚫' }}
+            </button>
+          </div>
         </div>
         <div v-if="roadmExpanded" class="category-items">
           <div 
@@ -63,7 +99,7 @@
             :class="{ 'selected': selectedEntity === roadm.id }"
             @click="selectEntity(roadm.id)"
           >
-            <img src="/satellite_model/核心交换机.png" class="item-icon" alt="ROADM" />
+            <div class="item-icon roadm-dot"></div>
             <span class="item-name">{{ roadm.id }}</span>
           </div>
           <div v-if="roadms.length === 0" class="empty-message">暂无数据</div>
@@ -72,8 +108,20 @@
 
       <div class="category">
         <div class="category-header" @click="toggleCategory('link')">
-          <span class="toggle-icon">{{ linkExpanded ? '▼' : '►' }}</span>
-          <span>链路</span>
+          <div class="header-left">
+            <span class="toggle-icon">{{ linkExpanded ? '▼' : '►' }}</span>
+            <span>链路</span>
+          </div>
+          <div class="header-controls">
+            <button 
+              class="control-btn visibility-btn"
+              :class="{ active: showLinks }"
+              @click.stop="toggleVisibility('links')"
+              :title="showLinks ? '隐藏链路' : '显示链路'"
+            >
+              {{ showLinks ? '👁️' : '🚫' }}
+            </button>
+          </div>
         </div>
         <div v-if="linkExpanded" class="category-items">
           <div 
@@ -83,7 +131,7 @@
             :class="{ 'selected': selectedEntity === `${link.source}-${link.target}` }"
             @click="selectEntity(`${link.source}-${link.target}`)"
           >
-            <span class="link-icon">🔗</span>
+            <div class="item-icon link-dot"></div>
             <span class="item-name">{{ link.source }} → {{ link.target }}</span>
           </div>
           <div v-if="links.length === 0" class="empty-message">暂无数据</div>
@@ -94,15 +142,35 @@
 </template>
 
 <script setup>
-import { ref, onMounted, inject } from 'vue';
+import { ref, onMounted, inject, computed } from 'vue';
 
 // 定义props和事件
-const emit = defineEmits(['close', 'select-entity']);
+const emit = defineEmits(['close', 'select-entity', 'update:showSatellite', 'update:showStation', 'update:showRoadm', 'update:showLinks']);
 
 // 定义props
 const props = defineProps({
   currentProcessId: {
     type: [String, Number],
+    default: null
+  },
+  showSatellite: {
+    type: Boolean,
+    default: true
+  },
+  showStation: {
+    type: Boolean,
+    default: true
+  },
+  showRoadm: {
+    type: Boolean,
+    default: true
+  },
+  showLinks: {
+    type: Boolean,
+    default: true
+  },
+  selectedEntityId: {
+    type: String,
     default: null
   }
 });
@@ -115,7 +183,9 @@ const satellites = ref([]);
 const stations = ref([]);
 const roadms = ref([]);
 const links = ref([]);
-const selectedEntity = ref(null);
+
+// 计算选中的实体ID
+const selectedEntity = computed(() => props.selectedEntityId);
 
 // 分类展开状态
 const satelliteExpanded = ref(true);
@@ -141,9 +211,26 @@ function toggleCategory(category) {
   }
 }
 
+// 切换显示状态
+function toggleVisibility(type) {
+  switch(type) {
+    case 'satellite':
+      emit('update:show-satellite', !props.showSatellite);
+      break;
+    case 'station':
+      emit('update:show-station', !props.showStation);
+      break;
+    case 'roadm':
+      emit('update:show-roadm', !props.showRoadm);
+      break;
+    case 'links':
+      emit('update:show-links', !props.showLinks);
+      break;
+  }
+}
+
 // 选择实体
 function selectEntity(entityId) {
-  selectedEntity.value = entityId;
   emit('select-entity', entityId);
 }
 
@@ -226,6 +313,7 @@ onMounted(() => {
   font-weight: bold;
   cursor: pointer;
   display: flex;
+  justify-content: space-between;
   align-items: center;
   background: #2a2a2a;
 }
@@ -254,10 +342,37 @@ onMounted(() => {
   color: white;
 }
 .item-icon {
-  width: 20px;
-  height: 20px;
+  width: 12px;
+  height: 12px;
   margin-right: 8px;
-  object-fit: contain;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.satellite-dot {
+  background-color: #e74c3c; /* 红色 - 卫星 */
+  box-shadow: 0 0 4px rgba(231, 76, 60, 0.5);
+}
+
+.station-dot {
+  background-color: #2ecc71; /* 绿色 - 地面站 */
+  box-shadow: 0 0 4px rgba(46, 204, 113, 0.5);
+}
+
+.roadm-dot {
+  background-color: #f39c12; /* 橙色 - ROADM */
+  box-shadow: 0 0 4px rgba(243, 156, 18, 0.5);
+}
+
+.link-dot {
+  background-color: #9b59b6; /* 紫色 - 链路 */
+  box-shadow: 0 0 4px rgba(155, 89, 182, 0.5);
+}
+
+/* 选中状态下的特殊效果 */
+.item.selected .item-icon {
+  background-color: #fff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
 }
 
 .link-icon {
@@ -290,5 +405,59 @@ onMounted(() => {
   font-weight: bold;
   border-bottom: 1px solid #333;
   margin-bottom: 8px;
+}
+
+/* 分类头部样式更新 */
+.category-header {
+  padding: 12px 16px;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #2a2a2a;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.header-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.control-btn {
+  padding: 4px 8px;
+  border: 1px solid #555;
+  background: #404040;
+  color: #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  min-width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.control-btn:hover {
+  background: #505050;
+  border-color: #777;
+}
+
+.control-btn.active {
+  background: #3498db;
+  border-color: #2980b9;
+  color: white;
+}
+
+.visibility-btn {
+  font-size: 14px;
 }
 </style>

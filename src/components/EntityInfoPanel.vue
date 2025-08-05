@@ -202,10 +202,20 @@ const position = computed(() => {
   
   if (entityType.value === 'satellite') {
     const nodeId = props.selectedEntity.id;
-    const posData = props.graphData.data?.satellite_positions_summary?.[nodeId]?.current_position || 
-                   props.graphData.data?.graph_nodes?.[nodeId]?.current_position || {};
-    return posData;
+    
+    // 尝试从 selectedEntity 本身获取位置信息
+    if (props.selectedEntity.position) {
+      return {
+        x: props.selectedEntity.position[0],
+        y: props.selectedEntity.position[1],
+        z: props.selectedEntity.position[2]
+      };
+    }
+    
+    // 如果没有找到，返回空对象
+    return {};
   } else {
+    // 对于地面站和 ROADM，位置信息可能在 position 数组中
     return props.selectedEntity.position || [];
   }
 });

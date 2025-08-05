@@ -26,8 +26,10 @@ export function useAuth() {
     
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    localStorage.removeItem('selectedProcessId');
+    localStorage.removeItem('selectedProcessInfo');
     
-    console.log('Token已清除');
+    console.log('Token和进程选择已清除');
   }
 
   // 获取当前token

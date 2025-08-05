@@ -64,6 +64,9 @@ function handleLogout() {
   username.value = '';
   isGuestMode.value = false;
   
+  // 清除进程ID状态
+  selectedProcessId.value = null;
+  
   // 清除缓存的凭据
   userCredentials.value = {
     username: '',
@@ -75,6 +78,10 @@ function handleLogout() {
   localStorage.removeItem('userCredentials');
   localStorage.removeItem('isLoggedIn');
   localStorage.removeItem('username');
+  localStorage.removeItem('selectedProcessId');
+  localStorage.removeItem('selectedProcessInfo');
+  
+  console.log('已清除所有用户数据和进程选择');
 }
 
 // 从本地存储恢复登录状态

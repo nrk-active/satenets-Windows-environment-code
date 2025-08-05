@@ -7,7 +7,7 @@
     >
       场景
       <div class="dropdown-menu" v-if="showSceneDropdown">
-        <div class="dropdown-item" :class="{ active: currentView === 'sat' }">
+        <!-- <div class="dropdown-item" :class="{ active: currentView === 'sat' }">
           <div @click.stop="switchToSatView(); showSceneDropdown = false">
               三维场景展示
           </div>
@@ -15,6 +15,26 @@
         <div class="dropdown-item" :class="{ active: currentView === 'topography' }">
           <div @click.stop="switchToTopographyView(); showSceneDropdown = false">
               天地一体化展示
+          </div>
+        </div> -->
+        <div class="dropdown-item">
+          <div>
+              新建场景
+          </div>
+        </div>
+        <div class="dropdown-item">
+          <div @click="openActionMenu">
+              读取场景
+          </div>
+        </div>
+        <div class="dropdown-item">
+          <div>
+              保存
+          </div>
+        </div>
+        <div class="dropdown-item">
+          <div>
+              另存为
           </div>
         </div>
       </div>
@@ -464,14 +484,27 @@ function openActionMenu() {
 
 // 处理进程选择
 function handleProcessSelected(process) {
+  console.log('=== 处理进程选择 ===');
+  console.log('选择的进程:', process);
+  console.log('进程ID:', process.id);
+  
   selectedProcessId.value = process.id;
   globalSelectedProcessId.value = process.id; // 更新全局状态
-  console.log('选择的进程:', process);
+  
+  console.log('本地进程ID已更新:', selectedProcessId.value);
+  console.log('全局进程ID已更新:', globalSelectedProcessId.value);
   console.log('缓存的进程ID:', selectedProcessId.value);
   
   // 可以将进程ID保存到localStorage以便持久化
   localStorage.setItem('selectedProcessId', process.id);
   localStorage.setItem('selectedProcessInfo', JSON.stringify(process));
+  
+  console.log('进程信息已保存到localStorage');
+  
+  // 检查全局状态是否正确更新
+  setTimeout(() => {
+    console.log('延迟检查全局状态:', globalSelectedProcessId.value);
+  }, 100);
   
   alert(`已选择进程: ${process.name || process.id}`);
 }
@@ -510,6 +543,10 @@ function handleLoginSuccess(user) {
 }
 
 function logout() {
+  // 清理本地进程选择状态
+  selectedProcessId.value = null;
+  globalSelectedProcessId.value = null;
+  
   // 通知父组件登出
   emit('logout');
 }

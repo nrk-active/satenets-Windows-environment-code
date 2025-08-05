@@ -1,7 +1,7 @@
 // src/utils/dataProcessors.js
 export function extractCoordinates(data) {
   if (!data) return null;
-  
+
   // x,y,z 格式
   if (data.x !== undefined && data.y !== undefined && data.z !== undefined) {
     return [data.x, data.y, data.z];
