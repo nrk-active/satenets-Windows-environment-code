@@ -253,17 +253,54 @@ function updateData(graphData) {
   }
 }
 
+// 从本地文件加载数据（用于未登录状态）
+async function loadLocalData(timeFrame = 60) {
+  if (!dataLoader) return;
+  
+  try {
+    const filename = `./data/network_state_${timeFrame}.00.json`;
+    console.log(`ObjectViewer: 正在加载本地文件 ${filename}`);
+    
+    const localData = await dataLoader.loadGraphData(filename);
+    if (localData) {
+      updateData(localData);
+      console.log('ObjectViewer: 本地数据加载成功');
+      return localData;
+    }
+  } catch (error) {
+    console.error('ObjectViewer: 加载本地数据失败:', error);
+  }
+  return null;
+}
+
 // 暴露方法给父组件
 defineExpose({
-  updateData
+  updateData,
+  loadLocalData
 });
 
 // 初始化时尝试获取数据
-onMounted(() => {
+onMounted(async () => {
   if (dataLoader) {
+    // 首先尝试获取缓存数据
     const cachedData = dataLoader.dataCache.get('./data/network_state_60.00.json');
     if (cachedData) {
       updateData(cachedData);
+      return;
+    }
+    
+    // 如果没有缓存数据，从本地文件加载
+    try {
+      console.log('ObjectViewer: 缓存中无数据，尝试从本地文件加载...');
+      const localData = await dataLoader.loadGraphData('./data/network_state_60.00.json');
+      if (localData) {
+        updateData(localData);
+        console.log('ObjectViewer: 本地数据加载成功');
+      } else {
+        console.log('ObjectViewer: 本地数据加载失败，显示空数据');
+      }
+    } catch (error) {
+      console.error('ObjectViewer: 加载本地数据时出错:', error);
     }
   }
 });

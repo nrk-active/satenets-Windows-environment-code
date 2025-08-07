@@ -13,7 +13,12 @@ export const ANIMATION_CONFIG = {
 };
 
 export const SIMULATION_CONFIG = {
-  MAX_TIME_FRAME: 5
+  MAX_TIME_FRAME: 6
+};
+
+export const CACHE_CONFIG = {
+  MAX_NETWORK_CACHE: 2,
+  MAX_SERVICE_CACHE: 2
 };
 
 export const ENTITY_TYPES = {

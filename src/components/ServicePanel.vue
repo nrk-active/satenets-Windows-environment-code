@@ -359,39 +359,51 @@ function handleServiceClick(service, type) {
 
 // 绘制单个业务路径
 function drawSinglePath(service) {
-  if (!cesiumViewer || !props.networkData) {
+  const viewer = cesiumViewer?.() || cesiumViewer;
+  if (!viewer || !props.networkData) {
     console.warn('Cesium viewer 或网络数据不可用');
     return;
   }
   
   console.log('绘制业务路径:', service);
-  drawServicePath(cesiumViewer, service, props.networkData);
+  drawServicePath(viewer, service, props.networkData);
 }
 
 // 清除单个业务路径
 function clearSinglePath(service) {
-  if (!cesiumViewer) {
+  const viewer = cesiumViewer?.() || cesiumViewer;
+  if (!viewer) {
     console.warn('Cesium viewer 不可用');
     return;
   }
   
   const serviceId = props.generateServiceId(service);
   console.log('清除业务路径:', serviceId);
-  clearServicePath(cesiumViewer, serviceId);
+  clearServicePath(viewer, serviceId);
 }
 
 // 切换所有路径显示
 function toggleAllPaths() {
-  if (!cesiumViewer || !props.networkData) {
+  console.log('=== 切换所有路径显示 ===');
+  
+  // cesiumViewer 是通过 inject 获取的，应该是一个函数
+  const viewer = cesiumViewer?.() || cesiumViewer;
+  console.log('实际使用的 viewer:', viewer);
+  console.log('networkData:', props.networkData);
+  console.log('serviceData:', props.serviceData);
+  
+  if (!viewer || !props.networkData) {
     console.warn('Cesium viewer 或网络数据不可用');
     return;
   }
   
   showAllPaths.value = !showAllPaths.value;
+  console.log('showAllPaths:', showAllPaths.value);
   
   if (showAllPaths.value) {
     // 绘制所有路径
-    drawMultipleServicePaths(cesiumViewer, props.serviceData, props.networkData, {
+    console.log('开始绘制所有路径，设置:', displaySettings.value);
+    drawMultipleServicePaths(viewer, props.serviceData, props.networkData, {
       showActive: displaySettings.value.showActive,
       showPending: displaySettings.value.showPending,
       showEnded: displaySettings.value.showEnded,
@@ -401,18 +413,20 @@ function toggleAllPaths() {
     });
   } else {
     // 清除所有路径
+    console.log('清除所有路径');
     clearAllPaths();
   }
 }
 
 // 清除所有路径
 function clearAllPaths() {
-  if (!cesiumViewer) {
+  const viewer = cesiumViewer?.() || cesiumViewer;
+  if (!viewer) {
     console.warn('Cesium viewer 不可用');
     return;
   }
   
-  clearAllServicePathsFunc(cesiumViewer);
+  clearAllServicePathsFunc(viewer);
   showAllPaths.value = false;
 }
 
@@ -435,6 +449,10 @@ watch(() => props.serviceData, (newData) => {
 
 onMounted(() => {
   console.log('ServicePanel 挂载完成');
+  console.log('Props:', props);
+  console.log('cesiumViewer 在挂载时:', cesiumViewer);
+  console.log('serviceData:', props.serviceData);
+  console.log('networkData:', props.networkData);
 });
 </script>
 

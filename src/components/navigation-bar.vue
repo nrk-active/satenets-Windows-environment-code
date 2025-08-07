@@ -99,18 +99,12 @@
 
         <!-- 仿真相关菜单 -->
       <div class="nav-item-left"
-        @click="startSimulation" 
-        :disabled="isSimulating"
+        @click="handleStartSimulationClick" 
+        :class="{ 'disabled': isSimulationDisabled }"
         >
-          <!-- <button 
-            class="simulation-btn" 
-            @click="startSimulation" 
-            :disabled="isSimulating"
-          > -->
-            {{ isSimulating ? '运行中...' : '开始仿真' }}
-          <!-- </button> -->
+          {{ getSimulationButtonText() }}
       </div>
-      <div class="nav-item-left">
+      <div class="nav-item-left" @click="handlePauseSimulation">
           暂停仿真
       </div>
       <div class="nav-item-left">
@@ -201,7 +195,7 @@
 <!-- 只修改script部分，其他部分保持不变 -->
 <script setup>
 // 导入部分保持不变
-import { ref, onMounted, onUnmounted, inject } from 'vue';
+import { ref, onMounted, onUnmounted, inject, computed } from 'vue';
 import ScenarioDialog from './ScenarioDialog.vue';
 import SimulationResultDialog from './SimulationResultDialog.vue';
 import BusinessDesignDialog from './Service_setting.vue'; //'./BusinessDesignDialog.vue';
@@ -223,6 +217,10 @@ const props = defineProps({
   username: {
     type: String,
     default: ''
+  },
+  isLocalSimulationRunning: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -233,7 +231,14 @@ const userCredentials = inject('userCredentials', ref({}));
 const globalSelectedProcessId = inject('selectedProcessId', ref(null));
 
 // 修改emit以包含所有需要的事件
-const emit = defineEmits(['simulation-data-selected', 'business-settings-confirmed', 'logout', 'login-success']);
+const emit = defineEmits([
+  'simulation-data-selected', 
+  'business-settings-confirmed', 
+  'logout', 
+  'login-success',
+  'start-local-simulation',
+  'pause-local-simulation'
+]);
 
 const isSimulating = ref(false);
 
@@ -302,6 +307,54 @@ async function startSimulation() {
   } finally {
     isSimulating.value = false;
   }
+}
+
+// 处理仿真控制 - 统一入口
+function handleStartSimulation() {
+  if (props.isLoggedIn) {
+    // 登录状态下使用API仿真
+    startSimulation();
+  } else {
+    // 未登录状态下使用本地数据仿真
+    emit('start-local-simulation');
+  }
+}
+
+// 处理暂停仿真
+function handlePauseSimulation() {
+  if (props.isLoggedIn) {
+    // 登录状态下的暂停逻辑（如果有的话）
+    console.log('暂停API仿真');
+  } else {
+    // 未登录状态下暂停本地仿真
+    emit('pause-local-simulation');
+  }
+}
+
+// 获取仿真按钮文本
+function getSimulationButtonText() {
+  if (props.isLoggedIn) {
+    return isSimulating.value ? '运行中...' : '开始仿真';
+  } else {
+    return props.isLocalSimulationRunning ? '运行中...' : '开始仿真';
+  }
+}
+
+// 计算是否应该禁用仿真按钮
+const isSimulationDisabled = computed(() => {
+  if (props.isLoggedIn) {
+    return isSimulating.value;
+  } else {
+    return props.isLocalSimulationRunning;
+  }
+});
+
+// 处理仿真按钮点击（带禁用检查）
+function handleStartSimulationClick() {
+  if (isSimulationDisabled.value) {
+    return; // 如果按钮被禁用，不执行任何操作
+  }
+  handleStartSimulation();
 }
 
 
@@ -672,6 +725,7 @@ function logout() {
   font-size: 14px;
   white-space: nowrap;
   justify-content: center;
+  color: #fff; /* 确保正常状态下显示白色 */
 }
 .nav-item-left:hover {
   background-color: #333;
@@ -682,6 +736,16 @@ function logout() {
 
 .nav-item-left.active:hover {
   background-color: #555;
+}
+
+.nav-item-left.disabled {
+  color: #666;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.nav-item-left.disabled:hover {
+  background-color: transparent;
 }
 .nav-item-right {
   width: 14%;

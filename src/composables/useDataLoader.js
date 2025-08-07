@@ -3,11 +3,15 @@ import { ref, inject } from 'vue';
 import { processGraphData } from '../utils/dataProcessors.js';
 import { useAuth } from './useAuth.js';
 import { useApi } from './useApi.js';
+import { LRUCache } from '../utils/lruCache.js';
+import { CACHE_CONFIG } from '../constants/index.js';
 
 export function useDataLoader() {
   const nodeCount = ref(0);
   const linkCount = ref(0);
-  const dataCache = new Map();
+  
+  // 使用 LRU 缓存，从配置中获取最大缓存数量
+  const dataCache = new LRUCache(CACHE_CONFIG.MAX_NETWORK_CACHE);
   
   // 获取认证和API工具
   const { getTokens } = useAuth();
@@ -149,6 +153,11 @@ export function useDataLoader() {
     linkCount,
     loadGraphData,
     loadGraphDataFromAPI,
-    dataCache
+    dataCache,
+    clearCache: () => dataCache.clear(),
+    getCacheInfo: () => ({
+      size: dataCache.size(),
+      keys: dataCache.keys()
+    })
   };
 }

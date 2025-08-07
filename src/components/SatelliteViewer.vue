@@ -7,6 +7,9 @@
       :username="username" 
       @logout="handleLogout"
       @login-success="handleLoginSuccess"
+      @start-local-simulation="handleStartLocalSimulation"
+      @pause-local-simulation="handlePauseLocalSimulation"
+      :is-local-simulation-running="isPlaying"
     />
     
     <!-- 主内容区域 -->
@@ -227,7 +230,9 @@ const {
   linkCount, 
   loadGraphData,
   loadGraphDataFromAPI,
-  dataCache 
+  dataCache,
+  clearCache,
+  getCacheInfo
 } = useDataLoader();
 
 const {
@@ -240,7 +245,10 @@ const {
   drawServicePath,
   clearServicePath,
   clearAllServicePaths,
-  drawMultipleServicePaths
+  drawMultipleServicePaths,
+  updateNetworkDataAndRedraw,
+  clearServiceCache,
+  getServiceCacheInfo
 } = useServiceData();
 
 // 提供 Cesium viewer 给子组件
@@ -265,6 +273,40 @@ watch([showSatellite, showStation, showRoadm, showLinks], () => {
   updateVisibility();
 }, { deep: true });
 
+// 本地仿真播放相关
+function handleLocalPlayback() {
+  if (!isLoggedIn.value) {
+    // 未登录状态下，启动本地数据的顺序播放
+    console.log('开始本地仿真播放');
+    togglePlayback(loadTimeFrame);
+  }
+}
+
+// 暴露给导航栏使用的方法
+function toggleLocalSimulation() {
+  if (!isLoggedIn.value) {
+    handleLocalPlayback();
+    return isPlaying.value;
+  }
+  return false;
+}
+
+// 处理开始本地仿真
+function handleStartLocalSimulation() {
+  if (!isLoggedIn.value) {
+    console.log('开始本地仿真播放');
+    togglePlayback(loadTimeFrame);
+  }
+}
+
+// 处理暂停本地仿真
+function handlePauseLocalSimulation() {
+  if (!isLoggedIn.value) {
+    console.log('暂停本地仿真播放');
+    togglePlayback(loadTimeFrame);
+  }
+}
+
 // 监听进程ID变化，当选择新进程时立即加载数据
 watch(selectedProcessId, async (newProcessId, oldProcessId) => {
   console.log('=== 进程ID监听器触发 ===');
@@ -275,6 +317,12 @@ watch(selectedProcessId, async (newProcessId, oldProcessId) => {
   
   if (newProcessId && newProcessId !== oldProcessId && isLoggedIn.value) {
     console.log(`进程ID发生变化，从 ${oldProcessId} 变为 ${newProcessId}`);
+    console.log('清理旧进程的缓存数据...');
+    
+    // 清理缓存以防止内存占用过大
+    clearCache();
+    clearServiceCache();
+    
     console.log('立即加载新进程的数据...');
     
     try {
@@ -337,12 +385,50 @@ watch(isLoggedIn, async (newLoginStatus) => {
       }
     }
   } else {
-    // 用户登出时清空数据
-    console.log('用户登出，清空场景数据');
-    viewer().entities.removeAll();
-    currentGraphData = null;
-    if (objectViewerRef.value) {
-      objectViewerRef.value.updateData({ nodes: [], edges: [] });
+    // 用户登出时切换到本地数据
+    console.log('用户登出，切换到本地数据');
+    
+    // 清理API相关的缓存，但保留本地数据缓存
+    console.log('清理API缓存，保留本地数据缓存...');
+    // 可以选择部分清理或全部清理
+    // clearCache(); // 如果要全部清理
+    // clearServiceCache();
+    
+    try {
+      // 加载默认的本地数据（60秒时间帧）
+      const defaultFrame = 1; // 对应60秒
+      const filename = `./data/network_state_${defaultFrame * 60}.00.json`;
+      const networkData = await loadGraphData(filename);
+      
+      if (networkData) {
+        console.log('登出后本地数据加载成功');
+        viewer().entities.removeAll();
+        createEntities(networkData);
+        addRoadmLinks(networkData);
+        setPreviousFrameData(networkData);
+        currentGraphData = networkData;
+        updateVisibility();
+        
+        if (objectViewerRef.value) {
+          objectViewerRef.value.updateData(networkData);
+        }
+      } else {
+        // 如果本地数据加载失败，才清空数据
+        console.warn('登出后本地数据加载失败，清空场景');
+        viewer().entities.removeAll();
+        currentGraphData = null;
+        if (objectViewerRef.value) {
+          objectViewerRef.value.updateData({ nodes: [], edges: [] });
+        }
+      }
+    } catch (error) {
+      console.error('登出后加载本地数据失败:', error);
+      // 加载失败时清空数据
+      viewer().entities.removeAll();
+      currentGraphData = null;
+      if (objectViewerRef.value) {
+        objectViewerRef.value.updateData({ nodes: [], edges: [] });
+      }
     }
   }
 }, { immediate: false });
@@ -355,7 +441,31 @@ async function loadTimeFrame(frame) {
     
     // 检查登录状态
     if (!isLoggedIn.value) {
-      console.warn('用户未登录，无法加载数据');
+      console.log('用户未登录，尝试从本地文件加载数据');
+      
+      // 未登录时从本地加载数据
+      try {
+        const filename = `./data/network_state_${frame * 60}.00.json`;
+        const networkData = await loadGraphData(filename);
+        
+        if (networkData) {
+          console.log('本地网络数据加载成功:', networkData);
+          currentGraphData = networkData;
+          processNetworkData(networkData);
+          
+          // 同时尝试加载业务数据
+          try {
+            const serviceDataResult = await loadServiceData(frame);
+            console.log('本地业务数据加载成功:', serviceDataResult);
+          } catch (serviceError) {
+            console.warn('本地业务数据加载失败:', serviceError);
+          }
+        } else {
+          console.warn('本地网络数据加载失败');
+        }
+      } catch (error) {
+        console.error('加载本地数据失败:', error);
+      }
       return;
     }
     
@@ -393,6 +503,9 @@ async function loadTimeFrame(frame) {
 
 // 处理网络数据的通用函数
 function processNetworkData(networkData) {
+  // 更新业务数据的网络数据引用，并传递viewer
+  updateNetworkDataAndRedraw(networkData, viewer());
+  
   if (getPreviousFrameData() === null) {
     viewer().entities.removeAll();
     createEntities(networkData);
@@ -415,6 +528,8 @@ function processNetworkData(networkData) {
     if (objectViewerRef.value) {
       objectViewerRef.value.updateData(networkData);
     }
+    // 动画完成后再次更新网络数据以确保路径重绘
+    updateNetworkDataAndRedraw(networkData, viewer());
   });
   
   // 预加载下一帧数据的逻辑可以根据需要添加
@@ -580,7 +695,34 @@ onMounted(async () => {
     // 添加相机移动监听器以更新选择指示器位置
     viewer().scene.postRender.addEventListener(updateSelectionIndicator);
     
-    console.log('Cesium初始化完成，等待用户选择进程');
+    console.log('Cesium初始化完成');
+    
+    // 如果用户未登录，尝试加载默认的本地数据以提供初始显示
+    if (!isLoggedIn.value) {
+      console.log('用户未登录，尝试加载默认本地数据...');
+      try {
+        const defaultFrame = 1; // 对应60秒
+        const filename = `./data/network_state_${defaultFrame * 60}.00.json`;
+        const networkData = await loadGraphData(filename);
+        
+        if (networkData) {
+          console.log('默认本地数据加载成功');
+          createEntities(networkData);
+          addRoadmLinks(networkData);
+          setPreviousFrameData(networkData);
+          currentGraphData = networkData;
+          updateVisibility();
+          
+          if (objectViewerRef.value) {
+            objectViewerRef.value.updateData(networkData);
+          }
+        }
+      } catch (error) {
+        console.log('默认本地数据加载失败，等待用户操作:', error);
+      }
+    } else {
+      console.log('用户已登录，等待用户选择进程');
+    }
     
     // 定期检查进程ID变化（调试用）
     const debugInterval = setInterval(() => {
@@ -591,6 +733,26 @@ onMounted(async () => {
         clearInterval(debugInterval);
       }
     }, 2000);
+    
+    // 添加全局缓存调试功能
+    window.debugCache = () => {
+      const networkCache = getCacheInfo();
+      const serviceCache = getServiceCacheInfo();
+      console.log('=== 缓存状态调试 ===');
+      console.log('网络数据缓存:', networkCache);
+      console.log('业务数据缓存:', serviceCache);
+      console.log('总缓存项目数:', networkCache.size + serviceCache.size);
+    };
+    
+    window.clearAllCache = () => {
+      clearCache();
+      clearServiceCache();
+      console.log('所有缓存已清理');
+    };
+    
+    console.log('缓存调试功能已添加：');
+    console.log('- 使用 window.debugCache() 查看缓存状态');
+    console.log('- 使用 window.clearAllCache() 清理所有缓存');
     
   } catch (err) {
     console.error("初始化失败:", err);
@@ -604,7 +766,9 @@ onUnmounted(() => {
 
 // 暴露方法给父组件
 defineExpose({
-  highlightEntity
+  highlightEntity,
+  toggleLocalSimulation,
+  isPlaying: () => isPlaying.value
 });
 </script>
 

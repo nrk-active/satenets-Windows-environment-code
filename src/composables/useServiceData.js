@@ -1,8 +1,25 @@
 // src/composables/useServiceData.js
 import { ref } from 'vue';
 import * as Cesium from 'cesium';
+import { LRUCache } from '../utils/lruCache.js';
+import { CACHE_CONFIG } from '../constants/index.js';
+
+// 模块初始化标识
+const moduleInitTime = Date.now();
+console.log(`🔄 useServiceData 模块初始化时间: ${new Date(moduleInitTime).toLocaleTimeString()}`);
+
+// ⭐ 将缓存变量移到模块级别，避免多次函数调用时重置
+let moduleDrawnServiceIds = new Set();
+let moduleLastDrawOptions = null;
+let moduleLastViewer = null;
+let moduleLastNetworkData = null;
+
+console.log(`🎯 模块级缓存变量初始化完成`);
 
 export function useServiceData() {
+  console.log(`🎯 useServiceData() 函数被调用 - 模块初始化时间: ${new Date(moduleInitTime).toLocaleTimeString()}`);
+  console.log(`📊 当前模块级缓存状态: drawnServiceIds=${moduleDrawnServiceIds.size}, lastViewer=${!!moduleLastViewer}`);
+  
   const serviceData = ref({
     active_requests: [],
     pending_requests: [],
@@ -12,7 +29,24 @@ export function useServiceData() {
   });
   
   const selectedService = ref(null);
-  const serviceCache = new Map();
+  
+  // 使用 LRU 缓存，从配置中获取最大缓存数量
+  const serviceCache = new LRUCache(CACHE_CONFIG.MAX_SERVICE_CACHE);
+  
+  // ⭐ 使用模块级别的缓存变量，避免多次函数调用时重置
+  // 这样确保缓存在不同的函数调用之间保持持久化
+  
+  // 添加调试函数
+  function logCacheState(context = '') {
+    console.log(`=== 缓存状态检查 (${context}) ===`);
+    console.log('moduleDrawnServiceIds size:', moduleDrawnServiceIds.size);
+    console.log('moduleDrawnServiceIds content:', Array.from(moduleDrawnServiceIds));
+    console.log('moduleLastViewer exists:', !!moduleLastViewer);
+    console.log('moduleLastViewer type:', typeof moduleLastViewer);
+    console.log('moduleLastViewer entities:', !!(moduleLastViewer?.entities));
+    console.log('moduleLastNetworkData exists:', !!moduleLastNetworkData);
+    console.log('Stack trace:', new Error().stack);
+  }
 
   async function loadServiceData(frame) {
     try {
@@ -56,6 +90,16 @@ export function useServiceData() {
         blocked: processedData.blocked_requests.length,
         failed: processedData.failed_requests.length
       });
+      
+      // 如果之前有绘制过路径，则重新绘制
+      if (moduleDrawnServiceIds.size > 0 && moduleLastViewer && moduleLastNetworkData) {
+        console.log('检测到缓存的业务ID，重新绘制路径...');
+        logCacheState('loadServiceData中检测到缓存');
+        // 延迟一小段时间确保网络数据已更新
+        setTimeout(() => {
+          redrawCachedServicePaths();
+        }, 100);
+      }
       
       return processedData;
       
@@ -107,6 +151,16 @@ export function useServiceData() {
         failed: processedData.failed_requests.length
       });
       
+      // 如果之前有绘制过路径，则重新绘制
+      if (moduleDrawnServiceIds.size > 0 && moduleLastViewer && moduleLastNetworkData) {
+        console.log('检测到缓存的业务ID，重新绘制路径...');
+        logCacheState('loadServiceDataFromFile中检测到缓存');
+        // 延迟一小段时间确保网络数据已更新
+        setTimeout(() => {
+          redrawCachedServicePaths();
+        }, 100);
+      }
+      
       return processedData;
       
     } catch (error) {
@@ -133,15 +187,135 @@ export function useServiceData() {
     selectedService.value = null;
   }
 
+  // 检查并获取有效的viewer
+  function getValidViewer(inputViewer = null) {
+    console.log('=== getValidViewer 检查 ===');
+    
+    // 优先使用传入的viewer
+    if (inputViewer) {
+      console.log('检查传入的viewer:');
+      console.log('- 类型:', typeof inputViewer);
+      console.log('- 是否为函数:', typeof inputViewer === 'function');
+      console.log('- 是否有entities属性:', !!(inputViewer?.entities));
+      
+      // 如果是函数，尝试调用
+      if (typeof inputViewer === 'function') {
+        try {
+          const actualViewer = inputViewer();
+          console.log('- 调用函数后的结果类型:', typeof actualViewer);
+          console.log('- 调用函数后是否有entities:', !!(actualViewer?.entities));
+          if (actualViewer && typeof actualViewer === 'object' && actualViewer.entities) {
+            console.log('使用传入的viewer函数结果');
+            return actualViewer;
+          }
+        } catch (error) {
+          console.error('调用viewer函数失败:', error);
+        }
+      }
+      // 如果是对象且有entities
+      else if (typeof inputViewer === 'object' && inputViewer.entities) {
+        console.log('使用传入的viewer对象');
+        return inputViewer;
+      }
+    }
+    
+    // 其次使用缓存的viewer
+    if (moduleLastViewer) {
+      console.log('检查缓存的viewer:');
+      console.log('- 类型:', typeof moduleLastViewer);
+      console.log('- 是否为函数:', typeof moduleLastViewer === 'function');
+      console.log('- 是否有entities属性:', !!(moduleLastViewer?.entities));
+      
+      // 如果是函数，尝试调用
+      if (typeof moduleLastViewer === 'function') {
+        try {
+          const actualViewer = moduleLastViewer();
+          console.log('- 调用缓存函数后的结果类型:', typeof actualViewer);
+          console.log('- 调用缓存函数后是否有entities:', !!(actualViewer?.entities));
+          if (actualViewer && typeof actualViewer === 'object' && actualViewer.entities) {
+            console.log('使用缓存的viewer函数结果');
+            return actualViewer;
+          }
+        } catch (error) {
+          console.error('调用缓存viewer函数失败:', error);
+        }
+      }
+      // 如果是对象且有entities
+      else if (typeof moduleLastViewer === 'object' && moduleLastViewer.entities) {
+        console.log('使用缓存的viewer对象');
+        return moduleLastViewer;
+      }
+    }
+    
+    console.warn('无法获取有效的viewer');
+    return null;
+  }
+
   // 绘制业务路径
   function drawServicePath(viewer, service, networkData, pathColor = null) {
-    if (!viewer || !service || !service.path || !networkData) return null;
+    console.log('=== drawServicePath 被调用 ===');
+    console.log('service:', service);
+    console.log('service.path:', service.path);
+    console.log('networkData nodes count:', networkData?.nodes?.length);
+    console.log('viewer 类型:', typeof viewer);
+    console.log('viewer 是否有效:', !!viewer);
+    
+    // 获取实际的viewer对象
+    let actualViewer = viewer;
+    if (typeof viewer === 'function') {
+      try {
+        actualViewer = viewer();
+        console.log('通过函数获取的viewer类型:', typeof actualViewer);
+        console.log('通过函数获取的viewer是否有entities:', !!(actualViewer?.entities));
+      } catch (error) {
+        console.error('调用viewer函数失败:', error);
+        return null;
+      }
+    }
+    
+    if (!actualViewer || !service || !service.path || !networkData) {
+      console.warn('drawServicePath 缺少必要参数:', { 
+        viewer: !!actualViewer, 
+        viewerType: typeof actualViewer,
+        service: !!service, 
+        servicePath: !!service?.path, 
+        networkData: !!networkData 
+      });
+      return null;
+    }
     
     const servicePath = service.path;
-    if (servicePath.length < 2) return null;
+    if (servicePath.length < 2) {
+      console.warn('路径长度不足:', servicePath.length);
+      return null;
+    }
     
-    // 清除之前的路径
-    clearServicePath(viewer, service.request_id);
+    console.log('服务路径:', servicePath);
+    
+    // 缓存业务ID和相关信息
+    moduleDrawnServiceIds.add(service.request_id);
+    console.log(`✅ 添加业务ID到缓存: ${service.request_id}`);
+    console.log('当前缓存大小:', moduleDrawnServiceIds.size);
+    console.log('调用栈:', new Error().stack?.split('\n').slice(1,4).join('\n'));
+    
+    moduleLastViewer = viewer; // 保存原始的viewer（可能是函数）
+    console.log(`📝 设置 moduleLastViewer - 类型: ${typeof viewer}, 是函数: ${typeof viewer === 'function'}`);
+    if (typeof viewer === 'function') {
+      try {
+        const testResult = viewer();
+        console.log(`   函数调用结果类型: ${typeof testResult}, 有entities: ${!!(testResult?.entities)}`);
+      } catch (e) {
+        console.warn('   函数调用测试失败:', e.message);
+      }
+    } else if (typeof viewer === 'object') {
+      console.log(`   对象有entities: ${!!(viewer?.entities)}`);
+    }
+    moduleLastNetworkData = networkData;
+    
+    logCacheState(`绘制业务路径 ${service.request_id} 后`);
+    
+    // 清除之前的路径（但不从缓存中移除ID）
+    clearServicePath(actualViewer, service.request_id, false);
     
     // 获取路径节点位置
     const positions = [];
@@ -195,7 +369,7 @@ export function useServiceData() {
     }
     
     // 创建路径线
-    const pathEntity = viewer.entities.add({
+    const pathEntity = actualViewer.entities.add({
       id: `service-path-${service.request_id}`,
       name: `业务路径: ${service.request_id}`,
       polyline: {
@@ -229,7 +403,7 @@ export function useServiceData() {
       if (index === 0 || index === validNodes.length - 1) {
         // 只在起点和终点添加特殊标记
         const isSource = index === 0;
-        viewer.entities.add({
+        actualViewer.entities.add({
           id: `service-path-${service.request_id}-marker-${index}`,
           position: positions[index],
           point: {
@@ -257,22 +431,46 @@ export function useServiceData() {
   }
 
   // 清除业务路径
-  function clearServicePath(viewer, serviceId) {
+  function clearServicePath(viewer, serviceId, removeFromCache = true) {
     if (!viewer) return;
     
+    // 获取实际的viewer对象
+    let actualViewer = viewer;
+    if (typeof viewer === 'function') {
+      try {
+        actualViewer = viewer();
+      } catch (error) {
+        console.error('调用viewer函数失败:', error);
+        return;
+      }
+    }
+    
+    if (!actualViewer) return;
+    
     const pathId = `service-path-${serviceId}`;
-    const pathEntity = viewer.entities.getById(pathId);
+    const pathEntity = actualViewer.entities.getById(pathId);
     if (pathEntity) {
-      viewer.entities.remove(pathEntity);
+      actualViewer.entities.remove(pathEntity);
     }
     
     // 清除路径标记点
-    const entities = viewer.entities.values.slice();
+    const entities = actualViewer.entities.values.slice();
     entities.forEach(entity => {
       if (entity.id && entity.id.startsWith(`service-path-${serviceId}-marker-`)) {
-        viewer.entities.remove(entity);
+        actualViewer.entities.remove(entity);
       }
     });
+    
+    // 只有在明确要求时才从缓存中移除该业务ID
+    if (removeFromCache) {
+      moduleDrawnServiceIds.delete(serviceId);
+      console.log(`🗑️ 从缓存中移除业务ID: ${serviceId}`);
+      console.log('移除后缓存大小:', moduleDrawnServiceIds.size);
+      console.log('调用栈:', new Error().stack?.split('\n').slice(1,4).join('\n'));
+      logCacheState(`移除业务ID ${serviceId} 后`);
+    } else {
+      console.log(`清除业务路径显示但保留缓存: ${serviceId}`);
+    }
   }
 
   // 清除所有业务路径
@@ -285,11 +483,60 @@ export function useServiceData() {
         viewer.entities.remove(entity);
       }
     });
+    
+    // 注意：不清除业务ID缓存，保持自动重绘功能
+    // 如果需要完全停止自动重绘，请使用 clearDrawnServiceIds()
+    console.log('清除所有路径显示，但保留缓存的业务ID以支持自动重绘');
+  }
+
+  // 完全清除业务路径缓存（停止自动重绘）
+  function clearAllServicePathsAndCache(viewer) {
+    if (!viewer) return;
+    
+    const entities = viewer.entities.values.slice();
+    entities.forEach(entity => {
+      if (entity.id && entity.id.startsWith('service-path-')) {
+        viewer.entities.remove(entity);
+      }
+    });
+    
+    // 清除所有缓存的业务ID和选项
+    moduleDrawnServiceIds.clear();
+    console.log(`🗑️🗑️ 清除所有缓存的业务ID`);
+    console.log('调用栈:', new Error().stack?.split('\n').slice(1,5).join('\n'));
+    moduleLastDrawOptions = null;
+    console.log('清除所有路径显示和缓存，停止自动重绘功能');
+    logCacheState('完全清除后');
   }
 
   // 批量绘制业务路径
   function drawMultipleServicePaths(viewer, services, networkData, options = {}) {
-    if (!viewer || !services || !networkData) return;
+    console.log('=== drawMultipleServicePaths 被调用 ===');
+    console.log('viewer:', viewer);
+    console.log('services:', services);
+    console.log('networkData:', networkData);
+    console.log('options:', options);
+    
+    if (!viewer || !services || !networkData) {
+      console.warn('缺少必要参数:', { viewer: !!viewer, services: !!services, networkData: !!networkData });
+      return;
+    }
+    
+    // 缓存绘制选项和网络数据
+    moduleLastDrawOptions = { ...options };
+    moduleLastViewer = viewer;
+    console.log(`📝 在批量绘制中设置 moduleLastViewer - 类型: ${typeof viewer}, 是函数: ${typeof viewer === 'function'}`);
+    if (typeof viewer === 'function') {
+      try {
+        const testResult = viewer();
+        console.log(`   函数调用结果类型: ${typeof testResult}, 有entities: ${!!(testResult?.entities)}`);
+      } catch (e) {
+        console.warn('   函数调用测试失败:', e.message);
+      }
+    } else if (typeof viewer === 'object') {
+      console.log(`   对象有entities: ${!!(viewer?.entities)}`);
+    }
+    moduleLastNetworkData = networkData;
     
     const {
       showActive = true,
@@ -301,10 +548,15 @@ export function useServiceData() {
     } = options;
     
     let pathCount = 0;
+    console.log('开始绘制路径，配置:', { showActive, showPending, showEnded, showBlocked, showFailed, maxPaths });
+    console.log('绘制前的缓存业务ID数量:', moduleDrawnServiceIds.size);
+    logCacheState('drawMultipleServicePaths开始前');
     
     // 绘制活跃业务路径
     if (showActive && services.active_requests) {
+      console.log(`绘制活跃业务: ${services.active_requests.length} 条`);
       services.active_requests.slice(0, maxPaths - pathCount).forEach(service => {
+        console.log('绘制活跃业务:', service.request_id);
         drawServicePath(viewer, service, networkData);
         pathCount++;
       });
@@ -312,7 +564,9 @@ export function useServiceData() {
     
     // 绘制待处理业务路径
     if (showPending && services.pending_requests && pathCount < maxPaths) {
+      console.log(`绘制待处理业务: ${services.pending_requests.length} 条`);
       services.pending_requests.slice(0, maxPaths - pathCount).forEach(service => {
+        console.log('绘制待处理业务:', service.request_id);
         drawServicePath(viewer, service, networkData, Cesium.Color.RED);
         pathCount++;
       });
@@ -320,7 +574,9 @@ export function useServiceData() {
     
     // 绘制阻塞业务路径
     if (showBlocked && services.blocked_requests && pathCount < maxPaths) {
+      console.log(`绘制阻塞业务: ${services.blocked_requests.length} 条`);
       services.blocked_requests.slice(0, maxPaths - pathCount).forEach(service => {
+        console.log('绘制阻塞业务:', service.request_id);
         drawServicePath(viewer, service, networkData, Cesium.Color.RED);
         pathCount++;
       });
@@ -328,7 +584,9 @@ export function useServiceData() {
     
     // 绘制已结束业务路径
     if (showEnded && services.ended_requests && pathCount < maxPaths) {
+      console.log(`绘制已结束业务: ${services.ended_requests.length} 条`);
       services.ended_requests.slice(0, maxPaths - pathCount).forEach(service => {
+        console.log('绘制已结束业务:', service.request_id);
         drawServicePath(viewer, service, networkData, Cesium.Color.RED);
         pathCount++;
       });
@@ -336,13 +594,222 @@ export function useServiceData() {
     
     // 绘制失败业务路径
     if (showFailed && services.failed_requests && pathCount < maxPaths) {
+      console.log(`绘制失败业务: ${services.failed_requests.length} 条`);
       services.failed_requests.slice(0, maxPaths - pathCount).forEach(service => {
+        console.log('绘制失败业务:', service.request_id);
         drawServicePath(viewer, service, networkData, Cesium.Color.RED);
         pathCount++;
       });
     }
     
-    console.log(`绘制了 ${pathCount} 条业务路径`);
+    console.log(`✅ 绘制了 ${pathCount} 条业务路径`);
+    console.log('绘制后的缓存业务ID数量:', moduleDrawnServiceIds.size);
+    console.log('绘制后的缓存业务ID列表:', Array.from(moduleDrawnServiceIds));
+    logCacheState('drawMultipleServicePaths完成后');
+  }
+
+  // 根据缓存的业务ID重新绘制路径
+  function redrawCachedServicePaths() {
+    console.log('=== 开始重绘缓存的业务路径 ===');
+    logCacheState('redrawCachedServicePaths开始时');
+    
+    const validViewer = getValidViewer();
+    
+    if (!validViewer || !moduleLastNetworkData || moduleDrawnServiceIds.size === 0) {
+      console.warn('重新绘制路径失败: 缺少必要的缓存信息', {
+        viewer: !!validViewer,
+        networkData: !!moduleLastNetworkData,
+        cachedIds: moduleDrawnServiceIds.size
+      });
+      return;
+    }
+    
+    console.log(`开始重新绘制 ${moduleDrawnServiceIds.size} 条缓存的业务路径`);
+    console.log('缓存的业务ID:', Array.from(moduleDrawnServiceIds));
+    
+    // 清除当前显示的路径
+    const entities = validViewer.entities.values.slice();
+    let clearedCount = 0;
+    entities.forEach(entity => {
+      if (entity.id && entity.id.startsWith('service-path-')) {
+        validViewer.entities.remove(entity);
+        clearedCount++;
+      }
+    });
+    console.log(`清除了 ${clearedCount} 个旧的路径实体`);
+    
+    // 收集所有需要重新绘制的业务
+    const servicesToRedraw = [];
+    const cachedIds = Array.from(moduleDrawnServiceIds);
+    
+    // 从当前业务数据中查找缓存的业务ID
+    const allRequests = [
+      ...(serviceData.value.active_requests || []),
+      ...(serviceData.value.pending_requests || []),
+      ...(serviceData.value.ended_requests || []),
+      ...(serviceData.value.blocked_requests || []),
+      ...(serviceData.value.failed_requests || [])
+    ];
+    
+    console.log('当前业务数据统计:', {
+      active: serviceData.value.active_requests?.length || 0,
+      pending: serviceData.value.pending_requests?.length || 0,
+      ended: serviceData.value.ended_requests?.length || 0,
+      blocked: serviceData.value.blocked_requests?.length || 0,
+      failed: serviceData.value.failed_requests?.length || 0,
+      total: allRequests.length
+    });
+    
+    cachedIds.forEach(serviceId => {
+      const service = allRequests.find(req => req.request_id === serviceId);
+      if (service) {
+        servicesToRedraw.push(service);
+        console.log(`找到业务: ${serviceId} - 状态: ${service.status}`);
+      } else {
+        console.warn(`未找到业务ID: ${serviceId}，保留在缓存中等待业务数据更新`);
+        // 不删除缓存的ID，可能是因为业务数据还没有更新
+        // moduleDrawnServiceIds.delete(serviceId);
+      }
+    });
+    
+    console.log(`找到 ${servicesToRedraw.length} 个需要重绘的业务`);
+    
+    // 重新绘制找到的业务路径
+    let successCount = 0;
+    servicesToRedraw.forEach(service => {
+      console.log(`重新绘制业务路径: ${service.request_id}`);
+      
+      // 根据业务状态确定颜色
+      let color = null;
+      if (serviceData.value.active_requests.includes(service)) {
+        color = Cesium.Color.RED; // 活跃业务
+      } else if (serviceData.value.pending_requests.includes(service)) {
+        color = Cesium.Color.YELLOW; // 待处理业务
+      } else if (serviceData.value.blocked_requests.includes(service)) {
+        color = Cesium.Color.ORANGE; // 阻塞业务
+      } else if (serviceData.value.ended_requests.includes(service)) {
+        color = Cesium.Color.GRAY; // 已结束业务
+      } else if (serviceData.value.failed_requests.includes(service)) {
+        color = Cesium.Color.DARKRED; // 失败业务
+      }
+      
+      // 绘制路径（不需要临时删除ID，drawServicePath会保持缓存）
+      const pathEntity = drawServicePath(validViewer, service, moduleLastNetworkData, color);
+      if (pathEntity) {
+        successCount++;
+      }
+    });
+    
+    console.log(`重新绘制完成: 成功绘制 ${successCount}/${servicesToRedraw.length} 条路径`);
+    logCacheState('redrawCachedServicePaths完成后');
+    console.log('=== 重绘完成 ===');
+  }
+
+  // 手动绘制指定业务路径
+  function drawSpecificServicePath(viewer, serviceId, networkData) {
+    if (!viewer || !serviceId || !networkData) {
+      console.warn('drawSpecificServicePath 缺少必要参数');
+      return null;
+    }
+    
+    // 从所有业务数据中查找指定的业务
+    const allRequests = [
+      ...(serviceData.value.active_requests || []),
+      ...(serviceData.value.pending_requests || []),
+      ...(serviceData.value.ended_requests || []),
+      ...(serviceData.value.blocked_requests || []),
+      ...(serviceData.value.failed_requests || [])
+    ];
+    
+    const service = allRequests.find(req => req.request_id === serviceId);
+    if (!service) {
+      console.warn(`未找到业务ID: ${serviceId}`);
+      return null;
+    }
+    
+    // 根据业务状态确定颜色
+    let color = null;
+    if (serviceData.value.active_requests.includes(service)) {
+      color = Cesium.Color.RED;
+    } else if (serviceData.value.pending_requests.includes(service)) {
+      color = Cesium.Color.YELLOW;
+    } else if (serviceData.value.blocked_requests.includes(service)) {
+      color = Cesium.Color.ORANGE;
+    } else if (serviceData.value.ended_requests.includes(service)) {
+      color = Cesium.Color.GRAY;
+    } else if (serviceData.value.failed_requests.includes(service)) {
+      color = Cesium.Color.DARKRED;
+    }
+    
+    return drawServicePath(viewer, service, networkData, color);
+  }
+
+  // 当网络数据更新时重绘路径
+  function updateNetworkDataAndRedraw(newNetworkData, viewer = null) {
+    if (!newNetworkData) {
+      console.warn('updateNetworkDataAndRedraw: 新网络数据为空');
+      return;
+    }
+    
+    console.log('=== 网络数据更新事件 ===');
+    console.log('新网络数据节点数量:', newNetworkData.nodes?.length || 0);
+    console.log('缓存的业务路径数量:', moduleDrawnServiceIds.size);
+    console.log('缓存的业务ID列表:', Array.from(moduleDrawnServiceIds));
+    console.log('传入的viewer:', !!viewer);
+    console.log('传入viewer类型:', typeof viewer);
+    console.log('传入viewer有entities:', !!(viewer?.entities));
+    console.log('缓存的viewer状态:', !!moduleLastViewer);
+    console.log('缓存的lastNetworkData状态:', !!moduleLastNetworkData);
+    
+    logCacheState('网络数据更新开始时');
+    
+    // 更新网络数据
+    moduleLastNetworkData = newNetworkData;
+    
+    // 如果传入了viewer，更新缓存的viewer
+    if (viewer) {
+      moduleLastViewer = viewer;
+      console.log(`📝 在网络数据更新中设置 moduleLastViewer - 类型: ${typeof viewer}, 是函数: ${typeof viewer === 'function'}`);
+      if (typeof viewer === 'function') {
+        try {
+          const testResult = viewer();
+          console.log(`   函数调用结果类型: ${typeof testResult}, 有entities: ${!!(testResult?.entities)}`);
+        } catch (e) {
+          console.warn('   函数调用测试失败:', e.message);
+        }
+      } else if (typeof viewer === 'object') {
+        console.log(`   对象有entities: ${!!(viewer?.entities)}`);
+      }
+      console.log('更新了缓存的viewer');
+    }
+    
+    // 获取有效的viewer
+    const validViewer = getValidViewer(viewer);
+    console.log('获取到的有效viewer:', !!validViewer);
+    console.log('有效viewer类型:', typeof validViewer);
+    
+    // 详细检查重绘条件
+    console.log('重绘条件检查:');
+    console.log('- moduleDrawnServiceIds.size > 0:', moduleDrawnServiceIds.size > 0);
+    console.log('- validViewer存在:', !!validViewer);
+    console.log('- 综合判断:', moduleDrawnServiceIds.size > 0 && validViewer);
+    
+    // 如果有缓存的业务路径，立即重新绘制
+    if (moduleDrawnServiceIds.size > 0 && validViewer) {
+      console.log(`🔄 基于新网络数据重绘 ${moduleDrawnServiceIds.size} 条业务路径`);
+      // 延迟一小段时间，确保业务数据有时间更新
+      setTimeout(() => {
+        redrawCachedServicePaths();
+      }, 200);
+    } else {
+      console.log('❌ 没有需要重绘的业务路径或viewer不可用', {
+        hasDrawnPaths: moduleDrawnServiceIds.size > 0,
+        hasViewer: !!validViewer,
+        drawnPathsCount: moduleDrawnServiceIds.size,
+        validViewerType: typeof validViewer,
+        drawnServiceIdsList: Array.from(moduleDrawnServiceIds)
+      });
+    }
   }
 
   return {
@@ -356,6 +823,30 @@ export function useServiceData() {
     drawServicePath,
     clearServicePath,
     clearAllServicePaths,
-    drawMultipleServicePaths
+    clearAllServicePathsAndCache,
+    drawMultipleServicePaths,
+    redrawCachedServicePaths,
+    drawSpecificServicePath,
+    updateNetworkDataAndRedraw,
+    getValidViewer,
+    clearServiceCache: () => serviceCache.clear(),
+    getServiceCacheInfo: () => ({
+      size: serviceCache.size(),
+      keys: serviceCache.keys()
+    }),
+    // 新增的路径缓存管理功能
+    getDrawnServiceIds: () => Array.from(moduleDrawnServiceIds),
+    clearDrawnServiceIds: () => {
+      console.log(`🗑️🗑️ 手动清除所有缓存的业务ID (共${moduleDrawnServiceIds.size}个)`);
+      console.log('清除前缓存内容:', Array.from(moduleDrawnServiceIds));
+      console.log('调用栈:', new Error().stack?.split('\n').slice(1,5).join('\n'));
+      moduleDrawnServiceIds.clear();
+      moduleLastDrawOptions = null;
+      logCacheState('清除所有缓存后');
+    },
+    getDrawnServiceCount: () => moduleDrawnServiceIds.size,
+    isServiceDrawn: (serviceId) => moduleDrawnServiceIds.has(serviceId),
+    // 调试函数
+    logCacheState
   };
 }
