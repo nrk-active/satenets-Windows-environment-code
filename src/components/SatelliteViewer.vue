@@ -222,6 +222,14 @@ const {
   highlightSatelliteLinks,
   updateVisibility,
   setupClickHandler,
+  setupTimelineControl,
+  setupTimelineStyles,
+  debugTimelineElements,
+  forceShowTimelineControls,
+  adjustTimelinePosition,
+  jumpToTimeFrame,
+  setPlaybackRate,
+  setTimelineAnimation,
   cleanup: cleanupCesium
 } = useCesium();
 
@@ -254,18 +262,19 @@ const {
 // 提供 Cesium viewer 给子组件
 provide('cesiumViewer', viewer);
 
-const {
+const { 
   isPlaying,
   timeFrame,
   animationInProgress,
+  instantMode,
   animateTransition,
   togglePlayback,
   cleanup: cleanupAnimation,
   setPreviousFrameData,
   getPreviousFrameData
-} = useAnimation();
-
-// 主要业务逻辑
+} = useAnimation({
+  setTimelineAnimation
+});// 主要业务逻辑
 let currentGraphData = null;
 
 // 监听显示状态变化
@@ -680,6 +689,56 @@ function handleCloseServiceDetail() {
   }
 }
 
+// 调整时间轴位置的函数
+// 调整时间轴位置，跟随业务面板
+function adjustTimelinePositionForPanel() {
+  if (!viewer()) return;
+  
+  console.log('开始调整时间轴位置...');
+  
+  // 首先运行调试
+  debugTimelineElements();
+  
+  // 获取业务面板的高度和状态
+  const servicePanel = document.querySelector('.service-panel') || 
+                       document.querySelector('[class*="service"]') ||
+                       document.querySelector('.bottom-panel');
+  
+  let bottomOffset = 10; // 默认偏移（最小化状态，减少间距）
+  
+  if (servicePanel) {
+    const panelRect = servicePanel.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    
+    console.log('业务面板信息:', {
+      height: panelRect.height,
+      top: panelRect.top,
+      bottom: panelRect.bottom,
+      viewportHeight
+    });
+    
+    // 检查面板是否可见且有实际高度
+    if (panelRect.height > 100 && panelRect.top < viewportHeight) {
+      // 面板展开状态，紧贴面板顶部
+      bottomOffset = viewportHeight - panelRect.top + 5; // 只留5px间距
+      console.log(`业务面板展开，高度: ${panelRect.height}px, 调整时间轴偏移到: ${bottomOffset}px`);
+    } else {
+      // 面板最小化状态，紧贴底部
+      bottomOffset = 10; // 只留10px间距
+      console.log('业务面板最小化，时间轴偏移到: 10px');
+    }
+  }
+  
+  // 使用useCesium中的adjustTimelinePosition函数
+  adjustTimelinePosition(bottomOffset);
+  
+  // 额外确保时间轴可见
+  setTimeout(() => {
+    forceShowTimelineControls();
+    debugTimelineElements();
+  }, 200);
+}
+
 onMounted(async () => {
   try {
     console.log('=== SatelliteViewer 初始化 ===');
@@ -692,10 +751,86 @@ onMounted(async () => {
     setupClickHandler(handleSatelliteClick);
     updateVisibility();
     
+    // 设置时间轴控制
+    let isTimelineControlled = false; // 标记是否正在被时间轴控制
+    
+    setupTimelineControl((frame) => {
+      console.log(`时间轴控制：切换到帧 ${frame}`);
+      if (frame !== timeFrame.value && !isPlaying.value) { // 只有在非播放状态时才响应时间轴
+        isTimelineControlled = true;
+        timeFrame.value = frame; // 直接更新timeFrame而不触发loadTimeFrame
+        loadTimeFrame(frame).then(() => {
+          isTimelineControlled = false;
+        });
+      }
+    });
+    
+    // 启用瞬间模式以支持流畅的手动控制
+    instantMode.value = false; // 改为false以显示动画效果
+    console.log('已启用动画模式，支持流畅的时间轴拖拽');
+    
+    // 延迟调整时间轴位置，确保DOM元素已创建
+    setTimeout(() => {
+      console.log('开始初始化时间轴位置调整...');
+      adjustTimelinePositionForPanel();
+    }, 1000); // 增加延迟确保所有元素都已加载
+    
+    // 再次尝试，确保成功
+    setTimeout(() => {
+      console.log('第二次尝试时间轴位置调整...');
+      adjustTimelinePositionForPanel();
+    }, 2000);
+    
+    // 添加窗口调整大小监听器，动态调整时间轴位置
+    const handleResize = () => {
+      setTimeout(() => {
+        adjustTimelinePositionForPanel();
+      }, 100);
+    };
+    window.addEventListener('resize', handleResize);
+    
+    // 暴露handleResize到外层作用域，以便在onUnmounted中访问
+    window.currentHandleResize = handleResize;
+    
+    // 定期检查并修复时间轴显示
+    const timelineCheckInterval = setInterval(() => {
+      console.log('定期检查时间轴状态...');
+      debugTimelineElements();
+      forceShowTimelineControls();
+      adjustTimelinePositionForPanel();
+    }, 2000); // 每2秒检查一次
+    
+    // 存储定时器以便清理
+    window.timelineCheckInterval = timelineCheckInterval;
+    
+    // 添加面板变化监听器（如果业务面板高度发生变化）
+    const observeServicePanel = () => {
+      const servicePanel = document.querySelector('.service-panel') || 
+                           document.querySelector('[class*="service"]') ||
+                           document.querySelector('.bottom-panel');
+      if (servicePanel) {
+        const observer = new MutationObserver(() => {
+          setTimeout(() => {
+            adjustTimelinePositionForPanel();
+          }, 100);
+        });
+        observer.observe(servicePanel, { 
+          attributes: true, 
+          attributeFilter: ['style', 'class'],
+          childList: true,
+          subtree: true
+        });
+        // 存储observer以便后续清理
+        window.servicePanelObserver = observer;
+      }
+    };
+    
+    setTimeout(observeServicePanel, 2000); // 延迟观察，确保面板已创建
+    
     // 添加相机移动监听器以更新选择指示器位置
     viewer().scene.postRender.addEventListener(updateSelectionIndicator);
     
-    console.log('Cesium初始化完成');
+    console.log('Cesium初始化完成，时间轴控制已启用');
     
     // 如果用户未登录，尝试加载默认的本地数据以提供初始显示
     if (!isLoggedIn.value) {
@@ -762,6 +897,24 @@ onMounted(async () => {
 onUnmounted(() => {
   cleanupAnimation();
   cleanupCesium();
+  
+  // 清理窗口调整大小监听器
+  if (window.currentHandleResize) {
+    window.removeEventListener('resize', window.currentHandleResize);
+    delete window.currentHandleResize;
+  }
+  
+  // 清理时间轴检查定时器
+  if (window.timelineCheckInterval) {
+    clearInterval(window.timelineCheckInterval);
+    delete window.timelineCheckInterval;
+  }
+  
+  // 清理面板观察器
+  if (window.servicePanelObserver) {
+    window.servicePanelObserver.disconnect();
+    delete window.servicePanelObserver;
+  }
 });
 
 // 暴露方法给父组件
@@ -835,5 +988,33 @@ defineExpose({
   min-width: 300px;
   max-width: 350px;
   background: transparent;
+}
+
+/* Cesium时间轴控件样式调整 */
+:deep(.cesium-timeline-main) {
+  bottom: 180px !important;
+  z-index: 1000 !important;
+}
+
+:deep(.cesium-animation-container) {
+  bottom: 180px !important;
+  z-index: 1000 !important;
+}
+
+/* 确保时间轴在业务面板上方 */
+:deep(.cesium-viewer-toolbar) {
+  z-index: 1001 !important;
+}
+
+:deep(.cesium-timeline-bar) {
+  background: rgba(42, 42, 42, 0.8) !important;
+  border: 1px solid #555 !important;
+  border-radius: 3px !important;
+}
+
+:deep(.cesium-animation-widget) {
+  background: rgba(42, 42, 42, 0.8) !important;
+  border: 1px solid #555 !important;
+  border-radius: 3px !important;
 }
 </style>
