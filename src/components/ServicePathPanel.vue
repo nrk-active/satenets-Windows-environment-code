@@ -149,6 +149,10 @@ export default {
       type: Function,
       required: true
     },
+    clearAllServicePathsAndCache: {
+      type: Function,
+      default: null
+    },
     drawMultipleServicePaths: {
       type: Function,
       required: true
@@ -219,7 +223,13 @@ export default {
     
     function clearAllPaths() {
       if (!props.viewer) return;
-      props.clearAllServicePaths(props.viewer);
+      // 使用 clearAllServicePathsAndCache 来彻底清除路径和缓存
+      if (props.clearAllServicePathsAndCache) {
+        props.clearAllServicePathsAndCache(props.viewer);
+      } else {
+        // 兼容旧版本，如果没有提供 clearAllServicePathsAndCache 函数
+        props.clearAllServicePaths(props.viewer);
+      }
     }
     
     function drawSinglePath(service) {

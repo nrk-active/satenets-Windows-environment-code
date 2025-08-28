@@ -255,6 +255,7 @@ const {
   drawServicePath,
   clearServicePath,
   clearAllServicePaths: clearAllServicePathsFunc,
+  clearAllServicePathsAndCache: clearAllServicePathsAndCacheFunc,
   drawMultipleServicePaths,
   loadServiceDataFromFile
 } = useServiceData();
@@ -426,7 +427,9 @@ function clearAllPaths() {
     return;
   }
   
-  clearAllServicePathsFunc(viewer);
+  // 使用 clearAllServicePathsAndCache 而不是 clearAllServicePaths
+  // 这样可以同时清除显示和缓存，避免自动重绘
+  clearAllServicePathsAndCacheFunc(viewer);
   showAllPaths.value = false;
 }
 
