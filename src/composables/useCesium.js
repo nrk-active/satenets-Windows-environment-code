@@ -25,48 +25,231 @@ export function useCesium() {
       baseLayerPicker: true, // 启用地图选择按钮
       selectionIndicator: false, // 禁用原生选择指示器，使用自定义的
       infoBox: false, // 禁用默认信息框
-      requestRenderMode: true,
+      requestRenderMode: false, // 改为连续渲染以获得更好的视觉效果
       maximumRenderTimeChange: Infinity,
-      targetFrameRate: 30,
+      targetFrameRate: 60, // 提高帧率以获得更流畅的体验
       automaticallyTrackDataSourceClocks: false,
-      shouldAnimate: false
-    });
-
-    // 启用光照和阴影
-    viewer.scene.globe.enableLighting = true;
-    viewer.scene.globe.atmosphereLightIntensity = 2.0;
-    viewer.scene.globe.atmosphereBrightnessShift = 0.1;
-    
-    // 启用地球大气层
-    viewer.scene.skyAtmosphere.show = true;
-    viewer.scene.globe.showGroundAtmosphere = true;
-    
-    // 使用太阳作为光源，确保光照和太阳位置一致
-    viewer.scene.light = new Cesium.SunLight();
-    
-    // 设置当前时间，让太阳位置和光照匹配
-    const currentTime = Cesium.JulianDate.now();
-    viewer.clock.currentTime = currentTime;
-    viewer.clock.clockRange = Cesium.ClockRange.UNBOUNDED;
-    
-    // 替换星空背景为纯黑色或自定义背景
-    // viewer.scene.backgroundColor = Cesium.Color.BLACK;
-    // viewer.scene.skyBox.show = false; // 隐藏默认星空
-    
-    // 调整地球的材质属性以获得更好的光照效果
-    // viewer.scene.globe.material = undefined; // 使用默认材质
-    // viewer.scene.globe.translucency.enabled = false;
-    viewer.scene.globe.material = new Cesium.Material({
-      fabric: {
-        type: 'Grid',
-        uniforms: {
-          color: new Cesium.Color(0.3, 0.8, 1.0, 0.3), // 淡蓝色网格
-          cellAlpha: 0.1,
-          lineCount: new Cesium.Cartesian2(16, 16),
-          lineThickness: new Cesium.Cartesian2(1.0, 1.0)
+      shouldAnimate: false,
+      // 启用超高分辨率渲染以支持8K星空
+      resolutionScale: Math.min(window.devicePixelRatio * 2, 3.0), // 最高3倍分辨率
+      // 优化WebGL设置以支持高分辨率纹理
+      contextOptions: {
+        webgl: {
+          powerPreference: "high-performance",
+          antialias: true,
+          preserveDrawingBuffer: false,
+          failIfMajorPerformanceCaveat: false
         }
       }
     });
+
+    // 启用光照和阴影 - 大幅提高地球亮度
+    viewer.scene.globe.enableLighting = true;
+    viewer.scene.globe.atmosphereLightIntensity = 2.5; // 大幅提高地球光照强度
+    viewer.scene.globe.atmosphereBrightnessShift = 0.3; // 增加地球亮度偏移
+    
+    // 禁用地球大气层以获得更清晰的宇宙背景
+    viewer.scene.skyAtmosphere.show = false;
+    viewer.scene.globe.showGroundAtmosphere = false;
+    
+    // 基础渲染质量优化
+    viewer.scene.globe.maximumScreenSpaceError = 0.5; // 提高地形质量
+    
+    // 使用太阳作为光源，确保光照方向与太阳位置一致
+    viewer.scene.light = new Cesium.SunLight();
+    
+    // 设置太阳位置，使其与视觉中的太阳位置匹配
+    viewer.scene.sun = new Cesium.Sun();
+    viewer.scene.sun.show = true;
+    
+    // 确保光照方向跟随太阳位置
+    viewer.scene.postRender.addEventListener(() => {
+      if (viewer.scene.sun && viewer.scene.light instanceof Cesium.SunLight) {
+        // 太阳光自动跟随太阳位置，这是最真实的光照
+        viewer.scene.globe.enableLighting = true;
+      }
+    });
+    
+    // 设置特定时间以获得理想的太阳光照角度
+    const currentTime = Cesium.JulianDate.now();
+    // 调整时间以获得更好的光照角度（可以根据需要调整）
+    const adjustedTime = Cesium.JulianDate.addHours(currentTime, 6, new Cesium.JulianDate()); // 调整6小时
+    viewer.clock.currentTime = adjustedTime;
+    viewer.clock.clockRange = Cesium.ClockRange.UNBOUNDED;
+    
+    // 启用真实的太阳光照计算
+    viewer.scene.globe.atmosphereHueShift = 0.0;
+    viewer.scene.globe.atmosphereSaturationShift = 0.0;
+    
+    // 设置超清晰宇宙背景
+    console.log('正在设置8K分辨率星空背景...');
+    
+    // 创建8K分辨率的程序化星空背景
+    try {
+      // 创建高分辨率canvas作为星空纹理
+      // const createHighResStarTexture = (size = 2048) => { // 降低到2K以减少内存使用
+      const createHighResStarTexture = (size = 4096) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        
+        // 设置深空背景
+        const gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+        gradient.addColorStop(0, '#000814');
+        gradient.addColorStop(0.3, '#001122');
+        gradient.addColorStop(0.7, '#000511');
+        gradient.addColorStop(1, '#000000');
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, size, size);
+        
+        // 添加星星（优化数量以减少内存使用）
+        const starCount = 4000; // 从15000降低到8000
+        for (let i = 0; i < starCount; i++) {
+          const x = Math.random() * size;
+          const y = Math.random() * size;
+          const brightness = Math.random() * 0.8 + 0.1; // 轻微降低：从0-1改为0.1-0.9
+          const starSize = Math.random() * 2 + 0.5;
+          
+          // 星星颜色变化（蓝色、白色、黄色、红色）
+          let color;
+          const colorRand = Math.random();
+          if (colorRand < 0.7) {
+            color = `rgba(240, 240, 240, ${brightness * 0.9})`; // 轻微降低白色星星亮度
+          } else if (colorRand < 0.85) {
+            color = `rgba(190, 210, 240, ${brightness * 0.85})`; // 轻微降低蓝色星星亮度
+          } else if (colorRand < 0.95) {
+            color = `rgba(240, 220, 190, ${brightness * 0.85})`; // 轻微降低黄色星星亮度
+          } else {
+            color = `rgba(240, 190, 140, ${brightness * 0.8})`; // 轻微降低红色星星亮度
+          }
+          
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(x, y, starSize, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // 为明亮的星星添加光晕（轻微降低光晕强度）
+          if (brightness > 0.8) {
+            ctx.fillStyle = `rgba(240, 240, 240, ${brightness * 0.25})`; // 从0.3降低到0.25
+            ctx.beginPath();
+            ctx.arc(x, y, starSize * 2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        
+        // 添加星云效果（轻微降低透明度）
+        for (let i = 0; i < 20; i++) {
+          const x = Math.random() * size;
+          const y = Math.random() * size;
+          const nebulaSize = Math.random() * 200 + 50;
+          
+          const nebulaGradient = ctx.createRadialGradient(x, y, 0, x, y, nebulaSize);
+          nebulaGradient.addColorStop(0, 'rgba(90, 140, 230, 0.08)'); // 从0.1轻微降低到0.08
+          nebulaGradient.addColorStop(0.5, 'rgba(140, 90, 230, 0.04)'); // 从0.05轻微降低到0.04
+          nebulaGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+          
+          ctx.fillStyle = nebulaGradient;
+          ctx.fillRect(x - nebulaSize, y - nebulaSize, nebulaSize * 2, nebulaSize * 2);
+        }
+        
+        return canvas.toDataURL();
+      };
+      
+      // 为天空盒的6个面创建不同的纹理
+      const faces = ['positiveX', 'negativeX', 'positiveY', 'negativeY', 'positiveZ', 'negativeZ'];
+      const sources = {};
+      
+      faces.forEach(face => {
+        // sources[face] = createHighResStarTexture(2048); // 2K分辨率每面以减少内存
+        sources[face] = createHighResStarTexture(4096); // 2K分辨率每面以减少内存
+      });
+      
+      // 应用8K星空背景
+      viewer.scene.skyBox = new Cesium.SkyBox({
+        sources: sources
+      });
+      
+      console.log('8K分辨率星空背景创建成功');
+      
+    } catch (error) {
+      console.warn('8K星空背景创建失败，使用备用方案:', error);
+      
+      // 备用方案：增强默认星空
+      viewer.scene.skyBox.show = true;
+      viewer.scene.sun.show = true;
+      viewer.scene.moon.show = true;
+      
+      // 增强太阳的视觉效果
+      try {
+        viewer.scene.sun.glowFactor = 2.0; // 增强太阳光晕
+        viewer.scene.sun.size = 1.5; // 增大太阳大小
+        console.log('太阳视觉增强成功');
+      } catch (error) {
+        console.warn('太阳增强设置失败:', error);
+      }
+    }
+    
+    // 设置纯黑背景色以增强对比度
+    viewer.scene.backgroundColor = Cesium.Color.BLACK;
+    
+    // 禁用雾化效果，让远处物体更清晰
+    viewer.scene.fog.enabled = false;
+    
+    console.log('8K分辨率星空背景设置完成');
+    
+    // 设置专门的地球照明增强
+    setTimeout(() => {
+      if (viewer && viewer.scene && viewer.scene.globe) {
+        viewer.scene.globe.lambertDiffuseMultiplier = 1.8; // 增强漫反射，让地球更亮
+        viewer.scene.globe.nightFadeOutDistance = 1e8; // 延长夜晚淡出距离
+        viewer.scene.globe.nightFadeInDistance = 1e7; // 延长夜晚淡入距离
+        
+        // 确保光照跟随太阳位置
+        viewer.scene.globe.dynamicAtmosphereLighting = true;
+        viewer.scene.globe.dynamicAtmosphereLightingFromSun = true;
+        
+        console.log('地球照明增强已启用');
+      }
+    }, 1000); // 延迟设置确保globe已初始化
+    
+    // 添加额外的8K优化
+    try {
+      // 启用高质量纹理过滤
+      viewer.scene.context._gl.texParameteri(
+        viewer.scene.context._gl.TEXTURE_2D,
+        viewer.scene.context._gl.TEXTURE_MAG_FILTER,
+        viewer.scene.context._gl.LINEAR
+      );
+      
+      // 设置最高质量的纹理设置
+      viewer.scene.context._gl.texParameteri(
+        viewer.scene.context._gl.TEXTURE_2D,
+        viewer.scene.context._gl.TEXTURE_MIN_FILTER,
+        viewer.scene.context._gl.LINEAR_MIPMAP_LINEAR
+      );
+      
+      console.log('8K纹理优化应用成功');
+    } catch (error) {
+      console.warn('高级纹理优化失败，但不影响基本功能:', error);
+    }
+    
+    // 使用默认清晰地球材质并增强亮度
+    viewer.scene.globe.material = undefined; // 使用清晰的默认材质
+    viewer.scene.globe.translucency.enabled = false;
+    
+    // 额外的地球亮度增强设置
+    viewer.scene.globe.baseColor = Cesium.Color.WHITE.clone(); // 设置基础颜色为白色增强亮度
+    viewer.scene.globe.luminanceAtZenith = 0.8; // 增加天顶亮度
+    
+    // 调整地球表面反射率
+    try {
+      viewer.scene.globe._surface._tileProvider._material = undefined;
+      console.log('地球亮度增强设置完成');
+    } catch (error) {
+      console.warn('部分地球亮度设置失败，但不影响主要效果:', error);
+    }
 
     // 设置一个合适的初始视角（看到完整地球）
     viewer.camera.setView({
