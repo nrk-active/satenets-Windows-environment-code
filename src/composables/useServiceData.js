@@ -317,35 +317,64 @@ export function useServiceData() {
     // 清除之前的路径（但不从缓存中移除ID）
     clearServicePath(actualViewer, service.request_id, false);
     
-    // 获取路径节点位置
-    const positions = [];
+    // 创建动态位置回调函数
+    const createDynamicPositionCallback = (nodeId, nodeType, staticPosition) => {
+      if (nodeType === 'satellite') {
+        // 对于卫星节点，创建动态位置回调
+        return new Cesium.CallbackProperty(function(time, result) {
+          // 尝试从场景中获取实时的卫星实体位置
+          const satelliteEntity = actualViewer.entities.getById(nodeId);
+          if (satelliteEntity && satelliteEntity.position) {
+            // 如果是CallbackProperty，获取其值
+            if (typeof satelliteEntity.position.getValue === 'function') {
+              return satelliteEntity.position.getValue(time, result);
+            }
+            // 如果是Cartesian3，直接返回
+            else if (satelliteEntity.position instanceof Cesium.Cartesian3) {
+              return satelliteEntity.position;
+            }
+          }
+          // 如果无法获取实时位置，返回静态位置
+          return staticPosition;
+        }, false);
+      } else {
+        // 对于地面节点，返回静态位置
+        return staticPosition;
+      }
+    };
+    
+    // 获取路径节点位置（包括动态位置）
+    const dynamicPositions = [];
     const validNodes = [];
     
     servicePath.forEach(nodeId => {
       const node = networkData.nodes.find(n => n.id === nodeId);
       if (node) {
-        let position;
+        let staticPosition;
         if (node.type === 'satellite') {
           // 卫星节点使用3D坐标
-          position = new Cesium.Cartesian3(
+          staticPosition = new Cesium.Cartesian3(
             parseFloat(node.position[0]) * 1000,
             parseFloat(node.position[1]) * 1000,
             parseFloat(node.position[2]) * 1000
           );
         } else {
           // 地面节点使用经纬度
-          position = Cesium.Cartesian3.fromDegrees(
+          staticPosition = Cesium.Cartesian3.fromDegrees(
             parseFloat(node.position[0]),
             parseFloat(node.position[1]),
             node.type === 'station' ? 10 : 10
           );
         }
-        positions.push(position);
+        
+        // 创建动态位置（卫星）或静态位置（地面节点）
+        const dynamicPosition = createDynamicPositionCallback(node.id, node.type, staticPosition);
+        dynamicPositions.push(dynamicPosition);
         validNodes.push(node);
       }
     });
     
-    if (positions.length < 2) return null;
+    if (dynamicPositions.length < 2) return null;
     
     // 根据业务状态确定颜色
     let color = pathColor;
@@ -368,12 +397,26 @@ export function useServiceData() {
       }
     }
     
-    // 创建路径线
+    // 创建动态路径线
     const pathEntity = actualViewer.entities.add({
       id: `service-path-${service.request_id}`,
       name: `业务路径: ${service.request_id}`,
       polyline: {
-        positions: positions,
+        positions: new Cesium.CallbackProperty(function(time, result) {
+          // 动态计算所有节点的位置
+          const currentPositions = [];
+          dynamicPositions.forEach(positionCallback => {
+            if (typeof positionCallback.getValue === 'function') {
+              const pos = positionCallback.getValue(time);
+              if (pos) {
+                currentPositions.push(pos);
+              }
+            } else {
+              currentPositions.push(positionCallback);
+            }
+          });
+          return currentPositions;
+        }, false),
         width: 3,
         material: new Cesium.PolylineOutlineMaterialProperty({
           color: color.withAlpha(0.8),
@@ -398,14 +441,16 @@ export function useServiceData() {
       `
     });
     
-    // 在路径节点上添加标记点
+    // 在路径节点上添加动态标记点
     validNodes.forEach((node, index) => {
       if (index === 0 || index === validNodes.length - 1) {
         // 只在起点和终点添加特殊标记
         const isSource = index === 0;
+        const dynamicPosition = dynamicPositions[index];
+        
         actualViewer.entities.add({
           id: `service-path-${service.request_id}-marker-${index}`,
-          position: positions[index],
+          position: dynamicPosition,
           point: {
             pixelSize: 12,
             color: isSource ? Cesium.Color.LIME : Cesium.Color.ORANGE,

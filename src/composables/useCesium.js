@@ -18,9 +18,11 @@ export function useCesium() {
   function initializeCesium(containerId) {
     Cesium.Ion.defaultAccessToken = CESIUM_CONFIG.ACCESS_TOKEN;
     
+    console.log('开始创建 Cesium Viewer...');
+    
     viewer = new Cesium.Viewer(containerId, {
-      animation: false,
-      timeline: false,
+      animation: true, // 启用动画控件
+      timeline: true,  // 启用时间轴
       fullscreenButton: false,
       baseLayerPicker: true, // 启用地图选择按钮
       selectionIndicator: false, // 禁用原生选择指示器，使用自定义的
@@ -295,6 +297,313 @@ export function useCesium() {
     return viewer;
   }
 
+  // 调试时间轴元素的函数
+  function debugTimelineElements() {
+    console.log('=== 调试时间轴元素 ===');
+    
+    // 检查 viewer 对象
+    if (viewer) {
+      console.log('viewer.timeline:', viewer.timeline);
+      console.log('viewer.animation:', viewer.animation);
+    }
+    
+    // 查找所有可能的时间轴相关元素
+    const selectors = [
+      '.cesium-timeline-main',
+      '.cesium-timeline-container', 
+      '.cesium-timeline-track',
+      '.cesium-animation-container',
+      '.cesium-animation-widget',
+      '.cesium-widget'
+    ];
+    
+    selectors.forEach(selector => {
+      const elements = document.querySelectorAll(selector);
+      console.log(`${selector}: 找到 ${elements.length} 个元素`);
+      elements.forEach((element, index) => {
+        console.log(`  ${selector}[${index}]:`, element);
+        console.log(`    display: ${element.style.display || 'default'}`);
+        console.log(`    visibility: ${element.style.visibility || 'default'}`);
+        console.log(`    position: ${element.style.position || 'default'}`);
+        console.log(`    bottom: ${element.style.bottom || 'default'}`);
+      });
+    });
+  }
+
+  // 强制显示时间轴控件的函数
+  function forceShowTimelineControls() {
+    if (!viewer) return;
+    
+    console.log('强制显示时间轴控件...');
+    
+    // 直接通过DOM查找所有可能的时间轴元素并强制显示
+    const possibleSelectors = [
+      '.cesium-timeline-main',
+      '.cesium-timeline-container',
+      '.cesium-timeline-track',
+      '.cesium-animation-container',
+      '.cesium-animation-widget',
+      '.cesium-animation-controls'
+    ];
+    
+    possibleSelectors.forEach(selector => {
+      const elements = document.querySelectorAll(selector);
+      elements.forEach(element => {
+        element.style.display = 'block !important';
+        element.style.visibility = 'visible !important';
+        element.style.opacity = '1 !important';
+        element.style.position = 'absolute';
+        element.style.zIndex = '9999';
+        console.log(`设置元素 ${selector} 为可见`);
+      });
+    });
+    
+    // 特别处理时间轴
+    const timelineElements = document.querySelectorAll('.cesium-timeline-main');
+    timelineElements.forEach(element => {
+      element.style.bottom = '200px';
+      element.style.left = '170px'; // 为动画控件留出空间
+      element.style.right = '0px';
+      element.style.height = '27px';
+      element.style.backgroundColor = 'rgba(42, 42, 42, 0.8)';
+      element.style.border = '1px solid #666';
+    });
+    
+    // 特别处理动画控件
+    const animationElements = document.querySelectorAll('.cesium-animation-container, .cesium-animation-widget');
+    animationElements.forEach(element => {
+      element.style.bottom = '200px';
+      element.style.left = '0px';
+      element.style.width = '169px';
+      element.style.height = '112px';
+      element.style.backgroundColor = 'rgba(42, 42, 42, 0.8)';
+      element.style.borderRadius = '4px';
+    });
+  }
+
+  // 设置时间轴样式的独立函数
+  function setupTimelineStyles() {
+    if (!viewer) return;
+    
+    console.log('正在设置时间轴样式...');
+    
+    // 查找并设置时间轴容器
+    const timelineContainer = viewer.timeline?.container;
+    if (timelineContainer) {
+      timelineContainer.style.display = 'block';
+      timelineContainer.style.visibility = 'visible';
+      timelineContainer.style.position = 'absolute';
+      timelineContainer.style.bottom = '200px'; // 初始位置
+      timelineContainer.style.left = '0px';
+      timelineContainer.style.right = '170px'; // 为动画控件留出空间
+      timelineContainer.style.height = '27px';
+      timelineContainer.style.zIndex = '1000';
+      console.log('时间轴容器样式已设置');
+    }
+    
+    // 查找并设置动画控件容器
+    const animationContainer = viewer.animation?.container;
+    if (animationContainer) {
+      animationContainer.style.display = 'block';
+      animationContainer.style.visibility = 'visible';
+      animationContainer.style.position = 'absolute';
+      animationContainer.style.bottom = '200px'; // 初始位置
+      animationContainer.style.left = '0px';
+      animationContainer.style.width = '169px';
+      animationContainer.style.height = '112px';
+      animationContainer.style.zIndex = '1000';
+      console.log('动画控件容器样式已设置');
+    }
+    
+    // 通过DOM查找并设置样式（备用方案）
+    setTimeout(() => {
+      const timelineElements = document.querySelectorAll('.cesium-timeline-main');
+      timelineElements.forEach(element => {
+        element.style.display = 'block';
+        element.style.visibility = 'visible';
+        console.log('通过DOM设置了时间轴样式');
+      });
+      
+      const animationElements = document.querySelectorAll('.cesium-animation-container');
+      animationElements.forEach(element => {
+        element.style.display = 'block';
+        element.style.visibility = 'visible';
+        console.log('通过DOM设置了动画控件样式');
+      });
+    }, 100);
+  }
+
+  // 动态调整时间轴位置的函数
+  function adjustTimelinePosition(bottomOffset = 10) {
+    if (!viewer) return;
+    
+    console.log(`调整时间轴位置，底部偏移: ${bottomOffset}px`);
+    
+    // 确保时间轴控件始终可见
+    forceShowTimelineControls();
+    
+    // 调整时间轴容器位置
+    const timelineContainer = viewer.timeline?.container;
+    if (timelineContainer) {
+      timelineContainer.style.bottom = `${bottomOffset}px`;
+      timelineContainer.style.display = 'block';
+      timelineContainer.style.visibility = 'visible';
+      timelineContainer.style.position = 'absolute';
+      timelineContainer.style.left = '170px'; // 为动画控件留出空间
+      timelineContainer.style.right = '0px';
+      timelineContainer.style.height = '27px';
+      timelineContainer.style.zIndex = '10000';
+      console.log('时间轴容器位置已调整');
+    }
+    
+    // 调整动画控件容器位置
+    const animationContainer = viewer.animation?.container;
+    if (animationContainer) {
+      animationContainer.style.bottom = `${bottomOffset}px`;
+      animationContainer.style.display = 'block';
+      animationContainer.style.visibility = 'visible';
+      animationContainer.style.position = 'absolute';
+      animationContainer.style.left = '0px';
+      animationContainer.style.width = '169px';
+      animationContainer.style.height = '112px';
+      animationContainer.style.zIndex = '10000';
+      console.log('动画控件容器位置已调整');
+    }
+    
+    // 通过DOM查找并调整位置（备用方案）
+    const timelineElements = document.querySelectorAll('.cesium-timeline-main');
+    timelineElements.forEach(element => {
+      element.style.bottom = `${bottomOffset}px`;
+      element.style.display = 'block !important';
+      element.style.visibility = 'visible !important';
+      element.style.position = 'absolute';
+      element.style.left = '170px'; // 为动画控件留出空间
+      element.style.right = '0px';
+      element.style.height = '27px';
+      element.style.zIndex = '10000';
+      element.style.backgroundColor = 'rgba(42, 42, 42, 0.9)';
+      element.style.border = '1px solid #666';
+    });
+    
+    const animationElements = document.querySelectorAll('.cesium-animation-container, .cesium-animation-widget');
+    animationElements.forEach(element => {
+      element.style.bottom = `${bottomOffset}px`;
+      element.style.display = 'block !important';
+      element.style.visibility = 'visible !important';
+      element.style.position = 'absolute';
+      element.style.left = '0px';
+      element.style.width = '169px';
+      element.style.height = '112px';
+      element.style.zIndex = '10000';
+      element.style.backgroundColor = 'rgba(42, 42, 42, 0.9)';
+      element.style.borderRadius = '4px';
+    });
+    
+    console.log(`时间轴位置已调整到底部 ${bottomOffset}px，并确保可见性`);
+  }
+
+  function setupTimelineControl(onTimeChange) {
+    if (!viewer) return;
+    
+    let lastFrame = 1; // 记录上一次的帧数，避免重复触发
+    
+    // 监听时钟变化事件
+    viewer.clock.onTick.addEventListener(function(clock) {
+      // 根据当前时间计算应该显示哪一帧
+      const elapsed = Cesium.JulianDate.secondsDifference(clock.currentTime, clock.startTime);
+      const frameIndex = Math.floor(elapsed / 60) + 1; // 每60秒一帧
+      const clampedFrame = Math.max(1, Math.min(6, frameIndex)); // 限制在1-6帧之间
+      
+      // 只有当帧数真正改变时才触发回调，避免重复调用
+      if (clampedFrame !== lastFrame && onTimeChange) {
+        lastFrame = clampedFrame;
+        console.log(`时间轴帧变化: ${clampedFrame}`);
+        onTimeChange(clampedFrame);
+      }
+    });
+    
+    // 确保时间轴和动画控件可见并设置样式
+    setTimeout(() => {
+      console.log('检查时间轴和动画控件...');
+      
+      const timelineContainer = viewer.timeline?.container;
+      if (timelineContainer) {
+        timelineContainer.style.display = 'block';
+        timelineContainer.style.bottom = '180px';
+        timelineContainer.style.left = '0px';
+        timelineContainer.style.right = '0px';
+        timelineContainer.style.zIndex = '1000';
+        timelineContainer.style.visibility = 'visible';
+        timelineContainer.style.position = 'absolute';
+        console.log('时间轴容器样式已设置:', timelineContainer);
+      } else {
+        console.warn('时间轴容器未找到, viewer.timeline:', viewer.timeline);
+      }
+      
+      const animationContainer = viewer.animation?.container;
+      if (animationContainer) {
+        animationContainer.style.display = 'block';
+        animationContainer.style.bottom = '180px';
+        animationContainer.style.left = '0px';
+        animationContainer.style.zIndex = '1000';
+        animationContainer.style.visibility = 'visible';
+        animationContainer.style.position = 'absolute';
+        console.log('动画控件容器样式已设置:', animationContainer);
+      } else {
+        console.warn('动画控件容器未找到, viewer.animation:', viewer.animation);
+      }
+      
+      // 如果仍然没有找到，尝试查找DOM元素
+      if (!timelineContainer) {
+        const timelineDiv = document.querySelector('.cesium-timeline-main');
+        if (timelineDiv) {
+          timelineDiv.style.display = 'block';
+          timelineDiv.style.visibility = 'visible';
+          console.log('通过DOM选择器找到并设置了时间轴');
+        }
+      }
+      
+      if (!animationContainer) {
+        const animationDiv = document.querySelector('.cesium-animation-container');
+        if (animationDiv) {
+          animationDiv.style.display = 'block';
+          animationDiv.style.visibility = 'visible';
+          console.log('通过DOM选择器找到并设置了动画控件');
+        }
+      }
+    }, 1000); // 增加延迟确保DOM完全加载
+  }
+
+  // 跳转到指定时间帧
+  function jumpToTimeFrame(frame) {
+    if (!viewer) return;
+    
+    const frameSeconds = (frame - 1) * 60; // 每帧60秒
+    const targetTime = Cesium.JulianDate.addSeconds(viewer.clock.startTime, frameSeconds, new Cesium.JulianDate());
+    viewer.clock.currentTime = targetTime;
+    console.log(`跳转到时间帧 ${frame}，时间: ${frameSeconds}秒`);
+  }
+
+  // 设置播放速度
+  function setPlaybackRate(multiplier) {
+    if (!viewer) return;
+    viewer.clock.multiplier = multiplier;
+    console.log(`设置播放速度: ${multiplier}x`);
+  }
+
+  // 启用/禁用时间轴动画
+  function setTimelineAnimation(enabled) {
+    if (!viewer) return;
+    if (enabled) {
+      viewer.clock.shouldAnimate = true;
+      viewer.clock.multiplier = 1; // 恢复正常播放速度
+    } else {
+      viewer.clock.shouldAnimate = false;
+      viewer.clock.multiplier = 0; // 暂停时间轴
+    }
+    console.log(`时间轴动画: ${enabled ? '启用' : '禁用'}`);
+  }
+
   function createEntities(frameData) {
     if (!frameData?.nodes?.length) {
       console.error('没有有效的节点数据');
@@ -345,8 +654,8 @@ export function useCesium() {
       if (!sourceNode || !targetNode) return;
       if (sourceNode.type === 'satellite' || targetNode.type === 'satellite') return;
       
-      const sourcePosition = getEntityPosition(sourceNode);
-      const targetPosition = getEntityPosition(targetNode);
+      const sourcePosition = getEntityPosition(sourceNode, viewer);
+      const targetPosition = getEntityPosition(targetNode, viewer);
       
       let linkColor, linkId;
       
@@ -396,8 +705,8 @@ export function useCesium() {
 
       if (!sourceNode || !targetNode) return;
 
-      const sourcePosition = getEntityPosition(sourceNode);
-      const targetPosition = getEntityPosition(targetNode);
+      const sourcePosition = getEntityPosition(sourceNode, viewer);
+      const targetPosition = getEntityPosition(targetNode, viewer);
 
       const highlightEntity = viewer.entities.add({
         polyline: {
@@ -511,6 +820,14 @@ export function useCesium() {
     highlightSatelliteLinks,
     updateVisibility,
     setupClickHandler,
+    setupTimelineControl,
+    setupTimelineStyles,
+    debugTimelineElements,
+    forceShowTimelineControls,
+    adjustTimelinePosition,
+    jumpToTimeFrame,
+    setPlaybackRate,
+    setTimelineAnimation,
     cleanup
   };
 }
