@@ -115,16 +115,31 @@
     </div>
     
     <div class="service-list">
-      <!-- 业务列表 -->
       <div class="service-category">
         <h4>业务列表</h4>
         <div class="business-list">
+          <!-- 批量操作按钮 -->
+          <div style="margin-bottom: 10px; display: flex; gap: 10px; align-items: center;">
+            <label class="checkbox-label" style="margin-right: 8px;">
+              <input type="checkbox" :checked="allSelected" @change="toggleSelectAll" />
+              <span class="checkmark"></span>
+              全选
+            </label>
+            <button class="control-btn" @click="drawSelectedPaths" :disabled="selectedServices.length === 0">批量绘制路径</button>
+            <button class="control-btn" @click="clearSelectedPaths" :disabled="selectedServices.length === 0">批量清除路径</button>
+            <span v-if="selectedServices.length">已选 {{ selectedServices.length }} 项</span>
+          </div>
           <!-- 活跃业务 -->
           <div v-if="serviceData.active_requests?.length && displaySettings.showActive" class="business-group">
             <div v-for="request in serviceData.active_requests" 
                  :key="generateServiceId(request)" 
                  class="service-item active" 
                  @click="handleServiceClick(request, 'active')">
+              <!-- 新增复选框 -->
+              <input type="checkbox"
+                     :checked="isServiceSelected(request)"
+                     @click.stop="toggleServiceSelection(request)"
+                     style="margin-right: 8px;" />
               <div class="service-info">
                 <span class="service-id">{{ generateServiceId(request) }}</span>
                 <span class="service-route">{{ request.src_node }} → {{ request.dst_node }}</span>
@@ -153,6 +168,11 @@
                  :key="generateServiceId(request)" 
                  class="service-item pending" 
                  @click="handleServiceClick(request, 'pending')">
+              <!-- 新增复选框 -->
+              <input type="checkbox"
+                     :checked="isServiceSelected(request)"
+                     @click.stop="toggleServiceSelection(request)"
+                     style="margin-right: 8px;" />
               <div class="service-info">
                 <span class="service-id">{{ generateServiceId(request) }}</span>
                 <span class="service-route">{{ request.src_node }} → {{ request.dst_node }}</span>
@@ -175,12 +195,17 @@
             </div>
           </div>
           
-          <!-- 其他业务类型类似 -->
+          <!-- 阻塞业务 -->
           <div v-if="serviceData.blocked_requests?.length && displaySettings.showBlocked" class="business-group">
             <div v-for="request in serviceData.blocked_requests" 
                  :key="generateServiceId(request)" 
                  class="service-item blocked" 
                  @click="handleServiceClick(request, 'blocked')">
+              <!-- 新增复选框 -->
+              <input type="checkbox"
+                     :checked="isServiceSelected(request)"
+                     @click.stop="toggleServiceSelection(request)"
+                     style="margin-right: 8px;" />
               <div class="service-info">
                 <span class="service-id">{{ generateServiceId(request) }}</span>
                 <span class="service-route">{{ request.src_node }} → {{ request.dst_node }}</span>
@@ -203,11 +228,17 @@
             </div>
           </div>
           
+          <!-- 失败业务 -->
           <div v-if="serviceData.failed_requests?.length && displaySettings.showFailed" class="business-group">
             <div v-for="request in serviceData.failed_requests" 
                  :key="generateServiceId(request)" 
                  class="service-item failed" 
                  @click="handleServiceClick(request, 'failed')">
+              <!-- 新增复选框 -->
+              <input type="checkbox"
+                     :checked="isServiceSelected(request)"
+                     @click.stop="toggleServiceSelection(request)"
+                     style="margin-right: 8px;" />
               <div class="service-info">
                 <span class="service-id">{{ generateServiceId(request) }}</span>
                 <span class="service-route">{{ request.src_node }} → {{ request.dst_node }}</span>
@@ -236,7 +267,7 @@
 </template>
 
 <script setup>
-import { ref, inject, watch, onMounted } from 'vue';
+import { ref, inject, watch, onMounted, computed } from 'vue';
 import { useServiceData } from '../composables/useServiceData.js';
 
 const props = defineProps({
@@ -277,6 +308,37 @@ const showAllPaths = ref(false);
 const panelHeight = ref(300);
 const isResizing = ref(false);
 const loading = ref(false);
+
+// 存储已选业务ID
+const selectedServices = ref([]); 
+
+// 获取当前可见业务
+const visibleRequests = computed(() => {
+  const result = [];
+  if (displaySettings.value.showActive) result.push(...(props.serviceData.active_requests || []));
+  if (displaySettings.value.showPending) result.push(...(props.serviceData.pending_requests || []));
+  if (displaySettings.value.showBlocked) result.push(...(props.serviceData.blocked_requests || []));
+  if (displaySettings.value.showFailed) result.push(...(props.serviceData.failed_requests || []));
+  return result;
+});
+
+// 是否全选
+const allSelected = computed(() => {
+  const ids = visibleRequests.value.map(req => props.generateServiceId(req));
+  return ids.length > 0 && ids.every(id => selectedServices.value.includes(id));
+});
+
+// 切换全选
+function toggleSelectAll() {
+  const ids = visibleRequests.value.map(req => props.generateServiceId(req));
+  if (allSelected.value) {
+    // 取消全选
+    selectedServices.value = selectedServices.value.filter(id => !ids.includes(id));
+  } else {
+    // 全选
+    selectedServices.value = Array.from(new Set([...selectedServices.value, ...ids]));
+  }
+}
 
 // 调整大小功能
 function startResize(event) {
@@ -440,6 +502,46 @@ function updatePathDisplay() {
     // 重新绘制以应用新设置
     toggleAllPaths();
   }
+}
+
+// 切换服务选择状态
+function toggleServiceSelection(service) {
+  const id = props.generateServiceId(service);
+  const idx = selectedServices.value.indexOf(id);
+  if (idx === -1) {
+    selectedServices.value.push(id);
+  } else {
+    selectedServices.value.splice(idx, 1);
+  }
+}
+
+// 检查服务是否被选中
+function isServiceSelected(service) {
+  return selectedServices.value.includes(props.generateServiceId(service));
+}
+
+// 批量绘制选中路径
+function drawSelectedPaths() {
+  const viewer = cesiumViewer?.() || cesiumViewer;
+  if (!viewer || !props.networkData) return;
+  // 找到所有选中的业务对象
+  const allRequests = [
+    ...(props.serviceData.active_requests || []),
+    ...(props.serviceData.pending_requests || []),
+    ...(props.serviceData.blocked_requests || []),
+    ...(props.serviceData.ended_requests || []),
+    ...(props.serviceData.failed_requests || [])
+  ];
+  const selected = allRequests.filter(req => selectedServices.value.includes(props.generateServiceId(req)));
+  selected.forEach(service => drawServicePath(viewer, service, props.networkData));
+}
+
+// 批量清除选中路径
+function clearSelectedPaths() {
+  const viewer = cesiumViewer?.() || cesiumViewer;
+  if (!viewer) return;
+  selectedServices.value.forEach(id => clearServicePath(viewer, id));
+  selectedServices.value = []; // 清除后取消选择
 }
 
 // 监听业务数据变化
