@@ -869,6 +869,9 @@ onMounted(async () => {
       }
     }, 2000);
     
+    // 存储调试定时器以便清理
+    window.debugInterval = debugInterval;
+    
     // 添加全局缓存调试功能
     window.debugCache = () => {
       const networkCache = getCacheInfo();
@@ -910,11 +913,28 @@ onUnmounted(() => {
     delete window.timelineCheckInterval;
   }
   
+  // 清理调试定时器
+  if (window.debugInterval) {
+    clearInterval(window.debugInterval);
+    delete window.debugInterval;
+  }
+  
   // 清理面板观察器
   if (window.servicePanelObserver) {
     window.servicePanelObserver.disconnect();
     delete window.servicePanelObserver;
   }
+  
+  // 清理postRender事件监听器
+  if (viewer() && viewer().scene) {
+    try {
+      viewer().scene.postRender.removeEventListener(updateSelectionIndicator);
+    } catch (error) {
+      console.warn('清理postRender监听器时出错:', error);
+    }
+  }
+  
+  console.log('SatelliteViewer 组件资源清理完成');
 });
 
 // 暴露方法给父组件

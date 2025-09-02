@@ -797,14 +797,28 @@ export function useCesium() {
   }
 
   function cleanup() {
+    console.log('清理Cesium资源...');
+    
     if (handler) {
       handler.destroy();
       handler = null;
     }
     
     if (viewer) {
-      viewer.destroy();
-      viewer = null;
+      try {
+        // 清理所有实体
+        viewer.entities.removeAll();
+        
+        // 清理数据源
+        viewer.dataSources.removeAll();
+        
+        // 销毁viewer
+        viewer.destroy();
+        viewer = null;
+        console.log('Cesium viewer已销毁');
+      } catch (error) {
+        console.error('清理Cesium时出错:', error);
+      }
     }
   }
 

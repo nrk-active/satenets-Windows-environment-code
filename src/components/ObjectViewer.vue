@@ -14,7 +14,7 @@
         <div class="category-header" @click="toggleCategory('satellite')">
           <div class="header-left">
             <span class="toggle-icon">{{ satelliteExpanded ? '▼' : '►' }}</span>
-            <span>卫星组</span>
+            <span>卫星组 ({{ satellites.length }})</span>
           </div>
           <div class="header-controls">
             <button 
@@ -46,7 +46,7 @@
         <div class="category-header" @click="toggleCategory('station')">
           <div class="header-left">
             <span class="toggle-icon">{{ stationExpanded ? '▼' : '►' }}</span>
-            <span>地面站</span>
+            <span>地面站 ({{ stations.length }})</span>
           </div>
           <div class="header-controls">
             <button 
@@ -78,7 +78,7 @@
         <div class="category-header" @click="toggleCategory('roadm')">
           <div class="header-left">
             <span class="toggle-icon">{{ roadmExpanded ? '▼' : '►' }}</span>
-            <span>ROADM</span>
+            <span>ROADM ({{ roadms.length }})</span>
           </div>
           <div class="header-controls">
             <button 
@@ -110,7 +110,7 @@
         <div class="category-header" @click="toggleCategory('link')">
           <div class="header-left">
             <span class="toggle-icon">{{ linkExpanded ? '▼' : '►' }}</span>
-            <span>链路</span>
+            <span>链路 ({{ links.length }})</span>
           </div>
           <div class="header-controls">
             <button 
@@ -187,11 +187,11 @@ const links = ref([]);
 // 计算选中的实体ID
 const selectedEntity = computed(() => props.selectedEntityId);
 
-// 分类展开状态
-const satelliteExpanded = ref(true);
-const stationExpanded = ref(true);
-const roadmExpanded = ref(true);
-const linkExpanded = ref(true);
+// 分类展开状态 - 默认收起
+const satelliteExpanded = ref(false);
+const stationExpanded = ref(false);
+const roadmExpanded = ref(false);
+const linkExpanded = ref(false);
 
 // 切换分类展开状态
 function toggleCategory(category) {
