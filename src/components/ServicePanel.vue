@@ -87,7 +87,7 @@
         </div>
       </div>
       
-      <div class="control-section">
+      <!-- <div class="control-section">
         <h4>最大显示路径数</h4>
         <div class="slider-container">
           <input 
@@ -111,152 +111,113 @@
           <span class="checkmark"></span>
           自动更新路径
         </label>
-      </div>
+      </div> -->
     </div>
     
     <div class="service-list">
       <div class="service-category">
-        <h4>业务列表</h4>
+        <h4>业务列表 (双击切换单个业务路径（绘制或清除）)</h4>
         <div class="business-list">
           <!-- 批量操作按钮 -->
-          <div style="margin-bottom: 10px; display: flex; gap: 10px; align-items: center;">
-            <label class="checkbox-label" style="margin-right: 8px;">
-              <input type="checkbox" :checked="allSelected" @change="toggleSelectAll" />
-              <span class="checkmark"></span>
-              全选
-            </label>
-            <button class="control-btn" @click="drawSelectedPaths" :disabled="selectedServices.length === 0">批量绘制路径</button>
-            <button class="control-btn" @click="clearSelectedPaths" :disabled="selectedServices.length === 0">批量清除路径</button>
-            <span v-if="selectedServices.length">已选 {{ selectedServices.length }} 项</span>
+          <div class="batch-controls">
+            <div class="batch-left">
+              <label class="checkbox-label">
+                <input type="checkbox" :checked="allSelected" @change="toggleSelectAll" />
+                <span class="checkmark"></span>
+                全选
+              </label>
+              <span v-if="selectedServices.length" class="selected-count">已选 {{ selectedServices.length }} 项</span>
+            </div>
+            <div class="batch-right">
+              <button class="action-btn draw-btn" @click="drawSelectedPaths" :disabled="selectedServices.length === 0">
+                批量绘制
+              </button>
+              <button class="action-btn clear-btn" @click="clearSelectedPaths" :disabled="selectedServices.length === 0">
+                批量清除
+              </button>
+            </div>
           </div>
+          
           <!-- 活跃业务 -->
           <div v-if="serviceData.active_requests?.length && displaySettings.showActive" class="business-group">
-            <div v-for="request in serviceData.active_requests" 
-                 :key="generateServiceId(request)" 
-                 class="service-item active" 
-                 @click="handleServiceClick(request, 'active')">
-              <!-- 新增复选框 -->
-              <input type="checkbox"
-                     :checked="isServiceSelected(request)"
-                     @click.stop="toggleServiceSelection(request)"
-                     style="margin-right: 8px;" />
-              <div class="service-info">
-                <span class="service-id">{{ generateServiceId(request) }}</span>
-                <span class="service-route">{{ request.src_node }} → {{ request.dst_node }}</span>
-              </div>
-              <div class="service-actions">
-                <button 
-                  class="action-btn draw-btn"
-                  @click.stop="drawSinglePath(request)"
-                  :disabled="!networkData"
-                >
-                  绘制
-                </button>
-                <button 
-                  class="action-btn clear-btn"
-                  @click.stop="clearSinglePath(request)"
-                >
-                  清除
-                </button>
+            <h5 class="group-title active">活跃业务</h5>
+            <div class="service-grid">
+              <div v-for="request in serviceData.active_requests" 
+                   :key="generateServiceId(request)" 
+                   class="service-card active" 
+                   @click="handleServiceClick(request, 'active')"
+                   @dblclick="toggleSinglePath(request)">
+                <input type="checkbox"
+                       :checked="isServiceSelected(request)"
+                       @click.stop="toggleServiceSelection(request)"
+                       class="service-checkbox" />
+                <div class="service-content">
+                  <div class="service-id">{{ generateServiceId(request) }}</div>
+                  <div class="service-route">{{ request.src_node }} → {{ request.dst_node }}</div>
+                </div>
               </div>
             </div>
           </div>
           
           <!-- 待处理业务 -->
           <div v-if="serviceData.pending_requests?.length && displaySettings.showPending" class="business-group">
-            <div v-for="request in serviceData.pending_requests" 
-                 :key="generateServiceId(request)" 
-                 class="service-item pending" 
-                 @click="handleServiceClick(request, 'pending')">
-              <!-- 新增复选框 -->
-              <input type="checkbox"
-                     :checked="isServiceSelected(request)"
-                     @click.stop="toggleServiceSelection(request)"
-                     style="margin-right: 8px;" />
-              <div class="service-info">
-                <span class="service-id">{{ generateServiceId(request) }}</span>
-                <span class="service-route">{{ request.src_node }} → {{ request.dst_node }}</span>
-              </div>
-              <div class="service-actions">
-                <button 
-                  class="action-btn draw-btn"
-                  @click.stop="drawSinglePath(request)"
-                  :disabled="!networkData"
-                >
-                  绘制
-                </button>
-                <button 
-                  class="action-btn clear-btn"
-                  @click.stop="clearSinglePath(request)"
-                >
-                  清除
-                </button>
+            <h5 class="group-title pending">待处理业务</h5>
+            <div class="service-grid">
+              <div v-for="request in serviceData.pending_requests" 
+                   :key="generateServiceId(request)" 
+                   class="service-card pending" 
+                   @click="handleServiceClick(request, 'pending')"
+                   @dblclick="toggleSinglePath(request)">
+                <input type="checkbox"
+                       :checked="isServiceSelected(request)"
+                       @click.stop="toggleServiceSelection(request)"
+                       class="service-checkbox" />
+                <div class="service-content">
+                  <div class="service-id">{{ generateServiceId(request) }}</div>
+                  <div class="service-route">{{ request.src_node }} → {{ request.dst_node }}</div>
+                </div>
               </div>
             </div>
           </div>
           
           <!-- 阻塞业务 -->
           <div v-if="serviceData.blocked_requests?.length && displaySettings.showBlocked" class="business-group">
-            <div v-for="request in serviceData.blocked_requests" 
-                 :key="generateServiceId(request)" 
-                 class="service-item blocked" 
-                 @click="handleServiceClick(request, 'blocked')">
-              <!-- 新增复选框 -->
-              <input type="checkbox"
-                     :checked="isServiceSelected(request)"
-                     @click.stop="toggleServiceSelection(request)"
-                     style="margin-right: 8px;" />
-              <div class="service-info">
-                <span class="service-id">{{ generateServiceId(request) }}</span>
-                <span class="service-route">{{ request.src_node }} → {{ request.dst_node }}</span>
-              </div>
-              <div class="service-actions">
-                <button 
-                  class="action-btn draw-btn"
-                  @click.stop="drawSinglePath(request)"
-                  :disabled="!networkData"
-                >
-                  绘制
-                </button>
-                <button 
-                  class="action-btn clear-btn"
-                  @click.stop="clearSinglePath(request)"
-                >
-                  清除
-                </button>
+            <h5 class="group-title blocked">阻塞业务</h5>
+            <div class="service-grid">
+              <div v-for="request in serviceData.blocked_requests" 
+                   :key="generateServiceId(request)" 
+                   class="service-card blocked" 
+                   @click="handleServiceClick(request, 'blocked')"
+                   @dblclick="toggleSinglePath(request)">
+                <input type="checkbox"
+                       :checked="isServiceSelected(request)"
+                       @click.stop="toggleServiceSelection(request)"
+                       class="service-checkbox" />
+                <div class="service-content">
+                  <div class="service-id">{{ generateServiceId(request) }}</div>
+                  <div class="service-route">{{ request.src_node }} → {{ request.dst_node }}</div>
+                </div>
               </div>
             </div>
           </div>
           
           <!-- 失败业务 -->
           <div v-if="serviceData.failed_requests?.length && displaySettings.showFailed" class="business-group">
-            <div v-for="request in serviceData.failed_requests" 
-                 :key="generateServiceId(request)" 
-                 class="service-item failed" 
-                 @click="handleServiceClick(request, 'failed')">
-              <!-- 新增复选框 -->
-              <input type="checkbox"
-                     :checked="isServiceSelected(request)"
-                     @click.stop="toggleServiceSelection(request)"
-                     style="margin-right: 8px;" />
-              <div class="service-info">
-                <span class="service-id">{{ generateServiceId(request) }}</span>
-                <span class="service-route">{{ request.src_node }} → {{ request.dst_node }}</span>
-              </div>
-              <div class="service-actions">
-                <button 
-                  class="action-btn draw-btn"
-                  @click.stop="drawSinglePath(request)"
-                  :disabled="!networkData"
-                >
-                  绘制
-                </button>
-                <button 
-                  class="action-btn clear-btn"
-                  @click.stop="clearSinglePath(request)"
-                >
-                  清除
-                </button>
+            <h5 class="group-title failed">失败业务</h5>
+            <div class="service-grid">
+              <div v-for="request in serviceData.failed_requests" 
+                   :key="generateServiceId(request)" 
+                   class="service-card failed" 
+                   @click="handleServiceClick(request, 'failed')"
+                   @dblclick="toggleSinglePath(request)">
+                <input type="checkbox"
+                       :checked="isServiceSelected(request)"
+                       @click.stop="toggleServiceSelection(request)"
+                       class="service-checkbox" />
+                <div class="service-content">
+                  <div class="service-id">{{ generateServiceId(request) }}</div>
+                  <div class="service-route">{{ request.src_node }} → {{ request.dst_node }}</div>
+                </div>
               </div>
             </div>
           </div>
@@ -445,39 +406,59 @@ function clearSinglePath(service) {
   clearServicePath(viewer, serviceId);
 }
 
-// 切换所有路径显示
-function toggleAllPaths() {
-  console.log('=== 切换所有路径显示 ===');
-  
-  // cesiumViewer 是通过 inject 获取的，应该是一个函数
+// 双击切换单个业务路径（绘制或清除）
+function toggleSinglePath(service) {
   const viewer = cesiumViewer?.() || cesiumViewer;
-  console.log('实际使用的 viewer:', viewer);
-  console.log('networkData:', props.networkData);
-  console.log('serviceData:', props.serviceData);
-  
   if (!viewer || !props.networkData) {
     console.warn('Cesium viewer 或网络数据不可用');
     return;
   }
   
+  const serviceId = props.generateServiceId(service);
+  
+  // 检查路径是否已经绘制（简单的检查方法，您可能需要根据实际情况调整）
+  const entities = viewer.entities.values;
+  const hasPath = entities.some(entity => 
+    entity.id && entity.id.includes && entity.id.includes(serviceId)
+  );
+  
+  if (hasPath) {
+    // 如果已有路径，则清除
+    console.log('清除业务路径:', serviceId);
+    clearServicePath(viewer, serviceId);
+  } else {
+    // 如果没有路径，则绘制
+    console.log('绘制业务路径:', serviceId);
+    drawServicePath(viewer, service, props.networkData);
+  }
+}
+
+// 切换所有路径显示
+function toggleAllPaths() {
+  console.log('=== 切换所有路径显示 ===');
+  
+  const viewer = cesiumViewer?.() || cesiumViewer;
+  if (!viewer || !props.networkData) {
+    console.warn('Cesium viewer 或网络数据不可用');
+    return;
+  }
+  
+  // 先全选所有可见的业务
+  const ids = visibleRequests.value.map(req => props.generateServiceId(req));
+  selectedServices.value = Array.from(new Set([...selectedServices.value, ...ids]));
+  console.log('已全选所有可见业务:', selectedServices.value.length, '项');
+  
   showAllPaths.value = !showAllPaths.value;
   console.log('showAllPaths:', showAllPaths.value);
   
   if (showAllPaths.value) {
-    // 绘制所有路径
-    console.log('开始绘制所有路径，设置:', displaySettings.value);
-    drawMultipleServicePaths(viewer, props.serviceData, props.networkData, {
-      showActive: displaySettings.value.showActive,
-      showPending: displaySettings.value.showPending,
-      showEnded: displaySettings.value.showEnded,
-      showBlocked: displaySettings.value.showBlocked,
-      showFailed: displaySettings.value.showFailed,
-      maxPaths: displaySettings.value.maxPaths
-    });
+    // 绘制所有选中的路径
+    console.log('开始绘制所有选中路径');
+    drawSelectedPaths();
   } else {
-    // 清除所有路径
-    console.log('清除所有路径');
-    clearAllPaths();
+    // 清除所有选中的路径
+    console.log('清除所有选中路径');
+    clearSelectedPaths();
   }
 }
 
@@ -489,9 +470,13 @@ function clearAllPaths() {
     return;
   }
   
-  // 使用 clearAllServicePathsAndCache 而不是 clearAllServicePaths
-  // 这样可以同时清除显示和缓存，避免自动重绘
-  clearAllServicePathsAndCacheFunc(viewer);
+  // 先全选所有可见的业务
+  const ids = visibleRequests.value.map(req => props.generateServiceId(req));
+  selectedServices.value = Array.from(new Set([...selectedServices.value, ...ids]));
+  console.log('已全选所有可见业务:', selectedServices.value.length, '项');
+  
+  // 清除所有选中的路径
+  clearSelectedPaths();
   showAllPaths.value = false;
 }
 
@@ -770,9 +755,39 @@ onMounted(() => {
 .business-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
+/* 批量控制区域 */
+.batch-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(40, 40, 40, 0.7);
+  border: 1px solid rgba(68, 68, 68, 0.8);
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.batch-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.batch-right {
+  display: flex;
+  gap: 6px;
+}
+
+.selected-count {
+  font-size: 11px;
+  color: #ccc;
+}
+
+
+/* 业务组 */
 .business-group {
   border: 1px solid rgba(68, 68, 68, 0.8);
   border-radius: 4px;
@@ -780,69 +795,123 @@ onMounted(() => {
   background: rgba(40, 40, 40, 0.5);
 }
 
-.service-item {
-  padding: 8px 12px;
+.group-title {
+  margin: 0;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(68, 68, 68, 0.6);
+  background: rgba(30, 30, 30, 0.8);
+}
+
+.group-title.active {
+  color: #4CAF50;
+}
+
+.group-title.pending {
+  color: #FFC107;
+}
+
+.group-title.blocked {
+  color: #FF5722;
+}
+
+.group-title.failed {
+  color: #F44336;
+}
+
+/* 业务网格布局 */
+.service-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: rgba(68, 68, 68, 0.6);
+}
+
+/* 响应式调整 */
+@media (max-width: 1200px) {
+  .service-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .service-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .service-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.service-card {
+  padding: 6px 8px;
   cursor: pointer;
   transition: background-color 0.2s;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  font-size: 12px;
-  border-bottom: 1px solid rgba(68, 68, 68, 0.6);
+  font-size: 10px;
   background: rgba(50, 50, 50, 0.4);
+  position: relative;
 }
 
-.service-item:last-child {
-  border-bottom: none;
-}
-
-.service-item:hover {
+.service-card:hover {
   background-color: rgba(255, 255, 255, 0.1);
 }
 
-.service-item.active {
+.service-card.active {
   background-color: rgba(76, 175, 80, 0.2);
-  border-left: 3px solid #4CAF50;
+  border-left: 2px solid #4CAF50;
 }
 
-.service-item.pending {
+.service-card.pending {
   background-color: rgba(255, 193, 7, 0.2);
-  border-left: 3px solid #FFC107;
+  border-left: 2px solid #FFC107;
 }
 
-.service-item.blocked {
+.service-card.blocked {
   background-color: rgba(255, 87, 34, 0.2);
-  border-left: 3px solid #FF5722;
+  border-left: 2px solid #FF5722;
 }
 
-.service-item.failed {
+.service-card.failed {
   background-color: rgba(244, 67, 54, 0.2);
-  border-left: 3px solid #F44336;
+  border-left: 2px solid #F44336;
 }
 
-.service-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.service-checkbox {
+  margin-right: 6px;
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.service-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .service-id {
   font-weight: bold;
   color: #fff;
+  font-size: 10px;
+  line-height: 1.2;
 }
 
 .service-route {
-  font-size: 11px;
+  font-size: 9px;
   color: #ccc;
-}
-
-.service-actions {
-  display: flex;
-  gap: 4px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .action-btn {
-  padding: 2px 6px;
+  padding: 3px 8px;
   border: 1px solid #666;
   background: #444;
   color: #ccc;

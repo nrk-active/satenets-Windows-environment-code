@@ -98,7 +98,7 @@ import BottomCollapsedSidebar from './BottomCollapsedSidebar.vue';
 import ControlPanel from './ControlPanel.vue';
 import ServicePanel from './ServicePanel.vue';
 import ServiceDetail from './ServiceDetail.vue';
-import ServicePathPanel from './ServicePathPanel.vue';
+
 
 import { useCesium } from '../composables/useCesium.js';
 import { useDataLoader } from '../composables/useDataLoader.js';
