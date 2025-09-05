@@ -199,6 +199,31 @@ const carriedServices = computed(() => {
   if (!props.selectedEntity || !props.serviceData?.active_requests) return [];
   
   const entityId = props.selectedEntity.id;
+  
+  // 如果是链路，需要检查业务路径中是否包含该链路的首尾节点对
+  if (entityType.value === 'link') {
+    return props.serviceData.active_requests.filter(service => {
+      const path = service.path;
+      // 检查路径中是否存在连续的节点对与当前链路匹配
+      for (let i = 0; i < path.length - 1; i++) {
+        if (
+          (path[i] === props.selectedEntity.source && path[i + 1] === props.selectedEntity.target) ||
+          (path[i] === props.selectedEntity.target && path[i + 1] === props.selectedEntity.source)
+        ) {
+          return true;
+        }
+      }
+      return false;
+    }).map(service => ({
+      id: service.request_id,
+      bandwidth: service.bandwidth,
+      src: service.src_node,
+      dst: service.dst_node,
+      status: service.status
+    }));
+  } 
+  
+  // 对于其他类型的实体，保持原有逻辑
   return props.serviceData.active_requests.filter(service => 
     service.path.includes(entityId)
   ).map(service => ({
