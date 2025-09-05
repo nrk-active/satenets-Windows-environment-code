@@ -74,6 +74,7 @@
           v-else-if="showRightPanel"
           :selectedEntity="selectedEntity" 
           :graphData="selectedEntityRawData"
+          :service-data="serviceData"
           @close="handleRightPanelClose" 
         />
       </div>

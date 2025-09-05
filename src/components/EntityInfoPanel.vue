@@ -143,6 +143,36 @@
           <div class="info-value">未知</div>
         </div>
       </div>
+
+      <!-- 承载业务信息 -->
+      <div v-if="carriedServices.length > 0" class="service-section">
+        <div class="info-section-title">承载业务</div>
+        <div class="services-list">
+          <div v-for="service in carriedServices" :key="service.id" class="service-item">
+            <div class="service-header">{{ service.id }}</div>
+            <div class="service-details">
+              <div class="service-info">
+                <span class="service-label">源节点:</span>
+                <span class="service-value">{{ service.src }}</span>
+              </div>
+              <div class="service-info">
+                <span class="service-label">目标节点:</span>
+                <span class="service-value">{{ service.dst }}</span>
+              </div>
+              <div class="service-info">
+                <span class="service-label">带宽:</span>
+                <span class="service-value">{{ service.bandwidth }} Gbps</span>
+              </div>
+              <div class="service-info">
+                <span class="service-label">状态:</span>
+                <span class="service-value" :class="{'status-active': service.status === 'IN_SERVICE'}">
+                  {{ service.status === 'IN_SERVICE' ? '运行中' : service.status }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
   <div v-else class="entity-info-panel empty-panel">
@@ -155,10 +185,30 @@ import { computed, ref } from 'vue';
 
 const props = defineProps({
   selectedEntity: Object,
-  graphData: Object
+  graphData: Object,
+  serviceData: {
+    type: Object,
+    default: () => ({})
+  }
 });
 
 const emit = defineEmits(['close']);
+
+// 计算当前实体承载的业务
+const carriedServices = computed(() => {
+  if (!props.selectedEntity || !props.serviceData?.active_requests) return [];
+  
+  const entityId = props.selectedEntity.id;
+  return props.serviceData.active_requests.filter(service => 
+    service.path.includes(entityId)
+  ).map(service => ({
+    id: service.request_id,
+    bandwidth: service.bandwidth,
+    src: service.src_node,
+    dst: service.dst_node,
+    status: service.status
+  }));
+});
 
 // 计算实体类型
 const entityType = computed(() => {
@@ -341,5 +391,52 @@ function formatNumber(num) {
 .empty-message {
   color: #888;
   font-style: italic;
+}
+
+.service-section {
+  margin-top: 20px;
+}
+
+.services-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.service-item {
+  background: #2a2a2a;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.service-header {
+  color: #f39c12;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.service-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.service-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.service-label {
+  color: #aaa;
+}
+
+.service-value {
+  color: #fff;
+}
+
+.status-active {
+  color: #2ecc71;
 }
 </style>
