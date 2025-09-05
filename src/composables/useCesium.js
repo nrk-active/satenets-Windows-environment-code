@@ -76,8 +76,25 @@ export function useCesium() {
     const currentTime = Cesium.JulianDate.now();
     // 调整时间以获得更好的光照角度（可以根据需要调整）
     const adjustedTime = Cesium.JulianDate.addHours(currentTime, 6, new Cesium.JulianDate()); // 调整6小时
-    viewer.clock.currentTime = adjustedTime;
-    viewer.clock.clockRange = Cesium.ClockRange.UNBOUNDED;
+    
+    // 设置时钟的开始和结束时间范围（6帧，每帧60秒）
+    const startTime = adjustedTime;
+    const endTime = Cesium.JulianDate.addSeconds(startTime, 6 * 60, new Cesium.JulianDate());
+    
+    viewer.clock.startTime = startTime;
+    viewer.clock.currentTime = startTime; // 从第一帧开始
+    viewer.clock.stopTime = endTime;
+    viewer.clock.clockRange = Cesium.ClockRange.LOOP_STOP;
+    
+    // 确保时钟初始状态为完全停止
+    viewer.clock.shouldAnimate = false;
+    viewer.clock.multiplier = 0;
+    
+    console.log('时钟设置完成 - 范围:', 
+      Cesium.JulianDate.toIso8601(startTime), 
+      '到', 
+      Cesium.JulianDate.toIso8601(endTime)
+    );
     
     // 启用真实的太阳光照计算
     viewer.scene.globe.atmosphereHueShift = 0.0;
@@ -506,9 +523,21 @@ export function useCesium() {
     if (!viewer) return;
     
     let lastFrame = 1; // 记录上一次的帧数，避免重复触发
+    let isInitialized = false; // 防止初始化时的误触发
+    
+    // 延迟启用监听器，避免初始化时的自动触发
+    setTimeout(() => {
+      isInitialized = true;
+      console.log('时间轴控制监听器已启用');
+    }, 2000); // 2秒后才启用，确保初始化完成
     
     // 监听时钟变化事件
     viewer.clock.onTick.addEventListener(function(clock) {
+      // 只有在初始化完成且时钟真正在播放时才响应
+      if (!isInitialized || !clock.shouldAnimate) {
+        return;
+      }
+      
       // 根据当前时间计算应该显示哪一帧
       const elapsed = Cesium.JulianDate.secondsDifference(clock.currentTime, clock.startTime);
       const frameIndex = Math.floor(elapsed / 60) + 1; // 每60秒一帧
@@ -699,18 +728,53 @@ export function useCesium() {
       edge.source === satelliteId || edge.target === satelliteId
     );
 
+    // 创建动态位置回调函数
+    const createDynamicPositionCallback = (node) => {
+      if (node.type === 'satellite') {
+        // 对于卫星节点，创建动态位置回调
+        return new Cesium.CallbackProperty(function(time, result) {
+          // 尝试从场景中获取实时的卫星实体位置
+          const satelliteEntity = viewer.entities.getById(node.id);
+          if (satelliteEntity && satelliteEntity.position) {
+            // 如果是CallbackProperty，获取其值
+            if (typeof satelliteEntity.position.getValue === 'function') {
+              return satelliteEntity.position.getValue(time, result);
+            }
+            // 如果是Cartesian3，直接返回
+            else if (satelliteEntity.position instanceof Cesium.Cartesian3) {
+              return satelliteEntity.position;
+            }
+          }
+          // 如果无法获取实时位置，返回静态位置
+          return getEntityPosition(node, viewer);
+        }, false);
+      } else {
+        // 对于地面节点，返回静态位置
+        return getEntityPosition(node, viewer);
+      }
+    };
+
     relatedEdges.forEach(edge => {
       const sourceNode = nodes.find(n => n.id === edge.source);
       const targetNode = nodes.find(n => n.id === edge.target);
 
       if (!sourceNode || !targetNode) return;
 
-      const sourcePosition = getEntityPosition(sourceNode, viewer);
-      const targetPosition = getEntityPosition(targetNode, viewer);
+      // 创建动态位置数组
+      const dynamicPositions = new Cesium.CallbackProperty(function(time, result) {
+        const sourcePos = sourceNode.type === 'satellite' ? 
+          createDynamicPositionCallback(sourceNode).getValue(time) : 
+          getEntityPosition(sourceNode, viewer);
+        const targetPos = targetNode.type === 'satellite' ? 
+          createDynamicPositionCallback(targetNode).getValue(time) : 
+          getEntityPosition(targetNode, viewer);
+        
+        return [sourcePos, targetPos];
+      }, false);
 
       const highlightEntity = viewer.entities.add({
         polyline: {
-          positions: [sourcePosition, targetPosition],
+          positions: dynamicPositions,
           width: 2,
           material: Cesium.Color.RED,
           arcType: Cesium.ArcType.NONE,

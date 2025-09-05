@@ -16,8 +16,14 @@ export function useAnimation(timelineControlRef = null) {
   // 添加实体位置缓存，避免频繁创建CallbackProperty
   const entityPositionCache = new Map();
 
+  // 添加强制停止动画的标志
+  let forceStopAnimation = false;
+
   function animateTransition(viewer, fromData, toData, onComplete) {
     console.log("开始过渡动画");
+    
+    // 重置强制停止标志
+    forceStopAnimation = false;
     
     // 先清理可能存在的动画
     if (currentAnimationFrame) {
@@ -213,10 +219,46 @@ export function useAnimation(timelineControlRef = null) {
     let lastFrameTime = 0;
     
     function animate(timestamp) {
-      // 检查动画是否应该停止
-      if (!isPlaying.value || !animationInProgress.value) {
-        console.log('动画被暂停或停止');
+      // 检查是否需要强制停止动画
+      if (forceStopAnimation) {
+        console.log('强制停止动画');
         currentAnimationFrame = null;
+        animationInProgress.value = false;
+        return;
+      }
+      
+      // 如果暂停了播放，立即停止动画，不再继续
+      if (!isPlaying.value) {
+        console.log('播放已暂停，停止当前动画并保持当前位置');
+        currentAnimationFrame = null;
+        animationInProgress.value = false;
+        
+        // 创建反映当前实际位置的中间帧数据
+        // 这样下次播放时会从当前位置继续，而不是从原始位置重新开始
+        const currentFrameData = JSON.parse(JSON.stringify(toData)); // 深拷贝目标数据
+        
+        // 更新节点位置为当前实际位置
+        satellitePairs.forEach(pair => {
+          const nodeInData = currentFrameData.nodes.find(node => node.id === pair.entity.id);
+          if (nodeInData && nodeInData.type === 'satellite') {
+            // 将当前位置转换回数据格式（除以1000，因为数据中是km，Cesium中是m）
+            nodeInData.position = [
+              pair.positionRef.x / 1000,
+              pair.positionRef.y / 1000,
+              pair.positionRef.z / 1000
+            ];
+          }
+        });
+        
+        previousFrameData = currentFrameData; // 使用包含当前位置的数据
+        
+        // 不设置最终位置，保持当前动画进度的位置
+        // 卫星会停留在暂停时刻的位置，而不是跳跃到目标位置
+        console.log('卫星保持在当前动画进度位置，previousFrameData已更新为当前位置');
+        
+        if (onComplete) {
+          onComplete(satelliteIds);
+        }
         return;
       }
       
@@ -272,33 +314,43 @@ export function useAnimation(timelineControlRef = null) {
   }
 
   function togglePlayback(onFrameLoad) {
+    const wasPlaying = isPlaying.value;
     isPlaying.value = !isPlaying.value;
-    console.log(`播放状态切换为: ${isPlaying.value ? '播放' : '暂停'}`);
+    console.log(`播放状态切换为: ${isPlaying.value ? '播放' : '暂停'} (之前: ${wasPlaying ? '播放' : '暂停'})`);
     
     if (isPlaying.value) {
       // 开始播放
-      animationInProgress.value = false; // 重置动画状态
+      console.log('开始播放，保持当前动画进度（如果有）');
+      console.log('当前时间帧:', timeFrame.value);
+      console.log('动画进行状态:', animationInProgress.value);
       
       // 禁用时间轴自动播放
       if (timelineControlRef && timelineControlRef.setTimelineAnimation) {
         timelineControlRef.setTimelineAnimation(false);
       }
-      playNextFrame(onFrameLoad);
-    } else {
-      // 停止播放
-      console.log('停止播放，清理定时器和动画');
       
+      // 如果当前没有动画进行，才开始播放下一帧
+      // 如果有动画正在进行，让它继续完成
+      if (!animationInProgress.value) {
+        // 立即开始播放下一帧，不需要延迟
+        playNextFrame(onFrameLoad);
+      } else {
+        console.log('动画正在进行中，继续当前动画进度');
+        // 动画继续进行，但需要确保完成后继续播放循环
+        // 我们在 animateTransition 中会检查 isPlaying 状态来决定是否继续
+      }
+    } else {
+      // 暂停播放
+      console.log('暂停播放，保持当前动画状态');
+      
+      // 清理播放定时器，但保留动画帧继续进行
       if (playbackTimer) {
         clearTimeout(playbackTimer);
         playbackTimer = null;
       }
       
-      if (currentAnimationFrame) {
-        cancelAnimationFrame(currentAnimationFrame);
-        currentAnimationFrame = null;
-      }
-      
-      animationInProgress.value = false;
+      // 不清理 currentAnimationFrame，让当前动画继续完成
+      // 这样暂停时动画不会突然停止，而是自然完成
       
       // 重新启用时间轴
       if (timelineControlRef && timelineControlRef.setTimelineAnimation) {
@@ -314,8 +366,9 @@ export function useAnimation(timelineControlRef = null) {
     }
     
     if (animationInProgress.value) {
-      console.log('动画进行中，延迟播放下一帧');
-      playbackTimer = setTimeout(() => playNextFrame(onFrameLoad), 100);
+      console.log('动画进行中，等待动画完成后继续播放');
+      // 缩短检查间隔，提高响应性
+      playbackTimer = setTimeout(() => playNextFrame(onFrameLoad), 20);
       return;
     }
     
@@ -329,16 +382,19 @@ export function useAnimation(timelineControlRef = null) {
       onFrameLoad(nextTimeFrame);
     }
     
-    // 增加延迟以配合较慢的动画速度，但要检查播放状态
+    // 减少延迟，让播放更连贯，但保持检查播放状态
     playbackTimer = setTimeout(() => {
       if (isPlaying.value) { // 只有在仍在播放时才继续
         playNextFrame(onFrameLoad);
       }
-    }, 500); // 500ms延迟，让用户有时间观察动画
+    }, 100); // 保持100ms延迟
   }
 
   function cleanup() {
     console.log('清理动画资源...');
+    
+    // 设置强制停止标志
+    forceStopAnimation = true;
     
     // 停止播放
     isPlaying.value = false;
@@ -355,8 +411,15 @@ export function useAnimation(timelineControlRef = null) {
       currentAnimationFrame = null;
     }
     
+    // 重置动画状态
+    animationInProgress.value = false;
+    
     // 清理位置缓存以释放内存
     entityPositionCache.clear();
+    
+    // 重置强制停止标志
+    forceStopAnimation = false;
+    
     console.log('动画资源清理完成');
   }
 

@@ -165,41 +165,77 @@ function updateSelectionIndicator() {
     return;
   }
 
-  // 找到选中的实体
-  const entity = currentGraphData.nodes.find(node => node.id === selectedEntity.value.id);
-  if (!entity) {
-    selectionIndicatorStyle.value = { display: 'none' };
-    return;
+  // 首先尝试从Cesium场景中获取实体的实时位置
+  let position = null;
+  
+  // 查找Cesium场景中对应的实体
+  const cesiumEntity = viewer().entities.getById(selectedEntity.value.id);
+  if (cesiumEntity && cesiumEntity.position) {
+    try {
+      // 获取当前时间的实体位置（支持动画过程中的实时位置）
+      const currentTime = viewer().clock.currentTime;
+      if (typeof cesiumEntity.position.getValue === 'function') {
+        // 如果position是一个Property（如CallbackProperty），获取当前时间的值
+        position = cesiumEntity.position.getValue(currentTime);
+      } else {
+        // 如果position是静态的Cartesian3
+        position = cesiumEntity.position;
+      }
+      
+    } catch (error) {
+      console.warn('获取Cesium实体位置失败:', error);
+      position = null;
+    }
+  }
+  
+  // 如果无法从Cesium实体获取位置，回退到数据中的位置
+  if (!position) {
+    const entity = currentGraphData.nodes.find(node => node.id === selectedEntity.value.id);
+    if (!entity) {
+      selectionIndicatorStyle.value = { display: 'none' };
+      return;
+    }
+
+    // 从数据中构建位置
+    if (entity.type === 'satellite') {
+      position = new Cesium.Cartesian3(
+        parseFloat(entity.position[0]) * 1000,
+        parseFloat(entity.position[1]) * 1000,
+        parseFloat(entity.position[2]) * 1000
+      );
+      console.log(`选择指示器：使用卫星 ${selectedEntity.value.id} 的数据位置（回退）`);
+    } else {
+      position = Cesium.Cartesian3.fromDegrees(
+        parseFloat(entity.position[0]),
+        parseFloat(entity.position[1]),
+        10
+      );
+    }
   }
 
-  // 获取实体的3D位置
-  let position;
-  if (entity.type === 'satellite') {
-    position = new Cesium.Cartesian3(
-      parseFloat(entity.position[0]) * 1000,
-      parseFloat(entity.position[1]) * 1000,
-      parseFloat(entity.position[2]) * 1000
-    );
-  } else {
-    position = Cesium.Cartesian3.fromDegrees(
-      parseFloat(entity.position[0]),
-      parseFloat(entity.position[1]),
-      10
-    );
-  }
-
-  // 将3D位置转换为屏幕坐标 - 使用正确的API
+  // 将3D位置转换为屏幕坐标
   try {
     const screenPosition = viewer().scene.cartesianToCanvasCoordinates(position);
     
     if (screenPosition) {
-      selectionIndicatorStyle.value = {
-        display: 'block',
-        left: `${screenPosition.x - selectionIndicatorSize / 2}px`,
-        top: `${screenPosition.y - selectionIndicatorSize / 2}px`,
-        width: `${selectionIndicatorSize}px`,
-        height: `${selectionIndicatorSize}px`
-      };
+      // 检查屏幕坐标是否在有效范围内
+      const canvas = viewer().scene.canvas;
+      const canvasWidth = canvas.clientWidth;
+      const canvasHeight = canvas.clientHeight;
+      
+      if (screenPosition.x >= 0 && screenPosition.x <= canvasWidth &&
+          screenPosition.y >= 0 && screenPosition.y <= canvasHeight) {
+        selectionIndicatorStyle.value = {
+          display: 'block',
+          left: `${screenPosition.x - selectionIndicatorSize / 2}px`,
+          top: `${screenPosition.y - selectionIndicatorSize / 2}px`,
+          width: `${selectionIndicatorSize}px`,
+          height: `${selectionIndicatorSize}px`
+        };
+      } else {
+        // 实体在屏幕外，隐藏指示器
+        selectionIndicatorStyle.value = { display: 'none' };
+      }
     } else {
       selectionIndicatorStyle.value = { display: 'none' };
     }
@@ -746,17 +782,37 @@ onMounted(async () => {
     console.log('当前登录状态:', isLoggedIn.value, '用户名:', username.value);
     console.log('当前选择的进程ID:', selectedProcessId.value);
     console.log('localStorage中的进程ID:', localStorage.getItem('selectedProcessId'));
+    console.log('初始播放状态:', isPlaying.value);
+    console.log('初始时间帧:', timeFrame.value);
     
     const cesiumViewer = initializeCesium("cesiumContainer");
     setupClickHandler(handleSatelliteClick);
     updateVisibility();
     
+    // 添加播放状态监听器用于调试
+    watch(isPlaying, (newValue, oldValue) => {
+      console.log(`播放状态变化: ${oldValue} → ${newValue}`);
+    });
+    
+    watch(timeFrame, (newValue, oldValue) => {
+      console.log(`时间帧变化: ${oldValue} → ${newValue}`);
+    });
+    
     // 设置时间轴控制
     let isTimelineControlled = false; // 标记是否正在被时间轴控制
+    let isInitialSetup = true; // 标记是否为初始设置阶段
     
     setupTimelineControl((frame) => {
       console.log(`时间轴控制：切换到帧 ${frame}`);
-      if (frame !== timeFrame.value && !isPlaying.value) { // 只有在非播放状态时才响应时间轴
+      
+      // 在初始设置阶段忽略时间轴变化
+      if (isInitialSetup) {
+        console.log('初始设置阶段，忽略时间轴变化');
+        return;
+      }
+      
+      // 只有在非播放状态时才响应时间轴
+      if (frame !== timeFrame.value && !isPlaying.value) {
         isTimelineControlled = true;
         timeFrame.value = frame; // 直接更新timeFrame而不触发loadTimeFrame
         loadTimeFrame(frame).then(() => {
@@ -764,6 +820,12 @@ onMounted(async () => {
         });
       }
     });
+    
+    // 3秒后结束初始设置阶段
+    setTimeout(() => {
+      isInitialSetup = false;
+      console.log('初始设置阶段结束，时间轴控制现在生效');
+    }, 3000);
     
     // 启用瞬间模式以支持流畅的手动控制
     instantMode.value = false; // 改为false以显示动画效果
