@@ -533,7 +533,7 @@ export function useCesium() {
     
     // 监听时钟变化事件
     viewer.clock.onTick.addEventListener(function(clock) {
-      // 只有在初始化完成且时钟真正在播放时才响应
+      // 只有在初始化完成且时钟真是在播放时才响应
       if (!isInitialized || !clock.shouldAnimate) {
         return;
       }
@@ -614,7 +614,7 @@ export function useCesium() {
   }
 
   // 设置播放速度
-  function setPlaybackRate(multiplier) {
+  function setPlaybackRate(multiplier = 1) {
     if (!viewer) return;
     viewer.clock.multiplier = multiplier;
     console.log(`设置播放速度: ${multiplier}x`);
@@ -716,10 +716,99 @@ export function useCesium() {
     });
   }
 
+  let selectedLinkEntity = null;
+
+  // 修改 setupClickHandler 函数
+  function setupClickHandler(onEntityClick) {
+    if (!viewer || handler) return;
+    
+    handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+    
+    handler.setInputAction(function(click) {
+      const pickedObject = viewer.scene.pick(click.position);
+      
+      if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.id)) {
+        const entity = pickedObject.id;
+        if (entity.id) {
+          // 检查是否为链路实体
+          if (entity.entityType === 'link') {
+            // 高亮显示选中的链路
+            highlightSelectedLink(entity);
+            
+            // 传递链路ID
+            onEntityClick(entity.id);
+          } else {
+            // 点击非链路实体时，清除链路选中状态
+            if (selectedLinkEntity) {
+              resetLinkHighlight(selectedLinkEntity);
+              selectedLinkEntity = null;
+            }
+            
+            // 其他实体处理保持不变
+            onEntityClick(entity.id);
+          }
+        } else {
+          highlightedLinks.forEach(e => viewer.entities.remove(e));
+          highlightedLinks = [];
+        }
+      } else {
+        highlightedLinks.forEach(e => viewer.entities.remove(e));
+        highlightedLinks = [];
+      }
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+  }
+
+  // 添加高亮选中链路的函数
+  function highlightSelectedLink(linkEntity) {
+    // 如果之前有选中的链路，先恢复其样式
+    if (selectedLinkEntity && selectedLinkEntity.id !== linkEntity.id) {
+      resetLinkHighlight(selectedLinkEntity);
+    }
+    
+    // 保存当前选中的链路
+    selectedLinkEntity = linkEntity;
+    
+    // 修改链路样式以显示选中效果
+    if (linkEntity.polyline) {
+      // 保存原始宽度和颜色以便后续还原
+      linkEntity._originalWidth = linkEntity.polyline.width.getValue();
+      linkEntity._originalColor = linkEntity.polyline.material.color ? 
+        linkEntity.polyline.material.color.getValue().clone() : 
+        Cesium.Color.RED;
+        
+      // 设置选中效果：加粗和发光效果
+      linkEntity.polyline.width = 4; // 加粗线条
+      linkEntity.polyline.material = new Cesium.PolylineGlowMaterialProperty({
+        glowPower: 0.2,
+        color: Cesium.Color.YELLOW.withAlpha(0.8)
+      });
+    }
+  }
+
+  // 恢复链路原始样式
+  function resetLinkHighlight(linkEntity) {
+    if (linkEntity && linkEntity.polyline) {
+      // 恢复原始宽度和颜色
+      if (linkEntity._originalWidth) {
+        linkEntity.polyline.width = linkEntity._originalWidth;
+      }
+      if (linkEntity._originalColor) {
+        linkEntity.polyline.material = linkEntity._originalColor;
+      } else {
+        linkEntity.polyline.material = Cesium.Color.RED;
+      }
+    }
+  }
+
+  // 在 highlightSatelliteLinks 函数中添加对选中链路的处理
   function highlightSatelliteLinks(satelliteId, frameData) {
+    // 记录当前选中的链路ID，如果有的话
+    const selectedLinkId = selectedLinkEntity ? selectedLinkEntity.id : null;
+    
     // 清除之前的高亮链路
     highlightedLinks.forEach(entity => viewer.entities.remove(entity));
     highlightedLinks = [];
+    selectedLinkEntity = null;
 
     const { nodes, edges } = frameData;
     if (!edges || !nodes) return;
@@ -772,7 +861,12 @@ export function useCesium() {
         return [sourcePos, targetPos];
       }, false);
 
+      // 添加可点击的实体属性
       const highlightEntity = viewer.entities.add({
+        id: `${edge.source}-${edge.target}`,
+        entityType: 'link',
+        source: edge.source,
+        target: edge.target,
         polyline: {
           positions: dynamicPositions,
           width: 2,
@@ -787,6 +881,11 @@ export function useCesium() {
             (showSatellite.value && showRoadm.value)
       });
       highlightedLinks.push(highlightEntity);
+      
+      // 如果这条链路之前被选中，恢复选中状态
+      if (selectedLinkId === `${edge.source}-${edge.target}`) {
+        highlightSelectedLink(highlightEntity);
+      }
     });
   }
 
@@ -847,8 +946,14 @@ export function useCesium() {
       if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.id)) {
         const entity = pickedObject.id;
         if (entity.id) {
-          // 处理所有类型的实体点击
-          onEntityClick(entity.id);
+          // 检查是否为链路实体
+          if (entity.entityType === 'link') {
+            // 传递链路ID（与ObjectViewer中相同格式），这样父组件可以正确处理
+            onEntityClick(entity.id);
+          } else {
+            // 其他实体（卫星、地面站等）保持原有逻辑
+            onEntityClick(entity.id);
+          }
         } else {
           highlightedLinks.forEach(e => viewer.entities.remove(e));
           highlightedLinks = [];
@@ -906,6 +1011,8 @@ export function useCesium() {
     jumpToTimeFrame,
     setPlaybackRate,
     setTimelineAnimation,
+    highlightSelectedLink,
+    resetLinkHighlight,
     cleanup
   };
 }
