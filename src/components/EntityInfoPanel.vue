@@ -145,9 +145,9 @@
       </div>
 
       <!-- 承载业务信息 -->
-      <div v-if="carriedServices.length > 0" class="service-section">
+      <div class="service-section">
         <div class="info-section-title">承载业务</div>
-        <div class="services-list">
+        <div class="services-list" v-if="carriedServices.length > 0">
           <div v-for="service in carriedServices" :key="service.id" class="service-item">
             <div class="service-header">{{ service.id }}</div>
             <div class="service-details">
@@ -171,6 +171,9 @@
               </div>
             </div>
           </div>
+        </div>
+        <div v-else class="no-services-message">
+          当前实体未承载任何业务
         </div>
       </div>
     </div>
@@ -463,5 +466,14 @@ function formatNumber(num) {
 
 .status-active {
   color: #2ecc71;
+}
+
+.no-services-message {
+  padding: 12px;
+  text-align: center;
+  color: #888;
+  background: #2a2a2a;
+  border-radius: 6px;
+  font-size: 14px;
 }
 </style>
