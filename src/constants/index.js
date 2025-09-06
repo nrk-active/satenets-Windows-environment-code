@@ -13,12 +13,14 @@ export const ANIMATION_CONFIG = {
 };
 
 export const SIMULATION_CONFIG = {
-  MAX_TIME_FRAME: 6
+  MAX_TIME_FRAME: 360,  // 支持更多帧数，将在运行时根据文件夹动态调整
+  OLD_FOLDER_MAX_FRAMES: 6,
+  NEW_FOLDER_MAX_FRAMES: 360
 };
 
 export const CACHE_CONFIG = {
-  MAX_NETWORK_CACHE: 2,
-  MAX_SERVICE_CACHE: 2
+  MAX_NETWORK_CACHE: 50,  // 增加网络数据缓存，支持更多帧
+  MAX_SERVICE_CACHE: 50   // 增加服务数据缓存，支持更多帧
 };
 
 export const ENTITY_TYPES = {

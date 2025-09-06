@@ -170,7 +170,10 @@ function updateSelectionIndicator() {
   let position = null;
   
   // 查找Cesium场景中对应的实体
-  const cesiumEntity = viewer().entities.getById(selectedEntity.value.id);
+  let cesiumEntity = null;
+  if (viewer() && viewer().entities) {
+    cesiumEntity = viewer().entities.getById(selectedEntity.value.id);
+  }
   if (cesiumEntity && cesiumEntity.position) {
     try {
       // 获取当前时间的实体位置（支持动画过程中的实时位置）
@@ -267,6 +270,7 @@ const {
   jumpToTimeFrame,
   setPlaybackRate,
   setTimelineAnimation,
+  resetClockRange,
   cleanup: cleanupCesium
 } = useCesium();
 
@@ -277,7 +281,11 @@ const {
   loadGraphDataFromAPI,
   dataCache,
   clearCache,
-  getCacheInfo
+  getCacheInfo,
+  setDataFolder,
+  getCurrentDataFolder,
+  restoreDataFolderSetting,
+  selectedDataFolder
 } = useDataLoader();
 
 const {
@@ -377,7 +385,9 @@ watch(selectedProcessId, async (newProcessId, oldProcessId) => {
       
       if (data?.nodes?.length) {
         // 清除当前实体并重新创建
-        viewer().entities.removeAll();
+        if (viewer() && viewer().entities) {
+          viewer().entities.removeAll();
+        }
         createEntities(data);
         addRoadmLinks(data);
         setPreviousFrameData(data);
@@ -413,7 +423,9 @@ watch(isLoggedIn, async (newLoginStatus) => {
         const data = await loadGraphDataFromAPI(cachedProcessId, 60);
         
         if (data?.nodes?.length) {
-          viewer().entities.removeAll();
+          if (viewer() && viewer().entities) {
+            viewer().entities.removeAll();
+          }
           createEntities(data);
           addRoadmLinks(data);
           setPreviousFrameData(data);
@@ -440,15 +452,18 @@ watch(isLoggedIn, async (newLoginStatus) => {
     // clearCache(); // 如果要全部清理
     // clearServiceCache();
     
-    try {
-      // 加载默认的本地数据（60秒时间帧）
-      const defaultFrame = 1; // 对应60秒
-      const filename = `./data/network_state_${defaultFrame * 60}.00.json`;
-      const networkData = await loadGraphData(filename);
-      
-      if (networkData) {
-        console.log('登出后本地数据加载成功');
-        viewer().entities.removeAll();
+      try {
+        // 加载默认的本地数据（60秒时间帧）
+        const defaultFrame = 1; // 对应60秒
+        const currentFolder = getCurrentDataFolder();
+        const filename = `./data/${currentFolder}/network_state_${defaultFrame * 60}.00.json`;
+        const networkData = await loadGraphData(filename);
+        
+        if (networkData) {
+          console.log('登出后本地数据加载成功');
+          if (viewer() && viewer().entities) {
+            viewer().entities.removeAll();
+          }
         createEntities(networkData);
         addRoadmLinks(networkData);
         setPreviousFrameData(networkData);
@@ -461,7 +476,9 @@ watch(isLoggedIn, async (newLoginStatus) => {
       } else {
         // 如果本地数据加载失败，才清空数据
         console.warn('登出后本地数据加载失败，清空场景');
-        viewer().entities.removeAll();
+        if (viewer() && viewer().entities) {
+          viewer().entities.removeAll();
+        }
         currentGraphData = null;
         if (objectViewerRef.value) {
           objectViewerRef.value.updateData({ nodes: [], edges: [] });
@@ -470,7 +487,9 @@ watch(isLoggedIn, async (newLoginStatus) => {
     } catch (error) {
       console.error('登出后加载本地数据失败:', error);
       // 加载失败时清空数据
-      viewer().entities.removeAll();
+      if (viewer() && viewer().entities) {
+        viewer().entities.removeAll();
+      }
       currentGraphData = null;
       if (objectViewerRef.value) {
         objectViewerRef.value.updateData({ nodes: [], edges: [] });
@@ -489,9 +508,32 @@ async function loadTimeFrame(frame) {
     if (!isLoggedIn.value) {
       console.log('用户未登录，尝试从本地文件加载数据');
       
+      // 检查是否已选择文件夹
+      const currentFolder = getCurrentDataFolder();
+      if (!currentFolder) {
+        console.warn('未选择数据文件夹，无法加载数据');
+        return;
+      }
+      
       // 未登录时从本地加载数据
       try {
-        const filename = `./data/network_state_${frame * 60}.00.json`;
+        // 动态检测文件夹的时间间隔
+        let timeInterval = 60; // 默认60秒间隔
+        
+        // 尝试检测第一个可用的时间间隔
+        const possibleIntervals = [10, 60]; // 常见的时间间隔
+        for (const interval of possibleIntervals) {
+          const testResponse = await fetch(`./data/${currentFolder}/network_state_${interval}.00.json`);
+          if (testResponse.ok) {
+            timeInterval = interval;
+            break;
+          }
+        }
+        
+        const timeSeconds = frame * timeInterval;
+        const filename = `./data/${currentFolder}/network_state_${timeSeconds}.00.json`;
+        console.log(`尝试加载文件: ${filename} (文件夹: ${currentFolder}, 时间帧: ${frame}, 时间间隔: ${timeInterval}秒, 时间: ${timeSeconds}秒)`);
+        
         const networkData = await loadGraphData(filename);
         
         if (networkData) {
@@ -503,8 +545,21 @@ async function loadTimeFrame(frame) {
           try {
             const serviceDataResult = await loadServiceData(frame);
             console.log('本地业务数据加载成功:', serviceDataResult);
+            
+            // 更新ObjectViewer中的文件显示
+            const networkFileName = filename.split('/').pop();
+            const serviceFileName = `service_state_${timeSeconds}.00.json`;
+            if (objectViewerRef.value) {
+              objectViewerRef.value.updateLoadedFiles(networkFileName, serviceFileName);
+            }
           } catch (serviceError) {
             console.warn('本地业务数据加载失败:', serviceError);
+            
+            // 即使业务数据加载失败，也更新网络文件显示
+            const networkFileName = filename.split('/').pop();
+            if (objectViewerRef.value) {
+              objectViewerRef.value.updateLoadedFiles(networkFileName, '加载失败');
+            }
           }
         } else {
           console.warn('本地网络数据加载失败');
@@ -549,6 +604,12 @@ async function loadTimeFrame(frame) {
 
 // 处理网络数据的通用函数
 function processNetworkData(networkData) {
+  // 检查viewer是否可用
+  if (!viewer() || !viewer().entities) {
+    console.warn('Cesium viewer未准备好，跳过数据处理');
+    return;
+  }
+  
   // 更新业务数据的网络数据引用，并传递viewer
   updateNetworkDataAndRedraw(networkData, viewer());
   
@@ -786,6 +847,10 @@ onMounted(async () => {
     console.log('初始播放状态:', isPlaying.value);
     console.log('初始时间帧:', timeFrame.value);
     
+    // 恢复数据文件夹设置
+    restoreDataFolderSetting();
+    console.log('当前数据文件夹:', getCurrentDataFolder());
+    
     const cesiumViewer = initializeCesium("cesiumContainer");
     setupClickHandler(handleSatelliteClick);
     updateVisibility();
@@ -855,6 +920,56 @@ onMounted(async () => {
     // 暴露handleResize到外层作用域，以便在onUnmounted中访问
     window.currentHandleResize = handleResize;
     
+    // 添加文件夹变更事件监听器
+    const handleDataFolderChange = async (event) => {
+      const { folderName, folderInfo } = event.detail;
+      console.log(`数据文件夹已更改为: ${folderName}`, folderInfo);
+      
+      // 更新useDataLoader中的文件夹设置
+      setDataFolder(folderName);
+      
+      // 使用新的重置时钟函数
+      resetClockRange(folderName);
+      
+      // 如果当前是未登录状态，立即加载新文件夹的数据
+      if (!isLoggedIn.value) {
+        console.log('重新加载新文件夹的数据...');
+        
+        // 检查viewer是否可用
+        if (!viewer() || !viewer().entities) {
+          console.warn('Cesium viewer未准备好，延迟加载数据');
+          setTimeout(async () => {
+            try {
+              const defaultFrame = 1;
+              timeFrame.value = defaultFrame;
+              await loadTimeFrame(defaultFrame);
+            } catch (error) {
+              console.error('延迟加载新文件夹数据失败:', error);
+            }
+          }, 1000);
+          return;
+        }
+        
+        // 清除当前场景
+        try {
+          if (viewer() && viewer().entities) {
+            viewer().entities.removeAll();
+          }
+          currentGraphData = null;
+          
+          // 加载新文件夹的默认数据（60秒时间帧）
+          const defaultFrame = 1; // 对应60秒
+          timeFrame.value = defaultFrame;
+          await loadTimeFrame(defaultFrame);
+        } catch (error) {
+          console.error('加载新文件夹数据失败:', error);
+        }
+      }
+    };
+    
+    window.addEventListener('data-folder-changed', handleDataFolderChange);
+    window.currentHandleDataFolderChange = handleDataFolderChange;
+    
     // 定期检查并修复时间轴显示
     const timelineCheckInterval = setInterval(() => {
       console.log('定期检查时间轴状态...');
@@ -895,29 +1010,10 @@ onMounted(async () => {
     
     console.log('Cesium初始化完成，时间轴控制已启用');
     
-    // 如果用户未登录，尝试加载默认的本地数据以提供初始显示
+    // 不再自动加载默认数据，等待用户选择文件夹
     if (!isLoggedIn.value) {
-      console.log('用户未登录，尝试加载默认本地数据...');
-      try {
-        const defaultFrame = 1; // 对应60秒
-        const filename = `./data/network_state_${defaultFrame * 60}.00.json`;
-        const networkData = await loadGraphData(filename);
-        
-        if (networkData) {
-          console.log('默认本地数据加载成功');
-          createEntities(networkData);
-          addRoadmLinks(networkData);
-          setPreviousFrameData(networkData);
-          currentGraphData = networkData;
-          updateVisibility();
-          
-          if (objectViewerRef.value) {
-            objectViewerRef.value.updateData(networkData);
-          }
-        }
-      } catch (error) {
-        console.log('默认本地数据加载失败，等待用户操作:', error);
-      }
+      console.log('用户未登录，等待用户选择数据文件夹...');
+      // 移除自动加载逻辑，让用户主动选择文件夹
     } else {
       console.log('用户已登录，等待用户选择进程');
     }
@@ -968,6 +1064,12 @@ onUnmounted(() => {
   if (window.currentHandleResize) {
     window.removeEventListener('resize', window.currentHandleResize);
     delete window.currentHandleResize;
+  }
+  
+  // 清理文件夹变更事件监听器
+  if (window.currentHandleDataFolderChange) {
+    window.removeEventListener('data-folder-changed', window.currentHandleDataFolderChange);
+    delete window.currentHandleDataFolderChange;
   }
   
   // 清理时间轴检查定时器

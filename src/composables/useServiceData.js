@@ -33,6 +33,11 @@ export function useServiceData() {
   // 使用 LRU 缓存，从配置中获取最大缓存数量
   const serviceCache = new LRUCache(CACHE_CONFIG.MAX_SERVICE_CACHE);
   
+  // 获取当前选择的数据文件夹
+  function getCurrentDataFolder() {
+    return localStorage.getItem('selectedDataFolder') || 'new';
+  }
+  
   // ⭐ 使用模块级别的缓存变量，避免多次函数调用时重置
   // 这样确保缓存在不同的函数调用之间保持持久化
   
@@ -50,9 +55,38 @@ export function useServiceData() {
 
   async function loadServiceData(frame) {
     try {
-      const filename = `./data/service_state_${frame * 60}.00.json`;
+      const currentFolder = getCurrentDataFolder();
+      if (!currentFolder) {
+        console.log('未选择数据文件夹，跳过业务数据加载');
+        return {
+          active_requests: [],
+          pending_requests: [],
+          ended_requests: [],
+          blocked_requests: [],
+          failed_requests: []
+        };
+      }
       
-      console.log(`正在加载业务数据文件: ${filename}`);
+      // 动态检测文件夹的时间间隔
+      let timeInterval = 60; // 默认60秒间隔
+      
+      // 尝试检测第一个可用的时间间隔
+      const possibleIntervals = [10, 60]; // 常见的时间间隔
+      for (const interval of possibleIntervals) {
+        const testResponse = await fetch(`./data/${currentFolder}/service_state_${interval}.00.json`);
+        if (testResponse.ok) {
+          timeInterval = interval;
+          break;
+        }
+      }
+      
+      const timeSeconds = frame * timeInterval;
+      const filename = `./data/${currentFolder}/service_state_${timeSeconds}.00.json`;
+      
+      console.log(`正在加载业务数据文件: ${filename} (文件夹: ${currentFolder}, 时间帧: ${frame}, 时间间隔: ${timeInterval}秒, 时间: ${timeSeconds}秒)`);
+      console.log(`=== 业务数据文件请求详情 ===`);
+      console.log(`完整路径: ${filename}`);
+      console.log(`时间帧计算: frame(${frame}) * interval(${timeInterval}) = ${timeSeconds}秒`);
       
       if (serviceCache.has(filename)) {
         const cachedData = serviceCache.get(filename);
@@ -69,26 +103,41 @@ export function useServiceData() {
       // 获取文本内容并处理 Infinity
       const textData = await response.text();
       const fixedJsonText = textData.replace(/"Infinity"/g, 'null').replace(/Infinity/g, 'null');
-      const data = JSON.parse(fixedJsonText);
+      const rawData = JSON.parse(fixedJsonText);
+      
+      // 处理不同的数据结构格式
+      let serviceDataSource = rawData;
+      
+      // 检查是否是 new 文件夹的格式（数据在 data 字段内）
+      if (rawData.data && typeof rawData.data === 'object') {
+        console.log('检测到新格式数据结构（数据在 data 字段内）');
+        serviceDataSource = rawData.data;
+      } else {
+        console.log('检测到旧格式数据结构（数据在根级别）');
+      }
       
       // 验证数据结构
       const processedData = {
-        active_requests: data.active_requests || [],
-        pending_requests: data.pending_requests || [],
-        ended_requests: data.ended_requests || [],
-        blocked_requests: data.blocked_requests || [],
-        failed_requests: data.failed_requests || []
+        active_requests: serviceDataSource.active_requests || [],
+        pending_requests: serviceDataSource.pending_requests || [],
+        ended_requests: serviceDataSource.ended_requests || [],
+        blocked_requests: serviceDataSource.blocked_requests || [],
+        failed_requests: serviceDataSource.failed_requests || []
       };
       
       serviceData.value = processedData;
       serviceCache.set(filename, processedData);
       
-      console.log(`业务数据加载成功 (${filename}):`, {
+      console.log(`✅ 业务数据加载成功 (${filename}):`, {
+        dataFormat: serviceDataSource === rawData ? '旧格式' : '新格式(data字段)',
         active: processedData.active_requests.length,
         pending: processedData.pending_requests.length,
         ended: processedData.ended_requests.length,
         blocked: processedData.blocked_requests.length,
-        failed: processedData.failed_requests.length
+        failed: processedData.failed_requests.length,
+        totalRequests: processedData.active_requests.length + processedData.pending_requests.length + 
+                      processedData.ended_requests.length + processedData.blocked_requests.length + 
+                      processedData.failed_requests.length
       });
       
       // 如果之前有绘制过路径，则重新绘制
@@ -129,15 +178,26 @@ export function useServiceData() {
       
       // 处理 Infinity 值
       const fixedJsonText = textData.replace(/"Infinity"/g, 'null').replace(/Infinity/g, 'null');
-      const data = JSON.parse(fixedJsonText);
+      const rawData = JSON.parse(fixedJsonText);
+      
+      // 处理不同的数据结构格式
+      let serviceDataSource = rawData;
+      
+      // 检查是否是 new 文件夹的格式（数据在 data 字段内）
+      if (rawData.data && typeof rawData.data === 'object') {
+        console.log('检测到新格式数据结构（数据在 data 字段内）');
+        serviceDataSource = rawData.data;
+      } else {
+        console.log('检测到旧格式数据结构（数据在根级别）');
+      }
       
       // 验证数据结构
       const processedData = {
-        active_requests: data.active_requests || [],
-        pending_requests: data.pending_requests || [],
-        ended_requests: data.ended_requests || [],
-        blocked_requests: data.blocked_requests || [],
-        failed_requests: data.failed_requests || []
+        active_requests: serviceDataSource.active_requests || [],
+        pending_requests: serviceDataSource.pending_requests || [],
+        ended_requests: serviceDataSource.ended_requests || [],
+        blocked_requests: serviceDataSource.blocked_requests || [],
+        failed_requests: serviceDataSource.failed_requests || []
       };
       
       // 更新业务数据

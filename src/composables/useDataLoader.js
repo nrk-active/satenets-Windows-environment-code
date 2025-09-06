@@ -17,8 +17,84 @@ export function useDataLoader() {
   const { getTokens } = useAuth();
   const { getCsrfToken } = useApi();
 
-  // 新的API数据加载函数
+  // 全局数据文件夹设置
+  const selectedDataFolder = ref(null); // 默认为null，表示未选择
+
+  // 设置数据文件夹
+  function setDataFolder(folderName) {
+    selectedDataFolder.value = folderName;
+    // 保存到本地存储
+    localStorage.setItem('selectedDataFolder', folderName);
+    console.log(`数据文件夹已设置为: ${folderName}`);
+  }
+
+  // 从本地存储恢复文件夹设置
+  function restoreDataFolderSetting() {
+    const savedFolder = localStorage.getItem('selectedDataFolder');
+    if (savedFolder) {
+      selectedDataFolder.value = savedFolder;
+      console.log(`从本地存储恢复数据文件夹设置: ${savedFolder}`);
+    } else {
+      console.log('未找到保存的文件夹设置');
+    }
+  }
+
+  // 获取当前选择的数据文件夹
+  function getCurrentDataFolder() {
+    return selectedDataFolder.value || 'new'; // 如果没有设置，默认返回'new'
+  }
+
+  // 检查登录状态的函数
+  function isLoggedIn() {
+    try {
+      // 尝试获取注入的登录状态
+      const isLoggedInRef = inject('isLoggedIn', null);
+      if (isLoggedInRef && isLoggedInRef.value !== undefined) {
+        return isLoggedInRef.value;
+      }
+      
+      // 如果注入失败，检查本地存储
+      const userCredentials = localStorage.getItem('userCredentials');
+      const tokens = getTokens();
+      return !!(userCredentials && tokens.access);
+    } catch (error) {
+      console.warn('检查登录状态失败:', error);
+      return false;
+    }
+  }
+
+  // 新的API数据加载函数（智能切换数据源）
   async function loadGraphDataFromAPI(simulatorId, timestamp) {
+    // 检查登录状态，如果未登录则从本地文件加载
+    const loginStatus = isLoggedIn();
+    console.log(`=== loadGraphDataFromAPI 被调用 ===`);
+    console.log(`登录状态: ${loginStatus}`);
+    console.log(`进程ID: ${simulatorId}, 时间戳: ${timestamp}`);
+    
+    if (!loginStatus) {
+      console.log('用户未登录，从本地文件加载数据');
+      
+      // 检查是否已选择文件夹
+      if (!selectedDataFolder.value) {
+        console.warn('未选择数据文件夹，请先选择文件夹');
+        return null;
+      }
+      
+      // 将时间戳转换为文件名格式，使用当前选择的文件夹
+      const filename = `./data/${selectedDataFolder.value}/network_state_${timestamp}.00.json`;
+      console.log(`从本地文件加载: ${filename}`);
+      
+      // 使用本地文件加载方法
+      return await loadGraphData(filename);
+    }
+    
+    // 用户已登录，使用API加载
+    console.log('用户已登录，从API加载数据');
+    return await loadGraphDataFromAPIInternal(simulatorId, timestamp);
+  }
+
+  // 内部API数据加载函数（原来的loadGraphDataFromAPI逻辑）
+  async function loadGraphDataFromAPIInternal(simulatorId, timestamp) {
     try {
       const cacheKey = `api_${simulatorId}_${timestamp}`;
       console.log(`=== 开始加载API数据 ===`);
@@ -158,6 +234,11 @@ export function useDataLoader() {
     getCacheInfo: () => ({
       size: dataCache.size(),
       keys: dataCache.keys()
-    })
+    }),
+    // 新增的文件夹管理功能
+    setDataFolder,
+    getCurrentDataFolder,
+    restoreDataFolderSetting,
+    selectedDataFolder
   };
 }

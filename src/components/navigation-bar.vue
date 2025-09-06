@@ -190,6 +190,13 @@
     @process-selected="handleProcessSelected"
   />
   
+  <!-- 文件夹选择弹窗 -->
+  <FolderSelectionDialog 
+    v-if="showFolderDialog"
+    @close="closeFolderDialog"
+    @folder-selected="handleFolderSelected"
+  />
+  
 </template>
 
 <!-- 只修改script部分，其他部分保持不变 -->
@@ -207,6 +214,7 @@ import TerminalSetting from './terminal_setting.vue'
 import TrafficMatrix from './traffic_matrix.vue' // 确认路径和文件名一致
 import ConstellationSetting from './constellation_setting.vue'
 import ProcessSelectionDialog from './ProcessSelectionDialog.vue' // 新增
+import FolderSelectionDialog from './FolderSelectionDialog.vue' // 新增文件夹选择对话框
 
 // 接收从父组件传递的登录状态和用户名
 const props = defineProps({
@@ -245,6 +253,10 @@ const isSimulating = ref(false);
 // 进程选择弹窗状态
 const showProcessDialog = ref(false);
 const selectedProcessId = ref(null);
+
+// 文件夹选择弹窗状态
+const showFolderDialog = ref(false);
+const selectedDataFolder = ref('new'); // 默认文件夹
 
 // 仿真进度和时间
 const simulationProgress = inject('simulationProgress', ref(0));
@@ -530,9 +542,42 @@ function openSettingDialog() {
   settingRef.value && settingRef.value.open()
 }
 
-// 打开进程选择弹窗
+// 打开文件夹选择弹窗（用于未登录状态）
 function openActionMenu() {
-  showProcessDialog.value = true;
+  if (props.isLoggedIn) {
+    // 已登录状态：显示进程选择弹窗
+    showProcessDialog.value = true;
+  } else {
+    // 未登录状态：显示文件夹选择弹窗
+    showFolderDialog.value = true;
+  }
+}
+
+// 处理文件夹选择
+function handleFolderSelected(folderInfo) {
+  console.log('=== 处理文件夹选择 ===');
+  console.log('选择的文件夹:', folderInfo);
+  
+  selectedDataFolder.value = folderInfo.name;
+  
+  // 通知useDataLoader更新文件夹设置
+  // 我们需要从composable中导入setDataFolder函数
+  localStorage.setItem('selectedDataFolder', folderInfo.name);
+  
+  console.log(`数据文件夹已设置为: ${folderInfo.name}`);
+  
+  // 发送自定义事件通知其他组件文件夹已更改
+  const event = new CustomEvent('data-folder-changed', {
+    detail: { folderName: folderInfo.name, folderInfo }
+  });
+  window.dispatchEvent(event);
+  
+  alert(`已选择数据文件夹: ${folderInfo.name}`);
+}
+
+// 关闭文件夹选择弹窗
+function closeFolderDialog() {
+  showFolderDialog.value = false;
 }
 
 // 处理进程选择

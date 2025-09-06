@@ -10,6 +10,17 @@
         当前进程ID：{{ currentProcessId }}
       </div>
       
+      <!-- 显示当前选择的数据文件夹 -->
+      <div v-if="!currentProcessId" class="current-folder">
+        当前选择：{{ getCurrentFolderDisplay() }}
+      </div>
+      
+      <!-- 显示当前加载的文件信息 -->
+      <div v-if="!currentProcessId && currentLoadedFiles" class="current-files">
+        <div class="file-info">网络数据：{{ currentLoadedFiles.network || '未加载' }}</div>
+        <div class="file-info">业务数据：{{ currentLoadedFiles.service || '未加载' }}</div>
+      </div>
+      
       <div class="category">
         <div class="category-header" @click="toggleCategory('satellite')">
           <div class="header-left">
@@ -147,6 +158,29 @@ import { ref, onMounted, inject, computed } from 'vue';
 // 定义props和事件
 const emit = defineEmits(['close', 'select-entity', 'update:showSatellite', 'update:showStation', 'update:showRoadm', 'update:showLinks']);
 
+// 获取当前文件夹显示文本的方法
+const currentFolderDisplay = ref('未选择');
+// 当前加载的文件信息
+const currentLoadedFiles = ref({
+  network: null,
+  service: null
+});
+
+function getCurrentFolderDisplay() {
+  return currentFolderDisplay.value;
+}
+
+function updateCurrentFolderDisplay() {
+  const folder = localStorage.getItem('selectedDataFolder');
+  currentFolderDisplay.value = folder || '未选择';
+}
+
+// 更新当前加载的文件信息
+function updateLoadedFiles(networkFile, serviceFile) {
+  currentLoadedFiles.value.network = networkFile;
+  currentLoadedFiles.value.service = serviceFile;
+}
+
 // 定义props
 const props = defineProps({
   currentProcessId: {
@@ -276,33 +310,25 @@ async function loadLocalData(timeFrame = 60) {
 // 暴露方法给父组件
 defineExpose({
   updateData,
-  loadLocalData
+  loadLocalData,
+  updateLoadedFiles
 });
 
 // 初始化时尝试获取数据
 onMounted(async () => {
-  if (dataLoader) {
-    // 首先尝试获取缓存数据
-    const cachedData = dataLoader.dataCache.get('./data/network_state_60.00.json');
-    if (cachedData) {
-      updateData(cachedData);
-      return;
-    }
-    
-    // 如果没有缓存数据，从本地文件加载
-    try {
-      console.log('ObjectViewer: 缓存中无数据，尝试从本地文件加载...');
-      const localData = await dataLoader.loadGraphData('./data/network_state_60.00.json');
-      if (localData) {
-        updateData(localData);
-        console.log('ObjectViewer: 本地数据加载成功');
-      } else {
-        console.log('ObjectViewer: 本地数据加载失败，显示空数据');
-      }
-    } catch (error) {
-      console.error('ObjectViewer: 加载本地数据时出错:', error);
-    }
-  }
+  // 初始化当前文件夹显示
+  updateCurrentFolderDisplay();
+  
+  // 添加文件夹变更事件监听器
+  const handleDataFolderChange = (event) => {
+    console.log('ObjectViewer: 检测到文件夹变更事件');
+    updateCurrentFolderDisplay();
+  };
+  
+  window.addEventListener('data-folder-changed', handleDataFolderChange);
+  
+  // 移除自动加载逻辑，等待用户选择文件夹或进程
+  console.log('ObjectViewer: 等待用户选择数据源...');
 });
 </script>
 
@@ -442,6 +468,32 @@ onMounted(async () => {
   font-weight: bold;
   border-bottom: 1px solid #333;
   margin-bottom: 8px;
+}
+
+.current-folder {
+  padding: 12px 16px;
+  background: #1a7a4a;
+  color: #fff;
+  font-size: 14px;
+  font-weight: bold;
+  border-bottom: 1px solid #333;
+  margin-bottom: 8px;
+  border-left: 4px solid #4CAF50;
+}
+
+.current-files {
+  padding: 8px 16px;
+  background: #2d2d2d;
+  border-bottom: 1px solid #333;
+  margin-bottom: 8px;
+}
+
+.file-info {
+  font-size: 12px;
+  color: #ccc;
+  margin: 2px 0;
+  padding: 2px 0;
+  font-family: monospace;
 }
 
 /* 分类头部样式更新 */

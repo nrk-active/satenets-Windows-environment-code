@@ -3,10 +3,14 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import * as Cesium from "cesium";
 import { CESIUM_CONFIG } from '../constants/index.js';
 import { createSatelliteEntity, createStationEntity, createRoadmEntity, getEntityPosition } from '../utils/cesiumHelpers.js';
+import { useDataLoader } from './useDataLoader.js';
 
 export function useCesium() {
   let viewer = null;
   let handler = null;
+  
+  // 获取数据加载器的函数
+  const { getCurrentDataFolder } = useDataLoader();
   
   const showSatellite = ref(true);
   const showStation = ref(true);
@@ -17,8 +21,6 @@ export function useCesium() {
 
   function initializeCesium(containerId) {
     Cesium.Ion.defaultAccessToken = CESIUM_CONFIG.ACCESS_TOKEN;
-    
-    console.log('开始创建 Cesium Viewer...');
     
     viewer = new Cesium.Viewer(containerId, {
       animation: true, // 启用动画控件
@@ -77,14 +79,27 @@ export function useCesium() {
     // 调整时间以获得更好的光照角度（可以根据需要调整）
     const adjustedTime = Cesium.JulianDate.addHours(currentTime, 6, new Cesium.JulianDate()); // 调整6小时
     
-    // 设置时钟的开始和结束时间范围（6帧，每帧60秒）
+    // 设置时钟的开始和结束时间范围，根据文件夹推断时间间隔
+    const currentFolder = getCurrentDataFolder();
+    let timeInterval = 60; // 默认60秒间隔
+    let totalFrames = 6;   // 默认6帧
+    
+    // 根据文件夹名称推断时间间隔（避免异步调用）
+    if (currentFolder === 'new') {
+      timeInterval = 10;
+      totalFrames = 360; // new文件夹有360个文件，总共3600秒
+    } else {
+      timeInterval = 60;
+      totalFrames = 6;   // old文件夹通常6帧
+    }
+    
     const startTime = adjustedTime;
-    const endTime = Cesium.JulianDate.addSeconds(startTime, 6 * 60, new Cesium.JulianDate());
+    const endTime = Cesium.JulianDate.addSeconds(startTime, totalFrames * timeInterval, new Cesium.JulianDate());
     
     viewer.clock.startTime = startTime;
     viewer.clock.currentTime = startTime; // 从第一帧开始
     viewer.clock.stopTime = endTime;
-    viewer.clock.clockRange = Cesium.ClockRange.LOOP_STOP;
+    viewer.clock.clockRange = Cesium.ClockRange.CLAMPED; // 改为CLAMPED，避免循环
     
     // 确保时钟初始状态为完全停止
     viewer.clock.shouldAnimate = false;
@@ -95,13 +110,21 @@ export function useCesium() {
       '到', 
       Cesium.JulianDate.toIso8601(endTime)
     );
+    console.log(`时钟总时长: ${Cesium.JulianDate.secondsDifference(endTime, startTime)}秒`);
+    
+    // 强制刷新时间轴设置
+    setTimeout(() => {
+      if (viewer.timeline) {
+        viewer.timeline.updateFromClock();
+        viewer.timeline.resize();
+      }
+    }, 500);
     
     // 启用真实的太阳光照计算
     viewer.scene.globe.atmosphereHueShift = 0.0;
     viewer.scene.globe.atmosphereSaturationShift = 0.0;
     
     // 设置超清晰宇宙背景
-    console.log('正在设置8K分辨率星空背景...');
     
     // 创建8K分辨率的程序化星空背景
     try {
@@ -316,42 +339,13 @@ export function useCesium() {
 
   // 调试时间轴元素的函数
   function debugTimelineElements() {
-    console.log('=== 调试时间轴元素 ===');
-    
-    // 检查 viewer 对象
-    if (viewer) {
-      console.log('viewer.timeline:', viewer.timeline);
-      console.log('viewer.animation:', viewer.animation);
-    }
-    
-    // 查找所有可能的时间轴相关元素
-    const selectors = [
-      '.cesium-timeline-main',
-      '.cesium-timeline-container', 
-      '.cesium-timeline-track',
-      '.cesium-animation-container',
-      '.cesium-animation-widget',
-      '.cesium-widget'
-    ];
-    
-    selectors.forEach(selector => {
-      const elements = document.querySelectorAll(selector);
-      console.log(`${selector}: 找到 ${elements.length} 个元素`);
-      elements.forEach((element, index) => {
-        console.log(`  ${selector}[${index}]:`, element);
-        console.log(`    display: ${element.style.display || 'default'}`);
-        console.log(`    visibility: ${element.style.visibility || 'default'}`);
-        console.log(`    position: ${element.style.position || 'default'}`);
-        console.log(`    bottom: ${element.style.bottom || 'default'}`);
-      });
-    });
+    // 调试函数已禁用以减少控制台输出
+    return;
   }
 
   // 强制显示时间轴控件的函数
   function forceShowTimelineControls() {
     if (!viewer) return;
-    
-    console.log('强制显示时间轴控件...');
     
     // 直接通过DOM查找所有可能的时间轴元素并强制显示
     const possibleSelectors = [
@@ -371,7 +365,6 @@ export function useCesium() {
         element.style.opacity = '1 !important';
         element.style.position = 'absolute';
         element.style.zIndex = '9999';
-        console.log(`设置元素 ${selector} 为可见`);
       });
     });
     
@@ -528,7 +521,6 @@ export function useCesium() {
     // 延迟启用监听器，避免初始化时的自动触发
     setTimeout(() => {
       isInitialized = true;
-      console.log('时间轴控制监听器已启用');
     }, 2000); // 2秒后才启用，确保初始化完成
     
     // 监听时钟变化事件
@@ -540,21 +532,45 @@ export function useCesium() {
       
       // 根据当前时间计算应该显示哪一帧
       const elapsed = Cesium.JulianDate.secondsDifference(clock.currentTime, clock.startTime);
-      const frameIndex = Math.floor(elapsed / 60) + 1; // 每60秒一帧
-      const clampedFrame = Math.max(1, Math.min(6, frameIndex)); // 限制在1-6帧之间
+      
+      // 根据文件夹动态计算时间间隔
+      const currentFolder = getCurrentDataFolder();
+      let timeInterval, maxFrames;
+      
+      if (currentFolder === 'new') {
+        timeInterval = 10; // 每10秒一帧
+        maxFrames = 360; // 支持360个文件
+      } else {
+        timeInterval = 60; // 每60秒一帧
+        maxFrames = 6;
+      }
+      
+      const frameIndex = Math.floor(elapsed / timeInterval) + 1;
+      const clampedFrame = Math.max(1, Math.min(maxFrames, frameIndex));
+      
+      // 添加详细的调试日志
+      if (frameIndex !== clampedFrame) {
+        console.warn(`⚠️ 帧数被限制: 计算帧=${frameIndex}, 最大帧=${maxFrames}, 限制后=${clampedFrame}`);
+        console.warn(`当前文件夹=${currentFolder}, 时间间隔=${timeInterval}, 已播放时间=${elapsed}秒`);
+        console.warn(`时钟状态: 开始=${Cesium.JulianDate.toIso8601(clock.startTime)}, 当前=${Cesium.JulianDate.toIso8601(clock.currentTime)}, 结束=${Cesium.JulianDate.toIso8601(clock.stopTime)}`);
+      }
+      
+      // 检查是否到达时钟结束时间
+      const isAtEnd = Cesium.JulianDate.compare(clock.currentTime, clock.stopTime) >= 0;
+      if (isAtEnd) {
+        console.warn(`🔄 时钟已到达结束时间，当前帧=${clampedFrame}`);
+      }
       
       // 只有当帧数真正改变时才触发回调，避免重复调用
       if (clampedFrame !== lastFrame && onTimeChange) {
         lastFrame = clampedFrame;
-        console.log(`时间轴帧变化: ${clampedFrame}`);
+        console.log(`🎬 时间轴帧变化: ${clampedFrame} (elapsed: ${elapsed.toFixed(1)}s, frameIndex: ${frameIndex}, folder: ${currentFolder})`);
         onTimeChange(clampedFrame);
       }
     });
     
     // 确保时间轴和动画控件可见并设置样式
     setTimeout(() => {
-      console.log('检查时间轴和动画控件...');
-      
       const timelineContainer = viewer.timeline?.container;
       if (timelineContainer) {
         timelineContainer.style.display = 'block';
@@ -607,17 +623,19 @@ export function useCesium() {
   function jumpToTimeFrame(frame) {
     if (!viewer) return;
     
-    const frameSeconds = (frame - 1) * 60; // 每帧60秒
+    // 根据当前文件夹动态计算时间间隔
+    const currentFolder = getCurrentDataFolder();
+    const timeInterval = currentFolder === 'new' ? 10 : 60;
+    
+    const frameSeconds = (frame - 1) * timeInterval;
     const targetTime = Cesium.JulianDate.addSeconds(viewer.clock.startTime, frameSeconds, new Cesium.JulianDate());
     viewer.clock.currentTime = targetTime;
-    console.log(`跳转到时间帧 ${frame}，时间: ${frameSeconds}秒`);
   }
 
   // 设置播放速度
   function setPlaybackRate(multiplier) {
     if (!viewer) return;
     viewer.clock.multiplier = multiplier;
-    console.log(`设置播放速度: ${multiplier}x`);
   }
 
   // 启用/禁用时间轴动画
@@ -886,6 +904,48 @@ export function useCesium() {
     }
   }
 
+  // 重置时钟范围（用于文件夹切换）
+  function resetClockRange(folderName) {
+    if (!viewer) return;
+    
+    const currentTime = Cesium.JulianDate.now();
+    const adjustedTime = Cesium.JulianDate.addHours(currentTime, 6, new Cesium.JulianDate());
+    
+    let timeInterval = 60;
+    let totalFrames = 6;
+    
+    if (folderName === 'new') {
+      timeInterval = 10;
+      totalFrames = 360; // 360个文件，总共3600秒
+    } else {
+      timeInterval = 60;
+      totalFrames = 6;
+    }
+    
+    const startTime = adjustedTime;
+    const endTime = Cesium.JulianDate.addSeconds(startTime, totalFrames * timeInterval, new Cesium.JulianDate());
+    
+    // 停止动画
+    viewer.clock.shouldAnimate = false;
+    
+    // 重新设置时钟
+    viewer.clock.startTime = startTime;
+    viewer.clock.currentTime = startTime;
+    viewer.clock.stopTime = endTime;
+    viewer.clock.clockRange = Cesium.ClockRange.CLAMPED;
+    viewer.clock.multiplier = 0;
+    
+    console.log(`✅ 时钟重置完成 - 文件夹: ${folderName}, 时间间隔: ${timeInterval}秒, 总帧数: ${totalFrames}`);
+    
+    // 强制刷新时间轴
+    setTimeout(() => {
+      if (viewer.timeline) {
+        viewer.timeline.updateFromClock();
+        viewer.timeline.resize();
+      }
+    }, 200);
+  }
+
   return {
     viewer: () => viewer,
     showSatellite,
@@ -906,6 +966,7 @@ export function useCesium() {
     jumpToTimeFrame,
     setPlaybackRate,
     setTimelineAnimation,
+    resetClockRange,
     cleanup
   };
 }

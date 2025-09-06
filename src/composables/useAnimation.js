@@ -2,12 +2,16 @@
 import { ref } from 'vue';
 import * as Cesium from "cesium";
 import { ANIMATION_CONFIG, SIMULATION_CONFIG } from '../constants/index.js';
+import { useDataLoader } from './useDataLoader.js';
 
 export function useAnimation(timelineControlRef = null) {
   const isPlaying = ref(false);
   const timeFrame = ref(1);
   const animationInProgress = ref(false);
   const instantMode = ref(false); // 新增：瞬间模式控制
+  
+  // 获取数据加载器的函数
+  const { getCurrentDataFolder } = useDataLoader();
   
   let currentAnimationFrame = null;
   let playbackTimer = null;
@@ -372,8 +376,14 @@ export function useAnimation(timelineControlRef = null) {
       return;
     }
     
-    const nextTimeFrame = timeFrame.value >= SIMULATION_CONFIG.MAX_TIME_FRAME ? 1 : timeFrame.value + 1;
-    console.log(`播放逻辑: 当前帧 ${timeFrame.value} → 下一帧 ${nextTimeFrame}`);
+    // 根据当前文件夹动态计算最大帧数
+    const currentFolder = getCurrentDataFolder();
+    const maxFrames = currentFolder === 'new' ? 
+      SIMULATION_CONFIG.NEW_FOLDER_MAX_FRAMES : 
+      SIMULATION_CONFIG.OLD_FOLDER_MAX_FRAMES;
+    
+    const nextTimeFrame = timeFrame.value >= maxFrames ? 1 : timeFrame.value + 1;
+    console.log(`播放逻辑: 当前帧 ${timeFrame.value} → 下一帧 ${nextTimeFrame} (最大帧数: ${maxFrames}, 文件夹: ${currentFolder})`);
     
     // 立即更新timeFrame的值，确保状态同步
     timeFrame.value = nextTimeFrame;

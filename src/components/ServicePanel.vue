@@ -10,13 +10,13 @@
     <div class="service-header">
       <h3 style="padding-right: 10px;">业务路径控制</h3>
       <div class="service-controls">
-        <button 
+        <!-- <button 
           class="control-btn" 
           @click="loadLocalServiceData"
           :disabled="loading"
         >
           {{ loading ? '加载中...' : '加载本地数据' }}
-        </button>
+        </button> -->
         <button 
           class="control-btn" 
           :class="{ active: showAllPaths }"
