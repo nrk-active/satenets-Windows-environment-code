@@ -132,4 +132,14 @@ onMounted(() => {
   height: 100vh;
   overflow: hidden;
 }
+
+/* 隐藏Cesium原生时间轴和动画控件 */
+.cesium-viewer-timelineContainer,
+.cesium-timeline-main,
+.cesium-timeline-container,
+.cesium-timeline-track {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
 </style>

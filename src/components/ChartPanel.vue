@@ -138,9 +138,19 @@ const calculateMetricsFromData = (networkData) => {
   let activeEdges = 0;
   
   edges.forEach(edge => {
-    if (edge.latency_ms !== undefined) {
-      totalLatency += parseFloat(edge.latency_ms);
-      activeEdges++;
+    // 处理可能的数字或字符串类型的延迟值
+    const latencyValue = edge.latency_ms !== undefined ? edge.latency_ms : edge.latency;
+    
+    if (latencyValue !== undefined && latencyValue !== null) {
+      try {
+        const parsedValue = parseFloat(latencyValue);
+        if (!isNaN(parsedValue)) {
+          totalLatency += parsedValue;
+          activeEdges++;
+        }
+      } catch (error) {
+        console.warn('ChartPanel: 无法解析延迟值', { value: latencyValue, error });
+      }
     }
   });
 
@@ -171,12 +181,20 @@ const calculateMetricsFromData = (networkData) => {
 
 // 添加新的数据点
 const addDataPoint = (frame, networkData) => {
-  console.log('ChartPanel: addDataPoint调用', { frame, hasData: !!networkData });
-  
-  if (!networkData) {
-    console.warn('ChartPanel: 网络数据为空，跳过添加数据点');
-    return;
-  }
+  try {
+    console.log('ChartPanel: addDataPoint调用', { frame, hasData: !!networkData });
+    
+    if (!networkData) {
+      console.warn('ChartPanel: 网络数据为空，跳过添加数据点');
+      return;
+    }
+    
+    // 确保frame是有效的数字
+    const frameNumber = Number(frame);
+    if (isNaN(frameNumber)) {
+      console.error('ChartPanel: 无效的帧数:', frame);
+      return;
+    }
   
   // 从网络数据中获取时间戳
   let timestamp = networkData.timestamp;
@@ -240,6 +258,9 @@ const addDataPoint = (frame, networkData) => {
 
   // 更新图表
   updateCharts();
+  } catch (error) {
+    console.error('ChartPanel: 添加数据点时出错:', error);
+  }
 };
 
 // 创建图表配置

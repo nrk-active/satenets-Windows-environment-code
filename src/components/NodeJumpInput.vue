@@ -1,0 +1,715 @@
+<template>
+  <div class="node-jump-container" :style="containerStyle">
+    <!-- 节点跳转 -->
+    <div class="jump-input-group">
+      <label class="jump-label">跳转到节点:</label>
+      <input 
+        v-model="nodeInput"
+        type="text"
+        class="node-input"
+        placeholder="输入节点ID"
+        @keyup.enter="jumpToNode"
+        @input="filterNodes"
+      />
+      <button 
+        class="jump-button"
+        @click="jumpToNode"
+        :disabled="!nodeInput.trim()"
+      >
+        跳转
+      </button>
+    </div>
+    
+    <!-- 时间跳转 -->
+    <div class="jump-input-group time-jump">
+      <label class="jump-label">跳转到时间:</label>
+      <input 
+        v-model="timeInput"
+        type="text"
+        class="time-input"
+        placeholder="HH:MM:SS"
+        @keyup.enter="jumpToTime"
+        @input="validateTimeInput"
+        maxlength="8"
+      />
+      <button 
+        class="jump-button"
+        @click="jumpToTime"
+        :disabled="!isValidTimeInput"
+      >
+        跳转
+      </button>
+    </div>
+    
+    <!-- 节点建议列表 -->
+    <div v-if="showSuggestions && filteredNodes.length > 0" class="suggestions-dropdown">
+      <div 
+        v-for="node in filteredNodes.slice(0, 10)" 
+        :key="node.id"
+        class="suggestion-item"
+        @click="selectNode(node)"
+      >
+        <span class="node-id">{{ node.id }}</span>
+        <span class="node-type">{{ getNodeTypeLabel(node.type) }}</span>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, watch, inject } from 'vue';
+import * as Cesium from 'cesium';
+import { useDataLoader } from '../composables/useDataLoader.js';
+
+const props = defineProps({
+  networkData: {
+    type: Object,
+    default: () => ({ nodes: [], edges: [] })
+  }
+});
+
+const emit = defineEmits(['node-selected', 'time-changed']);
+
+// 注入Cesium viewer
+const cesiumViewer = inject('cesiumViewer', null);
+
+// 获取数据文件夹信息
+const { getCurrentDataFolder } = useDataLoader();
+
+const nodeInput = ref('');
+const timeInput = ref('');
+const showSuggestions = ref(false);
+
+// 过滤后的节点列表
+const filteredNodes = computed(() => {
+  if (!nodeInput.value.trim() || !props.networkData?.nodes) {
+    return [];
+  }
+  
+  const searchTerm = nodeInput.value.toLowerCase();
+  return props.networkData.nodes.filter(node => 
+    node.id.toLowerCase().includes(searchTerm)
+  );
+});
+
+// 显示错误反馈
+function showErrorFeedback(inputSelector) {
+  const inputEl = document.querySelector(inputSelector);
+  if (inputEl) {
+    inputEl.classList.add('error-shake');
+    setTimeout(() => {
+      inputEl.classList.remove('error-shake');
+    }, 500);
+  }
+}
+
+// 验证时间输入格式
+const isValidTimeInput = computed(() => {
+  if (!timeInput.value) return false;
+  
+  // 支持多种格式：HH:MM:SS, MM:SS, SS
+  const timePattern = /^(?:(\d{1,2}):)?(?:(\d{1,2}):)?(\d{1,2})$/;
+  const match = timeInput.value.match(timePattern);
+  
+  if (!match) return false;
+  
+  const hours = parseInt(match[1] || '0');
+  const minutes = parseInt(match[2] || '0');
+  const seconds = parseInt(match[3] || '0');
+  
+  return hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60 && seconds >= 0 && seconds < 60;
+});
+
+// 获取节点类型标签
+function getNodeTypeLabel(type) {
+  const typeLabels = {
+    'satellite': '卫星',
+    'station': '地面站',
+    'roadm': 'ROADM'
+  };
+  return typeLabels[type] || type;
+}
+
+// 验证时间输入
+function validateTimeInput(event) {
+  let value = event.target.value;
+  
+  // 自动添加冒号
+  if (value.length === 2 && !value.includes(':')) {
+    value += ':';
+  } else if (value.length === 5 && value.split(':').length === 2) {
+    value += ':';
+  }
+  
+  // 限制字符为数字和冒号
+  value = value.replace(/[^\d:]/g, '');
+  
+  timeInput.value = value;
+}
+
+// 解析时间输入为总秒数
+function parseTimeToSeconds(timeStr) {
+  const parts = timeStr.split(':').map(part => parseInt(part) || 0);
+  
+  if (parts.length === 1) {
+    // 只有秒数
+    return parts[0];
+  } else if (parts.length === 2) {
+    // 分钟:秒数
+    return parts[0] * 60 + parts[1];
+  } else if (parts.length === 3) {
+    // 小时:分钟:秒数
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  }
+  
+  return 0;
+}
+
+// 跳转到指定时间
+function jumpToTime() {
+  if (!isValidTimeInput.value) {
+    console.warn('请输入有效的时间格式 (HH:MM:SS, MM:SS 或 SS)');
+    showErrorFeedback('.time-input');
+    return;
+  }
+  
+  const totalSeconds = parseTimeToSeconds(timeInput.value);
+  const currentFolder = getCurrentDataFolder();
+  
+  // 根据文件夹类型计算时间间隔和帧数
+  let timeInterval, maxFrames;
+  if (currentFolder === 'new') {
+    timeInterval = 10; // new文件夹每10秒一帧
+    maxFrames = 360; // 360帧
+  } else {
+    timeInterval = 60; // old文件夹每60秒一帧
+    maxFrames = 6; // 6帧
+  }
+  
+  // 计算目标帧数
+  const targetFrame = Math.floor(totalSeconds / timeInterval) + 1;
+  const clampedFrame = Math.max(1, Math.min(maxFrames, targetFrame));
+  
+  try {
+    console.log(`跳转到时间: ${timeInput.value} (${totalSeconds}秒) -> 第${clampedFrame}帧`);
+    
+    // 添加视觉反馈
+    const jumpBtn = document.querySelector('.time-jump .jump-button');
+    if (jumpBtn) {
+      jumpBtn.classList.add('jumping');
+      setTimeout(() => {
+        jumpBtn.classList.remove('jumping');
+      }, 2000);
+    }
+    
+    // 发射时间变化事件 - 确保传递数字类型的帧数
+    emit('time-changed', Number(clampedFrame));
+    
+    // 通过全局事件触发时间轴跳转
+    const frameChangeEvent = new CustomEvent('timeline-frame-change', {
+      detail: { frame: Number(clampedFrame), forceUpdate: true }
+    });
+    window.dispatchEvent(frameChangeEvent);
+  } catch (error) {
+    console.error('跳转时间时出错:', error);
+    showErrorFeedback('.time-input');
+  }
+  
+  // 如果实际跳转的帧数与输入不完全匹配，给出提示
+  const actualSeconds = (clampedFrame - 1) * timeInterval;
+  if (actualSeconds !== totalSeconds) {
+    const actualHours = Math.floor(actualSeconds / 3600);
+    const actualMinutes = Math.floor((actualSeconds % 3600) / 60);
+    const actualSecs = actualSeconds % 60;
+    const actualTimeStr = `${actualHours.toString().padStart(2, '0')}:${actualMinutes.toString().padStart(2, '0')}:${actualSecs.toString().padStart(2, '0')}`;
+    
+    console.log(`实际跳转到: ${actualTimeStr} (第${clampedFrame}帧)`);
+    
+    // 更新输入框显示实际时间
+    setTimeout(() => {
+      timeInput.value = actualTimeStr;
+    }, 500);
+  }
+}
+
+// 过滤节点并显示建议
+function filterNodes() {
+  showSuggestions.value = nodeInput.value.trim().length > 0 && filteredNodes.value.length > 0;
+}
+
+// 选择建议的节点
+function selectNode(node) {
+  nodeInput.value = node.id;
+  showSuggestions.value = false;
+  jumpToNode();
+}
+
+// 跳转到指定节点
+function jumpToNode() {
+  try {
+    if (!nodeInput.value.trim() || !props.networkData?.nodes) {
+      console.warn('请输入有效的节点ID');
+      showErrorFeedback('.node-input');
+      return;
+    }
+    
+    const searchId = nodeInput.value.toLowerCase().trim();
+    
+    // 首先尝试精确匹配
+    let targetNode = props.networkData.nodes.find(node => 
+      String(node.id).toLowerCase() === searchId
+    );
+    
+    // 如果没找到，尝试模糊匹配
+    if (!targetNode) {
+      targetNode = props.networkData.nodes.find(node => 
+        String(node.id).toLowerCase().includes(searchId)
+      );
+    }
+  
+    if (!targetNode) {
+      console.warn(`未找到节点: ${nodeInput.value}`);
+      showErrorFeedback('.node-input');
+      return;
+    }
+    
+    console.log(`跳转到节点: ${targetNode.id} (${getNodeTypeLabel(targetNode.type)})`);
+    
+    // 设置输入框为匹配到的节点ID
+    nodeInput.value = targetNode.id;
+    
+    // 计算目标位置
+    let targetPosition;
+    if (targetNode.type === 'satellite') {
+      // 卫星使用ECEF坐标系（米为单位）
+      targetPosition = new Cesium.Cartesian3(
+        parseFloat(targetNode.position[0]) * 1000,
+        parseFloat(targetNode.position[1]) * 1000,
+        parseFloat(targetNode.position[2]) * 1000
+      );
+    } else {
+      // 地面站和ROADM使用经纬度坐标
+      targetPosition = Cesium.Cartesian3.fromDegrees(
+        parseFloat(targetNode.position[0]),
+        parseFloat(targetNode.position[1]),
+        targetNode.type === 'station' ? 100000 : 50000 // 地面站高度100km，ROADM高度50km
+      );
+    }
+    
+    // 使用Cesium viewer进行跳转
+    if (cesiumViewer && cesiumViewer()) {
+      const viewer = cesiumViewer();
+      
+      // 添加视觉反馈 - 跳转按钮变色
+      const jumpBtn = document.querySelector('.jump-input-group:first-child .jump-button');
+      if (jumpBtn) {
+        jumpBtn.classList.add('jumping');
+        setTimeout(() => {
+          jumpBtn.classList.remove('jumping');
+        }, 2000);
+      }
+      
+      // 平滑飞行到目标位置
+      viewer.camera.flyTo({
+        destination: targetPosition,
+        duration: 2.0, // 2秒飞行时间
+        complete: () => {
+          console.log(`成功跳转到节点: ${targetNode.id}`);
+          
+          // 发射选中事件 - 确保发送字符串ID
+          emit('node-selected', String(targetNode.id));
+        }
+      });
+    } else {
+      console.error('Cesium viewer 不可用');
+      showErrorFeedback('.node-input');
+    }
+    
+    // 隐藏建议列表
+    showSuggestions.value = false;
+  } catch (error) {
+    console.error('跳转到节点时出错:', error);
+    showErrorFeedback('.node-input');
+    // 确保错误被处理，不向上传播
+  }
+}
+
+// 点击外部隐藏建议列表
+function handleClickOutside(event) {
+  if (!event.target.closest('.node-jump-container')) {
+    showSuggestions.value = false;
+  }
+}
+
+// 监听网络数据变化，清空输入
+watch(() => props.networkData, () => {
+  nodeInput.value = '';
+  timeInput.value = '';
+  showSuggestions.value = false;
+});
+
+// 添加全局点击事件监听
+document.addEventListener('click', handleClickOutside);
+
+// 组件卸载时清理事件监听
+import { onUnmounted, onMounted } from 'vue';
+
+// 动态调整位置
+const containerStyle = ref({});
+
+// 动态调整输入框位置
+function adjustPosition() {
+  try {
+    const objectViewer = document.querySelector('.object-viewer');
+    const collapsedSidebar = document.querySelector('.collapsed-sidebar.left-sidebar');
+    
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+    
+    let position = {
+      bottom: '60px',
+      left: '10px',
+      width: '320px'
+    };
+    
+    // 移动端适配
+    if (viewportWidth <= 768) {
+      position.width = '280px';
+      position.bottom = '120px';
+      containerStyle.value = position;
+      return;
+    }
+    
+    // 检查左侧面板状态
+    let leftOffset = 10; // 默认距离左边10px
+    
+    if (objectViewer) {
+      const rect = objectViewer.getBoundingClientRect();
+      const isVisible = rect.width > 0 && rect.height > 0 && 
+                       getComputedStyle(objectViewer).display !== 'none' &&
+                       getComputedStyle(objectViewer).visibility !== 'hidden';
+      
+      if (isVisible && rect.width > 50) {
+        // ObjectViewer 可见且有合理宽度
+        leftOffset = rect.right + 10;
+      }
+    }
+    
+    if (leftOffset === 10 && collapsedSidebar) {
+      // ObjectViewer 不可见，但有收起的侧边栏
+      const rect = collapsedSidebar.getBoundingClientRect();
+      if (rect.width > 0) {
+        leftOffset = rect.right + 10;
+      }
+    }
+    
+    position.left = `${leftOffset}px`;
+    
+    // 与仿真时间轴使用相同的底部面板检测逻辑
+    const bottomPanels = [
+      document.querySelector('.service-panel'),
+      document.querySelector('.chart-panel'),
+      document.querySelector('.data-panel')
+    ];
+    
+    let maxBottomHeight = 60; // 默认底部距离
+    
+    bottomPanels.forEach(panel => {
+      if (panel) {
+        const rect = panel.getBoundingClientRect();
+        const isVisible = rect.height > 0 && 
+                        getComputedStyle(panel).display !== 'none' &&
+                        getComputedStyle(panel).visibility !== 'hidden';
+        
+        if (isVisible && rect.height > 50) {
+          // 面板可见且有合理高度，计算需要的底部距离
+          const panelHeight = rect.height;
+          const bottomDistance = panelHeight + 10; // 面板高度 + 10px间距
+          maxBottomHeight = Math.max(maxBottomHeight, bottomDistance);
+        }
+      }
+    });
+    
+    // 检查收起的底部面板
+    const collapsedBottomPanel = document.querySelector('.collapsed-bottom-panel');
+    if (collapsedBottomPanel) {
+      const rect = collapsedBottomPanel.getBoundingClientRect();
+      if (rect.height > 0) {
+        const bottomDistance = rect.height + 10;
+        maxBottomHeight = Math.max(maxBottomHeight, bottomDistance);
+      }
+    }
+    
+    position.bottom = `${maxBottomHeight}px`;
+    
+    // 防止超出右边界
+    if (leftOffset + 320 > viewportWidth) {
+      position.right = '10px';
+      position.left = 'auto';
+    }
+    
+    containerStyle.value = position;
+    
+    // 分发UI位置变化事件
+    window.dispatchEvent(new CustomEvent('ui-positions-changed', {
+      detail: {
+        source: 'nodeJump',
+        bottomHeight: maxBottomHeight
+      }
+    }));
+  } catch (error) {
+    console.error('调整位置时出错:', error);
+    containerStyle.value = {
+      bottom: '60px',
+      left: '10px',
+      width: '320px'
+    };
+  }
+}
+
+onMounted(() => {
+  // 添加事件监听
+  document.addEventListener('click', handleClickOutside);
+  window.addEventListener('resize', adjustPosition);
+  
+  // 监听UI位置变化事件（与仿真时间轴同步）
+  const handleUIPositionsChange = (event) => {
+    if (event.detail.source !== 'nodeJump') {
+      console.log('NodeJump: 响应UI位置变化事件');
+      setTimeout(adjustPosition, 50);
+    }
+  };
+  window.addEventListener('ui-positions-changed', handleUIPositionsChange);
+  
+  // 初始位置调整
+  setTimeout(adjustPosition, 300);
+  
+  // 定期检查位置 - 与仿真时间轴保持相同间隔
+  const interval = setInterval(adjustPosition, 2000);
+  
+  // DOM变化观察（简化版）
+  const observer = new MutationObserver(() => {
+    setTimeout(adjustPosition, 100);
+  });
+  
+  // 观察可能影响布局的元素
+  const elementsToObserve = [
+    document.querySelector('.object-viewer-container'),
+    document.querySelector('.object-viewer'),
+    document.querySelector('.service-panel')
+  ].filter(Boolean);
+  
+  elementsToObserve.forEach(element => {
+    observer.observe(element, {
+      attributes: true,
+      attributeFilter: ['style', 'class']
+    });
+  });
+  
+  // 清理函数
+  window.nodeJumpCleanup = () => {
+    document.removeEventListener('click', handleClickOutside);
+    window.removeEventListener('resize', adjustPosition);
+    window.removeEventListener('ui-positions-changed', handleUIPositionsChange);
+    clearInterval(interval);
+    observer.disconnect();
+  };
+});
+
+onUnmounted(() => {
+  if (window.nodeJumpCleanup) {
+    window.nodeJumpCleanup();
+    delete window.nodeJumpCleanup;
+  }
+});
+</script>
+
+<style scoped>
+.node-jump-container {
+  position: fixed;
+  bottom: 60px;
+  left: 10px;
+  z-index: 10000;
+  background: rgba(30, 30, 30, 0.9);
+  border: 1px solid rgba(85, 85, 85, 0.7);
+  border-radius: 6px;
+  padding: 10px;
+  width: 320px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.jump-input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.time-jump {
+  border-top: 1px solid #444;
+  padding-top: 8px;
+}
+
+.jump-label {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  min-width: 80px;
+}
+
+.node-input, .time-input {
+  flex: 1;
+  min-width: 100px;
+  padding: 5px 8px;
+  border: 1px solid #555;
+  border-radius: 3px;
+  background: rgba(40, 40, 40, 0.8);
+  color: #fff;
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.2s;
+  text-align: center; /* 确保输入框文本居中 */
+}
+
+.time-input {
+  font-family: monospace;
+  text-align: center;
+  min-width: 80px;
+}
+
+.node-input:focus, .time-input:focus {
+  border-color: #4CAF50;
+}
+
+.node-input::placeholder, .time-input::placeholder {
+  color: #999;
+  text-align: center; /* 确保占位符文本也居中 */
+}
+
+.jump-button {
+  padding: 5px 10px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+  min-width: 50px;
+}
+
+.jump-button:hover:not(:disabled) {
+  background: #45a049;
+}
+
+.jump-button:disabled {
+  background: #666;
+  cursor: not-allowed;
+}
+
+/* 跳转动画效果 */
+.jump-button.jumping {
+  background: #45a049;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+/* 错误抖动动画 */
+.error-shake {
+  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+  border-color: #ff5252 !important;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
+  20%, 40%, 60%, 80% { transform: translateX(3px); }
+}
+
+.suggestions-dropdown {
+  position: absolute;
+  bottom: 100%; /* 改为从容器上方弹出 */
+  left: 0;
+  right: 0;
+  background: rgba(40, 40, 40, 0.95);
+  border: 1px solid #555;
+  border-radius: 4px;
+  margin-bottom: 5px; /* 改为底部间距 */
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1001;
+  backdrop-filter: blur(5px);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3); /* 改为向上的阴影 */
+}
+
+.suggestion-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #555;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background-color 0.2s;
+}
+
+.suggestion-item:hover {
+  background: rgba(76, 175, 80, 0.2);
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.node-id {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.node-type {
+  color: #4CAF50;
+  font-size: 11px;
+  padding: 2px 6px;
+  background: rgba(76, 175, 80, 0.2);
+  border-radius: 3px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .node-jump-container {
+    width: 280px;
+    padding: 8px;
+  }
+  
+  .jump-input-group {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+  
+  .jump-label {
+    font-size: 11px;
+  }
+  
+  .node-input, .time-input {
+    font-size: 11px;
+    padding: 4px 6px;
+  }
+  
+  .jump-button {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+}
+</style>

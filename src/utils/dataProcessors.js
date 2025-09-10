@@ -41,7 +41,8 @@ export function processGraphData(rawData) {
   const nodeMap = {};
   
   if (rawData.data.graph_nodes) {
-    Object.entries(rawData.data.graph_nodes).forEach(([nodeId, nodeData]) => {
+    const nodeEntries = Object.entries(rawData.data.graph_nodes);
+    nodeEntries.forEach(([nodeId, nodeData]) => {
       let position;
       let type;
       
@@ -51,13 +52,13 @@ export function processGraphData(rawData) {
                    extractCoordinates(nodeData);
         type = 'satellite';
       } 
-      // 地面站节点
+      // 地面站节点 - 优先使用数据中的type字段
       else if (nodeData.type === 'station') {
         position = extractCoordinates(nodeData);
         type = 'station';
       }
-      // ROADM节点
-      else if (nodeId.startsWith('ROADM')) {
+      // ROADM节点 - 优先使用数据中的type字段，然后再检查ID前缀
+      else if (nodeData.type === 'roadm' || nodeId.startsWith('ROADM')) {
         position = extractCoordinates(nodeData);
         type = 'roadm';
       }
@@ -72,7 +73,9 @@ export function processGraphData(rawData) {
   
   // 处理边数据
   if (rawData.data.graph_edges) {
-    Object.keys(rawData.data.graph_edges).forEach(edgeId => {
+    const edgeKeys = Object.keys(rawData.data.graph_edges);
+    
+    edgeKeys.forEach(edgeId => {
       try {
         const [source, target] = edgeId.split(',');
         if (nodeMap[source] && nodeMap[target]) {

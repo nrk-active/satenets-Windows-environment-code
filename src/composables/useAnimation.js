@@ -10,6 +10,16 @@ export function useAnimation(timelineControlRef = null) {
   const animationInProgress = ref(false);
   const instantMode = ref(false); // 新增：瞬间模式控制
   
+  // 将动画状态暴露到全局，供时间轴检查
+  window.animationInProgress = animationInProgress.value;
+  
+  // 监听animationInProgress变化并同步到全局
+  animationInProgress.value = false; // 确保初始状态
+  Object.defineProperty(window, 'animationInProgress', {
+    get: () => animationInProgress.value,
+    set: (value) => { animationInProgress.value = value; }
+  });
+  
   // 获取数据加载器的函数
   const { getCurrentDataFolder } = useDataLoader();
   
@@ -395,11 +405,13 @@ export function useAnimation(timelineControlRef = null) {
     // 立即更新timeFrame的值，确保状态同步
     timeFrame.value = nextTimeFrame;
     
-    // 播放状态下不使用forceSetFrame，避免时钟冲突
-    // 让时间轴自然推进，只在暂停/手动操作时使用forceSetFrame
-    console.log(`播放模式：直接加载帧 ${nextTimeFrame}，不重置时钟`);
+    // 播放时主动更新时间轴位置，确保视觉同步
+    if (timelineControlRef && timelineControlRef.viewer && timelineControlRef.viewer.forceSetFrame) {
+      timelineControlRef.viewer.forceSetFrame(nextTimeFrame);
+      console.log(`播放模式：更新时间轴到帧 ${nextTimeFrame}`);
+    }
     
-    // 直接触发数据加载，不操作时钟
+    // 直接触发数据加载
     if (onFrameLoad) {
       onFrameLoad(nextTimeFrame);
     }

@@ -210,7 +210,7 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 9999;
+  z-index: 99999; /* 设置为最高层级 */
 }
 
 .dialog-container {

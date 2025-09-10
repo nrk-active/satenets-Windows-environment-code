@@ -78,7 +78,7 @@ const emit = defineEmits(['close']);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000;
+  z-index: 99999; /* 设置为最高层级 */
 }
 
 .dialog-content {

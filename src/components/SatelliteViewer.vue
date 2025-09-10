@@ -45,6 +45,13 @@
           :style="selectionIndicatorStyle"
         ></div>
         
+        <!-- 节点跳转输入框 -->
+        <NodeJumpInput 
+          :network-data="currentGraphData"
+          @node-selected="handleEntitySelect"
+          @time-changed="handleTimeJump"
+        />
+        
         <ServicePanel 
           v-show="showBottomPanel"
           :service-data="serviceData"
@@ -108,8 +115,8 @@ import BottomCollapsedSidebar from './BottomCollapsedSidebar.vue';
 import ControlPanel from './ControlPanel.vue';
 import ServicePanel from './ServicePanel.vue';
 import ServiceDetail from './ServiceDetail.vue';
+import NodeJumpInput from './NodeJumpInput.vue';
 import ChartPanel from './ChartPanel.vue';
-
 
 import { useCesium } from '../composables/useCesium.js';
 import { useDataLoader } from '../composables/useDataLoader.js';
@@ -293,7 +300,7 @@ const {
   setupTimelineStyles,
   debugTimelineElements,
   forceShowTimelineControls,
-  adjustTimelinePosition,
+  setTimelinePosition,
   jumpToTimeFrame,
   setPlaybackRate,
   setTimelineAnimation,
@@ -359,7 +366,7 @@ function handleLocalPlayback() {
   if (!isLoggedIn.value) {
     // 未登录状态下，启动本地数据的顺序播放
     console.log('开始本地仿真播放');
-    togglePlayback(loadTimeFrame);
+    togglePlayback(loadTimeFrame, viewer());
   }
 }
 
@@ -376,7 +383,7 @@ function toggleLocalSimulation() {
 function handleStartLocalSimulation() {
   if (!isLoggedIn.value) {
     console.log('开始本地仿真播放');
-    togglePlayback(loadTimeFrame);
+    togglePlayback(loadTimeFrame, viewer());
   }
 }
 
@@ -384,7 +391,7 @@ function handleStartLocalSimulation() {
 function handlePauseLocalSimulation() {
   if (!isLoggedIn.value) {
     console.log('暂停本地仿真播放');
-    togglePlayback(loadTimeFrame);
+    togglePlayback(loadTimeFrame, viewer());
   }
 }
 
@@ -696,42 +703,89 @@ function handleSatelliteClick(entityId) {
 }
 
 function handleEntitySelect(entityId) {
-  console.log('选择了实体:', entityId);
-  // 处理实体选择逻辑
-  if (currentGraphData) {
-    // 首先尝试在节点中查找
-    let entity = currentGraphData.nodes.find(node => node.id === entityId);
+  try {
+    console.log('选择了实体:', entityId);
     
-    // 如果在节点中没找到，尝试在链路中查找
-    if (!entity && entityId.includes('-')) {
-      const [source, target] = entityId.split('-');
-      entity = currentGraphData.edges.find(edge => 
-        (edge.source === source && edge.target === target) ||
-        (`${edge.source}-${edge.target}` === entityId)
-      );
-      // 为链路添加类型信息
+    if (!entityId) {
+      console.warn('选择实体: 提供的ID无效');
+      return;
+    }
+    
+    // 确保entityId是字符串类型
+    const idStr = String(entityId);
+    
+    // 处理实体选择逻辑
+    if (currentGraphData) {
+      // 首先尝试在节点中查找
+      let entity = currentGraphData.nodes.find(node => node.id === idStr);
+    
+      // 如果在节点中没找到，尝试在链路中查找
+      if (!entity && idStr.includes('-')) {
+        const [source, target] = idStr.split('-');
+        entity = currentGraphData.edges.find(edge => 
+          (edge.source === source && edge.target === target) ||
+          (`${edge.source}-${edge.target}` === idStr)
+        );
+        // 为链路添加类型信息
+        if (entity) {
+          entity = { ...entity, type: 'link', id: idStr };
+        }
+      }
+      
       if (entity) {
-        entity = { ...entity, type: 'link', id: entityId };
+        // 如果有业务详情面板打开，先关闭它
+        if (selectedService.value) {
+          closeServiceDetail();
+        }
+        
+        selectedEntity.value = entity;
+        selectedEntityRawData.value = currentGraphData;
+        showRightPanel.value = true; // 选择实体时展开右侧面板
+        
+        if (entity.type === 'satellite') {
+          highlightSatelliteLinks(idStr, currentGraphData);
+        }
+        
+        // 更新选择指示器
+        updateSelectionIndicator();
       }
+    }
+  } catch (error) {
+    console.error('处理实体选择失败:', error);
+  }
+}
+
+// 处理时间跳转
+function handleTimeJump(frame) {
+  try {
+    console.log(`时间跳转到第${frame}帧`);
+    
+    // 确保帧是有效的数字
+    const frameNumber = Number(frame);
+    if (isNaN(frameNumber) || frameNumber < 1) {
+      console.error('无效的帧数:', frame);
+      return;
     }
     
-    if (entity) {
-      // 如果有业务详情面板打开，先关闭它
-      if (selectedService.value) {
-        closeServiceDetail();
-      }
-      
-      selectedEntity.value = entity;
-      selectedEntityRawData.value = currentGraphData;
-      showRightPanel.value = true; // 选择实体时展开右侧面板
-      
-      if (entity.type === 'satellite') {
-        highlightSatelliteLinks(entityId, currentGraphData);
-      }
-      
-      // 更新选择指示器
-      updateSelectionIndicator();
+    // 如果当前正在播放，先暂停
+    if (isPlaying.value) {
+      togglePlayback(loadTimeFrame, viewer());
     }
+    
+    // 验证帧数范围
+    const currentFolder = getCurrentDataFolder();
+    const maxFrames = currentFolder === 'new' ? 360 : 6;
+    
+    // 限制帧数在有效范围内
+    const safeFrame = Math.min(Math.max(1, Math.round(frameNumber)), maxFrames);
+    if (safeFrame !== frameNumber) {
+      console.warn(`帧数已调整: ${frameNumber} → ${safeFrame}`);
+    }
+    
+    // 强制加载指定帧
+    loadTimeFrame(safeFrame);
+  } catch (error) {
+    console.error('时间跳转处理失败:', error);
   }
 }
 
@@ -750,6 +804,10 @@ function handleRightPanelClose() {
 
 function handleBottomPanelClose() {
   showBottomPanel.value = false;
+  // 触发面板状态变化事件
+  window.dispatchEvent(new CustomEvent('panel-state-changed', {
+    detail: { type: 'bottom-panel', action: 'close' }
+  }));
 }
 
 function handleServiceDataUpdate(newServiceData) {
@@ -774,6 +832,10 @@ function reopenRightPanel() {
 
 function reopenBottomPanel() {
   showBottomPanel.value = true;
+  // 触发面板状态变化事件
+  window.dispatchEvent(new CustomEvent('panel-state-changed', {
+    detail: { type: 'bottom-panel', action: 'open' }
+  }));
 }
 
 function highlightEntity(entityId) {
@@ -835,54 +897,10 @@ function handleCloseServiceDetail() {
   }
 }
 
-// 调整时间轴位置的函数
-// 调整时间轴位置，跟随业务面板
+// 调整时间轴位置的函数（已禁用，因为现在使用自定义时间轴）
 function adjustTimelinePositionForPanel() {
-  if (!viewer()) return;
-  
-  console.log('开始调整时间轴位置...');
-  
-  // 首先运行调试
-  debugTimelineElements();
-  
-  // 获取业务面板的高度和状态
-  const servicePanel = document.querySelector('.service-panel') || 
-                       document.querySelector('[class*="service"]') ||
-                       document.querySelector('.bottom-panel');
-  
-  let bottomOffset = 10; // 默认偏移（最小化状态，减少间距）
-  
-  if (servicePanel) {
-    const panelRect = servicePanel.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-    
-    console.log('业务面板信息:', {
-      height: panelRect.height,
-      top: panelRect.top,
-      bottom: panelRect.bottom,
-      viewportHeight
-    });
-    
-    // 检查面板是否可见且有实际高度
-    if (panelRect.height > 100 && panelRect.top < viewportHeight) {
-      // 面板展开状态，紧贴面板顶部
-      bottomOffset = viewportHeight - panelRect.top + 5; // 只留5px间距
-      console.log(`业务面板展开，高度: ${panelRect.height}px, 调整时间轴偏移到: ${bottomOffset}px`);
-    } else {
-      // 面板最小化状态，紧贴底部
-      bottomOffset = 10; // 只留10px间距
-      console.log('业务面板最小化，时间轴偏移到: 10px');
-    }
-  }
-  
-  // 使用useCesium中的adjustTimelinePosition函数
-  adjustTimelinePosition(bottomOffset);
-  
-  // 额外确保时间轴可见
-  setTimeout(() => {
-    forceShowTimelineControls();
-    debugTimelineElements();
-  }, 200);
+  // 不再调整原生时间轴位置，因为已经隐藏了原生时间轴
+  // console.log('时间轴位置调整已禁用（使用自定义时间轴）');
 }
 
 onMounted(async () => {
@@ -895,6 +913,13 @@ onMounted(async () => {
     console.log('初始播放状态:', isPlaying.value);
     console.log('初始时间帧:', timeFrame.value);
     
+    // 检查是否为首次访问（没有用户主动选择过文件夹）
+    const isFirstVisit = localStorage.getItem('hasUserSelectedFolder') !== 'true';
+    if (isFirstVisit && !selectedProcessId.value) {
+      console.log('首次访问：清除可能的默认文件夹设置');
+      // 不清除localStorage，但确保ObjectViewer不显示默认信息
+    }
+    
     // 恢复数据文件夹设置
     restoreDataFolderSetting();
     console.log('当前数据文件夹:', getCurrentDataFolder());
@@ -902,6 +927,21 @@ onMounted(async () => {
     const cesiumViewer = initializeCesium("cesiumContainer");
     setupClickHandler(handleSatelliteClick);
     updateVisibility();
+    
+    // 关键修复：设置时间轴控制，传入数据加载回调
+    setupTimelineControl((frame) => {
+      console.log(`时间轴拖拽触发数据加载: 帧${frame}`);
+      timeFrame.value = frame;
+      
+      // 拖拽时使用瞬间模式，避免动画插值导致的位置错误
+      const wasInstantMode = instantMode.value;
+      instantMode.value = true;
+      
+      loadTimeFrame(frame).then(() => {
+        // 恢复原来的模式
+        instantMode.value = wasInstantMode;
+      });
+    });
     
     // 添加播放状态监听器用于调试
     watch(isPlaying, (newValue, oldValue) => {
@@ -912,70 +952,101 @@ onMounted(async () => {
       console.log(`时间帧变化: ${oldValue} → ${newValue}`);
     });
     
-    // 设置时间轴控制
+    // 设置仿真时间轴控制
     let isTimelineControlled = false; // 标记是否正在被时间轴控制
     let isInitialSetup = true; // 标记是否为初始设置阶段
     
-    setupTimelineControl((frame) => {
-      console.log(`时间轴控制：切换到帧 ${frame}, 当前播放状态: ${isPlaying.value}`);
+    // 监听自定义时间轴的帧切换事件（左侧时间跳转触发）
+    const handleTimelineFrameChange = (event) => {
+      const targetFrame = event.detail.frame;
+      const forceUpdate = event.detail.forceUpdate === true;
+      console.log(`🚀 左侧时间跳转到帧: ${targetFrame}, 强制更新: ${forceUpdate}`);
       
-      // 在初始设置阶段忽略时间轴变化
-      if (isInitialSetup) {
-        console.log('初始设置阶段，忽略时间轴变化');
-        return;
-      }
-      
-      // 只有当帧数真正改变时才处理
-      if (frame !== timeFrame.value) {
+      // 即使在播放中也允许跳转
+      if (targetFrame !== timeFrame.value || forceUpdate) {
         isTimelineControlled = true;
-        timeFrame.value = frame;
+        timeFrame.value = targetFrame;
         
-        // 如果正在播放，不立即加载帧（让播放循环处理）
-        // 如果暂停中，立即加载帧
-        if (!isPlaying.value) {
-          console.log('暂停状态下的时间轴控制，立即加载帧:', frame);
-          loadTimeFrame(frame).then(() => {
-            isTimelineControlled = false;
-          });
-        } else {
-          console.log('播放状态下的时间轴控制，由播放循环处理');
-          isTimelineControlled = false;
+        // 同步更新Cesium时间轴位置
+        if (viewer && viewer.forceSetFrame) {
+          viewer.forceSetFrame(targetFrame);
         }
+        
+        // 跳转时使用瞬间模式，避免动画插值
+        const wasInstantMode = instantMode.value;
+        instantMode.value = true;
+        
+        loadTimeFrame(targetFrame).then(() => {
+          isTimelineControlled = false;
+          
+          // 恢复原来的模式
+          instantMode.value = wasInstantMode;
+          
+          // 如果是在播放状态下跳转，从新位置继续播放
+          if (isPlaying.value) {
+            console.log(`从帧 ${targetFrame} 继续播放`);
+          }
+        });
+      }
+    };
+    
+    // 添加事件监听器
+    window.addEventListener('timeline-frame-change', handleTimelineFrameChange);
+    
+    // 监听仿真播放状态变化，同步到时间轴
+    watch(isPlaying, (newValue) => {
+      if (window.simulationTimelineControl) {
+        window.simulationTimelineControl.setSimulationRunning(newValue);
+      }
+    });
+    
+    // 监听时间帧变化，同步到时间轴
+    watch(timeFrame, (newFrame, oldFrame) => {
+      if (!isTimelineControlled && window.simulationTimelineControl) {
+        // 仿真播放时，更新时间轴显示（包括最大运行帧）
+        if (isPlaying.value) {
+          window.simulationTimelineControl.updateFrame(newFrame, newFrame);
+        } else {
+          window.simulationTimelineControl.updateFrame(newFrame);
+        }
+        console.log(`时间轴同步更新: ${oldFrame} -> ${newFrame}`);
       }
     });
     
     // 3秒后结束初始设置阶段
     setTimeout(() => {
       isInitialSetup = false;
-      console.log('初始设置阶段结束，时间轴控制现在生效');
+      console.log('初始设置阶段结束，仿真时间轴控制现在生效');
+      
+      // 根据当前数据文件夹设置时间轴总帧数
+      const currentFolder = getCurrentDataFolder();
+      if (window.simulationTimelineControl) {
+        if (currentFolder === 'new') {
+          window.simulationTimelineControl.setTotalFrames(360); // new文件夹有360帧
+        } else {
+          window.simulationTimelineControl.setTotalFrames(6); // old文件夹有6帧
+        }
+        
+        // 初始化时间轴到第1帧
+        window.simulationTimelineControl.updateFrame(timeFrame.value, timeFrame.value);
+      }
     }, 3000);
     
     // 启用瞬间模式以支持流畅的手动控制
     instantMode.value = false; // 改为false以显示动画效果
     console.log('已启用动画模式，支持流畅的时间轴拖拽');
     
+    // 强制显示时间轴控件（注释掉，因为现在要隐藏原生时间轴）
+    // setTimeout(() => {
+    //   console.log('强制显示时间轴控件...');
+    //   forceShowTimelineControls();
+    // }, 500);
+    
     // 延迟调整时间轴位置，确保DOM元素已创建
-    setTimeout(() => {
-      console.log('开始初始化时间轴位置调整...');
-      adjustTimelinePositionForPanel();
-    }, 1000); // 增加延迟确保所有元素都已加载
+    // 注意：已移除原生时间轴的强制显示和DOM监听器
+    // 因为我们现在要隐藏原生时间轴，使用自定义时间轴控件
     
-    // 再次尝试，确保成功
-    setTimeout(() => {
-      console.log('第二次尝试时间轴位置调整...');
-      adjustTimelinePositionForPanel();
-    }, 2000);
-    
-    // 添加窗口调整大小监听器，动态调整时间轴位置
-    const handleResize = () => {
-      setTimeout(() => {
-        adjustTimelinePositionForPanel();
-      }, 100);
-    };
-    window.addEventListener('resize', handleResize);
-    
-    // 暴露handleResize到外层作用域，以便在onUnmounted中访问
-    window.currentHandleResize = handleResize;
+    // 已移除窗口大小调整和面板变化监听器，因为不再需要调整原生时间轴位置
     
     // 添加文件夹变更事件监听器
     const handleDataFolderChange = async (event) => {
@@ -992,19 +1063,19 @@ onMounted(async () => {
       // 使用新的重置时钟函数，确保时间轴从第一帧开始
       resetClockRange(folderName);
       
-      // 确保播放状态被重置
-      if (isPlaying.value) {
-        togglePlayback(loadTimeFrame); // 停止播放
+      // 重置仿真时间轴
+      if (window.simulationTimelineControl) {
+        window.simulationTimelineControl.reset();
+        
+        // 根据新文件夹设置总帧数
+        if (folderName === 'new') {
+          window.simulationTimelineControl.setTotalFrames(360); // new文件夹有360帧
+        } else {
+          window.simulationTimelineControl.setTotalFrames(6); // old文件夹有6帧
+        }
+        
+        console.log(`时间轴已重置并配置为${folderName}文件夹`);
       }
-      
-      // 重置时间帧到第一帧
-      timeFrame.value = 1;
-      
-      // 手动跳转到第一帧，避免时间追赶
-      setTimeout(() => {
-        jumpToTimeFrame(1);
-        console.log('已重置到第一帧');
-      }, 300);
       
       // 如果当前是未登录状态，立即加载新文件夹的数据
       if (!isLoggedIn.value) {
@@ -1018,6 +1089,11 @@ onMounted(async () => {
               const defaultFrame = 1;
               timeFrame.value = defaultFrame;
               await loadTimeFrame(defaultFrame);
+              
+              // 更新时间轴显示
+              if (window.simulationTimelineControl) {
+                window.simulationTimelineControl.updateFrame(defaultFrame, defaultFrame);
+              }
             } catch (error) {
               console.error('延迟加载新文件夹数据失败:', error);
             }
@@ -1032,18 +1108,15 @@ onMounted(async () => {
           }
           currentGraphData = null;
           
-          // 短暂延迟后加载新文件夹的第一帧数据
-          setTimeout(async () => {
-            try {
-              const defaultFrame = 1;
-              timeFrame.value = defaultFrame;
-              await loadTimeFrame(defaultFrame);
-              console.log('新文件夹数据加载完成');
-            } catch (error) {
-              console.error('加载新文件夹数据失败:', error);
-            }
-          }, 500); // 延迟500ms，确保时钟重置完成
+          // 加载新文件夹的默认数据（60秒时间帧）
+          const defaultFrame = 1; // 对应60秒
+          timeFrame.value = defaultFrame;
+          await loadTimeFrame(defaultFrame);
           
+          // 更新时间轴显示
+          if (window.simulationTimelineControl) {
+            window.simulationTimelineControl.updateFrame(defaultFrame, defaultFrame);
+          }
         } catch (error) {
           console.error('加载新文件夹数据失败:', error);
         }
@@ -1053,40 +1126,29 @@ onMounted(async () => {
     window.addEventListener('data-folder-changed', handleDataFolderChange);
     window.currentHandleDataFolderChange = handleDataFolderChange;
     
-    // 定期检查并修复时间轴显示
-    const timelineCheckInterval = setInterval(() => {
-      console.log('定期检查时间轴状态...');
-      debugTimelineElements();
-      forceShowTimelineControls();
-      adjustTimelinePositionForPanel();
-    }, 2000); // 每2秒检查一次
+    // 定期检查并修复时间轴显示 - 已禁用以减少后台日志
+    // const timelineCheckInterval = setInterval(() => {
+    //   console.log('定期检查时间轴状态...');
+    //   
+    //   // 检查时间轴是否可见
+    //   const timelineElement = document.querySelector('.cesium-timeline-main');
+    //   const animationElement = document.querySelector('.cesium-animation-container');
+    //   
+    //   if (!timelineElement || timelineElement.style.display === 'none' || 
+    //       !animationElement || animationElement.style.display === 'none') {
+    //     console.log('时间轴控件不可见，强制显示...');
+    //     forceShowTimelineControls();
+    //   }
+    //   
+    //   debugTimelineElements();
+    //   adjustTimelinePositionForPanel();
+    // }, 3000); // 每3秒检查一次
     
     // 存储定时器以便清理
-    window.timelineCheckInterval = timelineCheckInterval;
+    // window.timelineCheckInterval = timelineCheckInterval;
     
-    // 添加面板变化监听器（如果业务面板高度发生变化）
-    const observeServicePanel = () => {
-      const servicePanel = document.querySelector('.service-panel') || 
-                           document.querySelector('[class*="service"]') ||
-                           document.querySelector('.bottom-panel');
-      if (servicePanel) {
-        const observer = new MutationObserver(() => {
-          setTimeout(() => {
-            adjustTimelinePositionForPanel();
-          }, 100);
-        });
-        observer.observe(servicePanel, { 
-          attributes: true, 
-          attributeFilter: ['style', 'class'],
-          childList: true,
-          subtree: true
-        });
-        // 存储observer以便后续清理
-        window.servicePanelObserver = observer;
-      }
-    };
-    
-    setTimeout(observeServicePanel, 2000); // 延迟观察，确保面板已创建
+    // 注意：已移除面板变化监听器和定期检查
+    // 因为不再需要调整原生时间轴位置
     
     // 添加相机移动监听器以更新选择指示器位置
     viewer().scene.postRender.addEventListener(updateSelectionIndicator);
@@ -1101,18 +1163,15 @@ onMounted(async () => {
       console.log('用户已登录，等待用户选择进程');
     }
     
-    // 定期检查进程ID变化（调试用）
-    const debugInterval = setInterval(() => {
-      const currentId = selectedProcessId.value;
-      const localStorageId = localStorage.getItem('selectedProcessId');
-      if (currentId || localStorageId) {
-        console.log('定期检查 - 当前进程ID:', currentId, '本地存储:', localStorageId);
-        clearInterval(debugInterval);
-      }
-    }, 2000);
-    
-    // 存储调试定时器以便清理
-    window.debugInterval = debugInterval;
+    // 定期检查进程ID变化（调试用）- 已禁用以减少后台日志
+    // const debugInterval = setInterval(() => {
+    //   const currentId = selectedProcessId.value;
+    //   const localStorageId = localStorage.getItem('selectedProcessId');
+    //   if (currentId || localStorageId) {
+    //     console.log('定期检查 - 当前进程ID:', currentId, '本地存储:', localStorageId);
+    //     clearInterval(debugInterval);
+    //   }
+    // }, 2000);
     
     // 添加全局缓存调试功能
     window.debugCache = () => {
@@ -1134,6 +1193,32 @@ onMounted(async () => {
     console.log('- 使用 window.debugCache() 查看缓存状态');
     console.log('- 使用 window.clearAllCache() 清理所有缓存');
     
+    // 临时调试：清除用户选择标记，模拟首次访问
+    window.clearUserSelection = () => {
+      localStorage.removeItem('hasUserSelectedFolder');
+      localStorage.removeItem('selectedDataFolder');
+      console.log('已清除用户选择标记，刷新页面查看效果');
+    };
+    
+    // 检查是否有已保存的数据源，如果有则显示左侧面板
+    const hasProcessId = selectedProcessId.value || localStorage.getItem('selectedProcessId');
+    const userHasSelectedFolder = localStorage.getItem('hasUserSelectedFolder') === 'true';
+    
+    console.log('=== 数据源检查 ===');
+    console.log('- localStorage.hasUserSelectedFolder:', localStorage.getItem('hasUserSelectedFolder'));
+    console.log('- localStorage.selectedDataFolder:', localStorage.getItem('selectedDataFolder'));
+    console.log('- hasProcessId:', hasProcessId);
+    console.log('- userHasSelectedFolder:', userHasSelectedFolder);
+    
+    if (hasProcessId || userHasSelectedFolder) {
+      showLeftPanel.value = true;
+      console.log('检测到已保存的数据源，显示ObjectViewer面板');
+      console.log('- 进程ID:', hasProcessId);
+      console.log('- 用户主动选择文件夹:', userHasSelectedFolder);
+    } else {
+      console.log('未检测到数据源，ObjectViewer面板保持隐藏');
+    }
+    
   } catch (err) {
     console.error("初始化失败:", err);
   }
@@ -1142,6 +1227,9 @@ onMounted(async () => {
 onUnmounted(() => {
   cleanupAnimation();
   cleanupCesium();
+  
+  // 清理时间轴帧切换事件监听器
+  window.removeEventListener('timeline-frame-change', handleTimelineFrameChange);
   
   // 清理窗口调整大小监听器
   if (window.currentHandleResize) {
@@ -1161,28 +1249,22 @@ onUnmounted(() => {
     delete window.timelineCheckInterval;
   }
   
-  // 清理调试定时器
-  if (window.debugInterval) {
-    clearInterval(window.debugInterval);
-    delete window.debugInterval;
-  }
-  
   // 清理面板观察器
   if (window.servicePanelObserver) {
     window.servicePanelObserver.disconnect();
     delete window.servicePanelObserver;
   }
   
-  // 清理postRender事件监听器
-  if (viewer() && viewer().scene) {
-    try {
-      viewer().scene.postRender.removeEventListener(updateSelectionIndicator);
-    } catch (error) {
-      console.warn('清理postRender监听器时出错:', error);
-    }
+  // 清理仿真时间轴
+  const simulationTimeline = document.querySelector('.simulation-timeline');
+  if (simulationTimeline) {
+    simulationTimeline.remove();
   }
   
-  console.log('SatelliteViewer 组件资源清理完成');
+  // 清理全局时间轴控制对象
+  if (window.simulationTimelineControl) {
+    delete window.simulationTimelineControl;
+  }
 });
 
 // 暴露方法给父组件
@@ -1258,31 +1340,159 @@ defineExpose({
   background: transparent;
 }
 
-/* Cesium时间轴控件样式调整 */
+/* Cesium时间轴控件样式调整 - 使用更高的优先级 */
 :deep(.cesium-timeline-main) {
-  bottom: 180px !important;
-  z-index: 1000 !important;
-}
-
-:deep(.cesium-animation-container) {
-  bottom: 180px !important;
-  z-index: 1000 !important;
+  display: block !important;
+  visibility: visible !important;
+  position: absolute !important;
+  bottom: 30px !important;
+  left: 10px !important;
+  right: 5px !important;
+  z-index: 10000 !important;
+  height: 27px !important;
+  background: rgba(42, 42, 42, 0.9) !important;
+  border: 1px solid #666 !important;
+  border-radius: 3px !important;
 }
 
 /* 确保时间轴在业务面板上方 */
 :deep(.cesium-viewer-toolbar) {
-  z-index: 1001 !important;
+  z-index: 10001 !important;
+}
+
+/* 添加更多时间轴相关选择器 - 全部使用高优先级 */
+:deep(.cesium-timeline-container) {
+  display: block !important;
+  visibility: visible !important;
+  position: absolute !important;
+  bottom: 30px !important;
+  left: 10px !important;
+  right: 5px !important;
+  z-index: 10000 !important;
+  height: 27px !important;
+}
+
+:deep(.cesium-timeline-trackContainer) {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: rgba(60, 60, 60, 0.8) !important;
+  border: none !important;
+}
+
+:deep(.cesium-timeline-track) {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: relative !important;
+  width: 100% !important;
+  height: 20px !important;
+  background: linear-gradient(to right, #444, #666) !important;
+  border: 1px solid #888 !important;
+  border-radius: 2px !important;
+  margin: 3px 0 !important;
 }
 
 :deep(.cesium-timeline-bar) {
-  background: rgba(42, 42, 42, 0.8) !important;
-  border: 1px solid #555 !important;
-  border-radius: 3px !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: relative !important;
+  width: 100% !important;
+  height: 20px !important;
+  background: linear-gradient(to right, #444, #666) !important;
+  border: 1px solid #888 !important;
+  border-radius: 2px !important;
+  margin: 3px 0 !important;
 }
 
-:deep(.cesium-animation-widget) {
-  background: rgba(42, 42, 42, 0.8) !important;
-  border: 1px solid #555 !important;
-  border-radius: 3px !important;
+:deep(.cesium-timeline-needle) {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: absolute !important;
+  width: 2px !important;
+  height: 100% !important;
+  background: #00ff00 !important;
+  z-index: 10001 !important;
+  pointer-events: auto !important;
+}
+
+:deep(.cesium-timeline-ruler) {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: relative !important;
+  width: 100% !important;
+  height: 15px !important;
+  background: rgba(80, 80, 80, 0.9) !important;
+  border-top: 1px solid #999 !important;
+  font-size: 10px !important;
+  color: #ccc !important;
+  z-index: 1 !important; /* 覆盖默认的-200 */
+  white-space: nowrap !important;
+}
+
+/* 强制覆盖Cesium默认样式 */
+:deep(.cesium-timeline-main) {
+  background: rgba(42, 42, 42, 0.9) !important;
+  border: 1px solid #666 !important;
+  height: 27px !important;
+}
+
+:deep(.cesium-timeline-trackContainer) {
+  background: rgba(50, 50, 50, 0.8) !important;
+  border-top: solid 1px #888 !important;
+}
+
+:deep(.cesium-timeline-tracks) {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+:deep(.cesium-timeline-bar) {
+  height: 1.7em !important;
+  background: linear-gradient(
+    to bottom,
+    rgba(116, 117, 119, 0.9) 0%,
+    rgba(58, 68, 82, 0.9) 11%,
+    rgba(46, 50, 56, 0.9) 46%,
+    rgba(53, 53, 53, 0.9) 81%,
+    rgba(53, 53, 53, 0.9) 100%) !important;
+  cursor: pointer !important;
+}
+
+:deep(.cesium-timeline-needle) {
+  background: #f00 !important; /* Cesium默认是红色 */
+  width: 1px !important;
+  top: 1.7em !important;
+  bottom: 0 !important;
+}
+
+:deep(.cesium-timeline-ticLabel) {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: #ccc !important;
+  font-size: 80% !important;
+  white-space: nowrap !important;
+  position: absolute !important;
+}
+
+/* 强制显示所有时间轴相关元素 - 最高优先级 */
+:deep([class*="cesium-timeline"]) {
+  display: block !important;
+  visibility: visible !important;
+  z-index: 10000 !important;
+}
+
+/* 额外的时间轴样式确保 */
+:deep(.cesium-timeline-main *) {
+  display: block !important;
+  visibility: visible !important;
 }
 </style>
