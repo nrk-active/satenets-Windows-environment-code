@@ -46,6 +46,9 @@ export function useCesium() {
         }
       }
     });
+    
+    // 简化日志
+    console.log('Cesium Viewer创建完成');
 
     // 启用光照和阴影 - 大幅提高地球亮度
     viewer.scene.globe.enableLighting = true;
@@ -74,51 +77,455 @@ export function useCesium() {
       }
     });
     
-    // 设置特定时间以获得理想的太阳光照角度
+    // 设置仿真时钟配置
     const currentTime = Cesium.JulianDate.now();
     // 调整时间以获得更好的光照角度（可以根据需要调整）
     const adjustedTime = Cesium.JulianDate.addHours(currentTime, 6, new Cesium.JulianDate()); // 调整6小时
     
-    // 设置时钟的开始和结束时间范围，根据文件夹推断时间间隔
-    const currentFolder = getCurrentDataFolder();
-    let timeInterval = 60; // 默认60秒间隔
-    let totalFrames = 6;   // 默认6帧
+    // 配置时钟以支持仿真同步
+    viewer.clock.startTime = adjustedTime;
+    viewer.clock.currentTime = adjustedTime;
+    viewer.clock.stopTime = Cesium.JulianDate.addSeconds(adjustedTime, 360, new Cesium.JulianDate()); // 6帧 * 60秒
+    viewer.clock.clockRange = Cesium.ClockRange.LOOP_STOP; // 循环播放
+    viewer.clock.multiplier = 1; // 默认1倍速度
+    viewer.clock.shouldAnimate = false; // 默认不自动播放，等待仿真控制
     
-    // 根据文件夹名称推断时间间隔（避免异步调用）
-    if (currentFolder === 'new') {
-      timeInterval = 10;
-      totalFrames = 360; // new文件夹有360个文件，总共3600秒
-    } else {
-      timeInterval = 60;
-      totalFrames = 6;   // old文件夹通常6帧
+    console.log('Cesium时钟已配置为仿真同步模式');
+    
+    // 隐藏原生Cesium时间轴
+    if (viewer.animation && viewer.animation.container) {
+      viewer.animation.container.style.display = 'none';
     }
     
-    const startTime = adjustedTime;
-    const endTime = Cesium.JulianDate.addSeconds(startTime, totalFrames * timeInterval, new Cesium.JulianDate());
+    if (viewer.timeline && viewer.timeline.container) {
+      viewer.timeline.container.style.display = 'none';
+    }
+      
     
-    viewer.clock.startTime = startTime;
-    viewer.clock.currentTime = startTime; // 从第一帧开始
-    viewer.clock.stopTime = endTime;
-    viewer.clock.clockRange = Cesium.ClockRange.CLAMPED; // 改为CLAMPED，避免循环
     
-    // 确保时钟初始状态为完全停止
-    viewer.clock.shouldAnimate = false;
-    viewer.clock.multiplier = 0;
+    // 定义自定义时间轴函数
+      window.createSimulationTimeline = function() {
+        console.log('创建仿真时间轴...');
+        
+        // 移除现有的时间轴（包括Cesium原生和自定义的）
+        const existingCesiumTimeline = document.querySelector('.cesium-timeline-main');
+        if (existingCesiumTimeline) {
+          existingCesiumTimeline.style.display = 'none';
+        }
+        
+        const existingCustomTimeline = document.querySelector('.simulation-timeline');
+        if (existingCustomTimeline) {
+          existingCustomTimeline.remove();
+        }
+        
+        // 创建仿真时间轴容器
+        const simulationTimeline = document.createElement('div');
+        simulationTimeline.className = 'simulation-timeline';
+        simulationTimeline.style.cssText = `
+          position: absolute;
+          bottom: 200px;
+          left: 170px;
+          right: 5px;
+          height: 27px;
+          background: rgba(42, 42, 42, 0.95);
+          border: 1px solid #666;
+          border-radius: 3px;
+          z-index: 10000;
+          display: flex;
+          align-items: center;
+          padding: 0 8px;
+          box-sizing: border-box;
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        `;
+        
+        // 创建时间显示（当前时间）
+        const currentTimeDisplay = document.createElement('div');
+        currentTimeDisplay.style.cssText = `
+          color: #00ff00;
+          font-size: 11px;
+          font-weight: bold;
+          min-width: 70px;
+          text-align: center;
+          margin-right: 8px;
+          font-family: monospace;
+        `;
+        currentTimeDisplay.textContent = '00:01:00';
+        
+        // 创建时间轴轨道容器
+        const trackContainer = document.createElement('div');
+        trackContainer.style.cssText = `
+          flex: 1;
+          height: 20px;
+          position: relative;
+          margin: 0 8px;
+        `;
+        
+        // 创建背景轨道
+        const backgroundTrack = document.createElement('div');
+        backgroundTrack.style.cssText = `
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(
+            to bottom,
+            rgba(80, 80, 80, 0.9) 0%,
+            rgba(60, 60, 60, 0.9) 50%,
+            rgba(40, 40, 40, 0.9) 100%);
+          border: 1px solid #555;
+          border-radius: 10px;
+          position: absolute;
+          top: 0;
+          left: 0;
+          cursor: pointer;
+          user-select: none;
+        `;
+        
+        // 创建已运行区域（绿色渐变）
+        const runTrack = document.createElement('div');
+        runTrack.style.cssText = `
+          width: 0%;
+          height: 100%;
+          background: linear-gradient(
+            to right,
+            rgba(0, 200, 100, 0.8) 0%,
+            rgba(0, 180, 80, 0.8) 50%,
+            rgba(0, 160, 60, 0.8) 100%);
+          border-radius: 10px;
+          position: absolute;
+          top: 0;
+          left: 0;
+          transition: width 0.3s ease;
+          cursor: pointer;
+          user-select: none;
+          box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+        `;
+        
+        // 创建当前时间指针（滑块样式）
+        const needle = document.createElement('div');
+        needle.style.cssText = `
+          position: absolute;
+          left: 0%;
+          top: -4px;
+          width: 16px;
+          height: 28px;
+          background: linear-gradient(
+            to bottom,
+            #ff4444 0%,
+            #ff0000 50%,
+            #cc0000 100%);
+          border: 2px solid #fff;
+          border-radius: 8px;
+          z-index: 3;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+          transition: left 0.3s ease;
+          cursor: grab;
+          transform: translateX(-50%);
+          user-select: none;
+        `;
+        
+        // 添加滑块内部的指示线
+        const needleInner = document.createElement('div');
+        needleInner.style.cssText = `
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: 2px;
+          height: 12px;
+          background: #fff;
+          transform: translate(-50%, -50%);
+          border-radius: 1px;
+        `;
+        needle.appendChild(needleInner);
+        
+        // 创建总时间显示
+        const totalTimeDisplay = document.createElement('div');
+        totalTimeDisplay.style.cssText = `
+          color: #ccc;
+          font-size: 11px;
+          min-width: 70px;
+          text-align: center;
+          margin-left: 8px;
+          font-family: monospace;
+        `;
+        totalTimeDisplay.textContent = '06:00:00';
+        
+        // 创建刻度标记容器
+        const tickContainer = document.createElement('div');
+        tickContainer.style.cssText = `
+          position: absolute;
+          top: -8px;
+          left: 0;
+          right: 0;
+          height: 6px;
+        `;
+        
+        // 添加时间刻度标记
+        for (let i = 0; i <= 6; i++) {
+          const tick = document.createElement('div');
+          tick.style.cssText = `
+            position: absolute;
+            left: ${(i / 6) * 100}%;
+            top: 0;
+            width: 1px;
+            height: 6px;
+            background: #888;
+          `;
+          tickContainer.appendChild(tick);
+          
+          // 添加时间标签
+          const label = document.createElement('div');
+          label.style.cssText = `
+            position: absolute;
+            left: ${(i / 6) * 100}%;
+            top: -18px;
+            transform: translateX(-50%);
+            color: #aaa;
+            font-size: 9px;
+            white-space: nowrap;
+            font-family: monospace;
+          `;
+          label.textContent = `${i}:00`;
+          tickContainer.appendChild(label);
+        }
+        
+        // 组装时间轴
+        trackContainer.appendChild(backgroundTrack);
+        trackContainer.appendChild(runTrack);
+        trackContainer.appendChild(needle);
+        trackContainer.appendChild(tickContainer);
+        
+        simulationTimeline.appendChild(currentTimeDisplay);
+        simulationTimeline.appendChild(trackContainer);
+        simulationTimeline.appendChild(totalTimeDisplay);
+        
+        // 添加到Cesium容器
+        const cesiumContainer = document.getElementById('cesiumContainer');
+        if (cesiumContainer) {
+          cesiumContainer.appendChild(simulationTimeline);
+          console.log('仿真时间轴已添加到页面');
+        }
+        
+        // 仿真状态管理
+        let currentFrame = 1;
+        let maxRunFrame = 1; // 已经运行过的最大帧数
+        let totalFrames = 6; // 默认6帧
+        let isSimulationRunning = false;
+        
+        // 更新时间轴显示
+        function updateTimelineDisplay(frame, maxFrame = null, skipNeedleUpdate = false) {
+          if (maxFrame !== null) {
+            maxRunFrame = Math.max(maxRunFrame, maxFrame);
+          }
+          
+          currentFrame = frame;
+          const percentage = (frame - 1) / (totalFrames - 1);
+          const maxPercentage = (maxRunFrame - 1) / (totalFrames - 1);
+          
+          // 更新指针位置 - 除非是拖拽中
+          if (!isDragging && !skipNeedleUpdate) {
+            needle.style.left = (percentage * 100) + '%';
+          }
+          
+          // 更新已运行区域
+          runTrack.style.width = (maxPercentage * 100) + '%';
+          
+          // 更新时间显示
+          const minutes = Math.floor((frame - 1));
+          const seconds = 0;
+          currentTimeDisplay.textContent = `00:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+          
+          console.log(`时间轴更新: 当前帧=${frame}, 最大运行帧=${maxRunFrame}, 总帧数=${totalFrames}`);
+        }
+        
+        // 拖拽和点击功能变量
+        let isDragging = false;
+        let dragStartX = 0;
+        
+        // 计算目标帧的通用函数
+        function calculateTargetFrame(clientX) {
+          const rect = backgroundTrack.getBoundingClientRect();
+          const x = clientX - rect.left;
+          const percentage = Math.max(0, Math.min(1, x / rect.width));
+          return Math.round(percentage * (totalFrames - 1)) + 1;
+        }
+        
+        // 跳转到指定帧的通用函数
+        function jumpToFrame(targetFrame) {
+          // 只能选择已经运行过的帧
+          if (targetFrame > maxRunFrame) {
+            console.log(`无法跳转到帧${targetFrame}，最大可用帧为${maxRunFrame}`);
+            return false;
+          }
+          
+          console.log(`跳转到帧: ${targetFrame}`);
+          
+          // 触发帧切换事件
+          const frameChangeEvent = new CustomEvent('timeline-frame-change', {
+            detail: { frame: targetFrame, forceUpdate: true }
+          });
+          window.dispatchEvent(frameChangeEvent);
+          
+          // 更新显示 - 但不更新currentFrame，保持滑块在拖拽位置
+          const needlePosition = (targetFrame - 1) / (totalFrames - 1);
+          needle.style.left = (needlePosition * 100) + '%';
+          
+          // 更新时间显示
+          const minutes = Math.floor((targetFrame - 1));
+          const seconds = 0;
+          currentTimeDisplay.textContent = `00:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+          
+          return true;
+        }
+        
+        // 鼠标按下事件（开始拖拽）
+        backgroundTrack.addEventListener('mousedown', function(e) {
+          isDragging = true;
+          dragStartX = e.clientX;
+          backgroundTrack.style.cursor = 'grabbing';
+          
+          // 立即跳转到点击位置
+          const targetFrame = calculateTargetFrame(e.clientX);
+          jumpToFrame(targetFrame);
+          
+          e.preventDefault();
+        });
+        
+        // 鼠标移动事件（拖拽中）
+        document.addEventListener('mousemove', function(e) {
+          if (!isDragging) return;
+          
+          const targetFrame = calculateTargetFrame(e.clientX);
+          
+          // 计算滑块位置并直接设置
+          const rect = backgroundTrack.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const percentage = Math.max(0, Math.min(1, x / rect.width));
+          
+          // 只在可用范围内移动滑块
+          if (targetFrame <= maxRunFrame) {
+            needle.style.left = (percentage * 100) + '%';
+            jumpToFrame(targetFrame);
+          }
+          
+          e.preventDefault();
+        });
+        
+        // 鼠标释放事件（结束拖拽）
+        document.addEventListener('mouseup', function(e) {
+          if (isDragging) {
+            isDragging = false;
+            backgroundTrack.style.cursor = 'pointer';
+          }
+        });
+        
+        // 鼠标悬停效果
+        backgroundTrack.addEventListener('mouseenter', function() {
+          backgroundTrack.style.cursor = 'pointer';
+        });
+        
+        backgroundTrack.addEventListener('mouseleave', function() {
+          backgroundTrack.style.cursor = 'default';
+        });
+        
+        // 也为runTrack（绿色区域）添加同样的交互
+        runTrack.addEventListener('mousedown', function(e) {
+          isDragging = true;
+          dragStartX = e.clientX;
+          runTrack.style.cursor = 'grabbing';
+          
+          // 立即跳转到点击位置
+          const targetFrame = calculateTargetFrame(e.clientX);
+          jumpToFrame(targetFrame);
+          
+          e.preventDefault();
+        });
+        
+        runTrack.addEventListener('mouseenter', function() {
+          runTrack.style.cursor = 'pointer';
+        });
+        
+        runTrack.addEventListener('mouseleave', function() {
+          runTrack.style.cursor = 'default';
+        });
+        
+        // 为滑块添加专门的拖拽功能
+        needle.addEventListener('mousedown', function(e) {
+          isDragging = true;
+          dragStartX = e.clientX;
+          needle.style.cursor = 'grabbing';
+          needle.style.transform = 'translateX(-50%) scale(1.1)'; // 拖拽时稍微放大
+          
+          e.preventDefault();
+          e.stopPropagation(); // 防止触发背景轨道的事件
+        });
+        
+        // 滑块悬停效果
+        needle.addEventListener('mouseenter', function() {
+          if (!isDragging) {
+            needle.style.transform = 'translateX(-50%) scale(1.05)';
+            needle.style.boxShadow = '0 3px 12px rgba(255, 0, 0, 0.6)';
+          }
+        });
+        
+        needle.addEventListener('mouseleave', function() {
+          if (!isDragging) {
+            needle.style.transform = 'translateX(-50%) scale(1)';
+            needle.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.4)';
+          }
+        });
+        
+        // 更新鼠标释放事件，处理滑块的样式重置
+        document.addEventListener('mouseup', function(e) {
+          if (isDragging) {
+            isDragging = false;
+            backgroundTrack.style.cursor = 'pointer';
+            runTrack.style.cursor = 'pointer';
+            needle.style.cursor = 'grab';
+            needle.style.transform = 'translateX(-50%) scale(1)';
+            needle.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.4)';
+          }
+        });
+        
+        // 暴露控制接口
+        window.simulationTimelineControl = {
+          updateFrame: updateTimelineDisplay,
+          setTotalFrames: function(frames) {
+            totalFrames = frames;
+            console.log(`时间轴总帧数设置为: ${frames}`);
+          },
+          setSimulationRunning: function(running) {
+            isSimulationRunning = running;
+            // 运行时也保持完全可操作，不降低透明度
+            simulationTimeline.style.opacity = '1';
+            
+            // 可选：运行时添加轻微的边框发光效果来提示状态
+            if (running) {
+              simulationTimeline.style.boxShadow = '0 0 8px rgba(0, 255, 0, 0.3)';
+        } else {
+              simulationTimeline.style.boxShadow = 'none';
+            }
+            
+            console.log(`仿真运行状态: ${running ? '运行中（可拖拽）' : '已停止'}`);
+          },
+          getCurrentFrame: function() {
+            return currentFrame;
+          },
+          getMaxRunFrame: function() {
+            return maxRunFrame;
+          },
+          reset: function() {
+            currentFrame = 1;
+            maxRunFrame = 1;
+            updateTimelineDisplay(1, 1);
+            console.log('时间轴已重置');
+          }
+        };
+        
+        console.log('仿真时间轴创建完成，可通过 window.simulationTimelineControl 控制');
+      return simulationTimeline;
+    };
     
-    console.log('时钟设置完成 - 范围:', 
-      Cesium.JulianDate.toIso8601(startTime), 
-      '到', 
-      Cesium.JulianDate.toIso8601(endTime)
-    );
-    console.log(`时钟总时长: ${Cesium.JulianDate.secondsDifference(endTime, startTime)}秒`);
-    
-    // 强制刷新时间轴设置
-    setTimeout(() => {
-      if (viewer.timeline) {
-        viewer.timeline.updateFromClock();
-        viewer.timeline.resize();
-      }
-    }, 500);
+    // 创建自定义时间轴
+    window.createSimulationTimeline();
     
     // 启用真实的太阳光照计算
     viewer.scene.globe.atmosphereHueShift = 0.0;
@@ -347,6 +754,19 @@ export function useCesium() {
   function forceShowTimelineControls() {
     if (!viewer) return;
     
+    console.log('强制显示时间轴控件...');
+    
+    // 首先通过Cesium API确保控件启用
+    if (viewer.animation) {
+      viewer.animation.container.style.display = 'block';
+      viewer.animation.container.style.visibility = 'visible';
+    }
+    
+    if (viewer.timeline) {
+      viewer.timeline.container.style.display = 'block';
+      viewer.timeline.container.style.visibility = 'visible';
+    }
+    
     // 直接通过DOM查找所有可能的时间轴元素并强制显示
     const possibleSelectors = [
       '.cesium-timeline-main',
@@ -363,31 +783,34 @@ export function useCesium() {
         element.style.display = 'block !important';
         element.style.visibility = 'visible !important';
         element.style.opacity = '1 !important';
-        element.style.position = 'absolute';
-        element.style.zIndex = '9999';
+        element.style.position = 'absolute !important';
+        element.style.zIndex = '1000 !important';
+        console.log(`设置元素 ${selector} 为可见`);
       });
     });
     
     // 特别处理时间轴
     const timelineElements = document.querySelectorAll('.cesium-timeline-main');
     timelineElements.forEach(element => {
-      element.style.bottom = '200px';
-      element.style.left = '170px'; // 为动画控件留出空间
-      element.style.right = '0px';
-      element.style.height = '27px';
+      element.style.bottom = '30px !important';
+      element.style.left = '170px !important'; // 为动画控件留出空间
+      element.style.right = '5px !important';
+      element.style.height = '27px !important';
       element.style.backgroundColor = 'rgba(42, 42, 42, 0.8)';
       element.style.border = '1px solid #666';
+      console.log('时间轴位置已设置');
     });
     
     // 特别处理动画控件
     const animationElements = document.querySelectorAll('.cesium-animation-container, .cesium-animation-widget');
     animationElements.forEach(element => {
-      element.style.bottom = '200px';
-      element.style.left = '0px';
-      element.style.width = '169px';
-      element.style.height = '112px';
+      element.style.bottom = '30px !important';
+      element.style.left = '5px !important';
+      element.style.width = '160px !important';
+      element.style.height = '112px !important';
       element.style.backgroundColor = 'rgba(42, 42, 42, 0.8)';
       element.style.borderRadius = '4px';
+      console.log('动画控件位置已设置');
     });
   }
 
@@ -449,16 +872,17 @@ export function useCesium() {
     
     console.log(`调整时间轴位置，底部偏移: ${bottomOffset}px`);
     
-    // 确保时间轴控件始终可见
-    forceShowTimelineControls();
+    // 调整自定义时间轴位置
+    const simulationTimeline = document.querySelector('.simulation-timeline');
+    if (simulationTimeline) {
+      simulationTimeline.style.bottom = `${bottomOffset}px`;
+      console.log('自定义时间轴位置已调整到:', bottomOffset);
+    }
     
-    // 调整时间轴容器位置
+    // 调整原生时间轴容器位置（保持隐藏）
     const timelineContainer = viewer.timeline?.container;
     if (timelineContainer) {
       timelineContainer.style.bottom = `${bottomOffset}px`;
-      timelineContainer.style.display = 'block';
-      timelineContainer.style.visibility = 'visible';
-      timelineContainer.style.position = 'absolute';
       timelineContainer.style.left = '170px'; // 为动画控件留出空间
       timelineContainer.style.right = '0px';
       timelineContainer.style.height = '27px';
@@ -630,6 +1054,10 @@ export function useCesium() {
     const frameSeconds = (frame - 1) * timeInterval;
     const targetTime = Cesium.JulianDate.addSeconds(viewer.clock.startTime, frameSeconds, new Cesium.JulianDate());
     viewer.clock.currentTime = targetTime;
+    console.log(`跳转到时间帧 ${frame}，时间: ${frameSeconds}秒`);
+    
+    // 确保地球自转与时间同步
+    viewer.scene.requestRender();
   }
 
   // 设置播放速度
@@ -984,28 +1412,14 @@ export function useCesium() {
   }
 
   function cleanup() {
-    console.log('清理Cesium资源...');
-    
     if (handler) {
       handler.destroy();
       handler = null;
     }
     
     if (viewer) {
-      try {
-        // 清理所有实体
-        viewer.entities.removeAll();
-        
-        // 清理数据源
-        viewer.dataSources.removeAll();
-        
-        // 销毁viewer
-        viewer.destroy();
-        viewer = null;
-        console.log('Cesium viewer已销毁');
-      } catch (error) {
-        console.error('清理Cesium时出错:', error);
-      }
+      viewer.destroy();
+      viewer = null;
     }
   }
 
