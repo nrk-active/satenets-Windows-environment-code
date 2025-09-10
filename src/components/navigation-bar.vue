@@ -256,7 +256,7 @@ const selectedProcessId = ref(null);
 
 // 文件夹选择弹窗状态
 const showFolderDialog = ref(false);
-const selectedDataFolder = ref('new'); // 默认文件夹
+const selectedDataFolder = ref(null); // 初始不设置默认值，等待用户选择
 
 // 仿真进度和时间
 const simulationProgress = inject('simulationProgress', ref(0));
@@ -525,6 +525,16 @@ onMounted(() => {
     globalSelectedProcessId.value = cachedProcessId; // 同时更新全局状态
     console.log('恢复缓存的进程ID:', cachedProcessId);
   }
+  
+  // 恢复之前选择的数据文件夹（仅在用户主动选择过的情况下）
+  const hasUserSelected = localStorage.getItem('hasUserSelectedFolder');
+  if (hasUserSelected === 'true') {
+    const cachedFolder = localStorage.getItem('selectedDataFolder');
+    if (cachedFolder) {
+      selectedDataFolder.value = cachedFolder;
+      console.log('恢复缓存的数据文件夹:', cachedFolder);
+    }
+  }
 })
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
@@ -563,6 +573,7 @@ function handleFolderSelected(folderInfo) {
   // 通知useDataLoader更新文件夹设置
   // 我们需要从composable中导入setDataFolder函数
   localStorage.setItem('selectedDataFolder', folderInfo.name);
+  localStorage.setItem('hasUserSelectedFolder', 'true'); // 标记用户已主动选择
   
   console.log(`数据文件夹已设置为: ${folderInfo.name}`);
   

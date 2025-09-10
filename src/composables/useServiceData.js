@@ -6,7 +6,7 @@ import { CACHE_CONFIG } from '../constants/index.js';
 
 // 模块初始化标识
 const moduleInitTime = Date.now();
-console.log(`🔄 useServiceData 模块初始化时间: ${new Date(moduleInitTime).toLocaleTimeString()}`);
+console.log(`useServiceData 模块初始化时间: ${new Date(moduleInitTime).toLocaleTimeString()}`);
 
 // ⭐ 将缓存变量移到模块级别，避免多次函数调用时重置
 let moduleDrawnServiceIds = new Set();
@@ -14,11 +14,11 @@ let moduleLastDrawOptions = null;
 let moduleLastViewer = null;
 let moduleLastNetworkData = null;
 
-console.log(`🎯 模块级缓存变量初始化完成`);
+console.log(`模块级缓存变量初始化完成`);
 
 export function useServiceData() {
-  console.log(`🎯 useServiceData() 函数被调用 - 模块初始化时间: ${new Date(moduleInitTime).toLocaleTimeString()}`);
-  console.log(`📊 当前模块级缓存状态: drawnServiceIds=${moduleDrawnServiceIds.size}, lastViewer=${!!moduleLastViewer}`);
+  console.log(`useServiceData() 函数被调用 - 模块初始化时间: ${new Date(moduleInitTime).toLocaleTimeString()}`);
+  console.log(`当前模块级缓存状态: drawnServiceIds=${moduleDrawnServiceIds.size}, lastViewer=${!!moduleLastViewer}`);
   
   const serviceData = ref({
     active_requests: [],
@@ -128,7 +128,7 @@ export function useServiceData() {
       serviceData.value = processedData;
       serviceCache.set(filename, processedData);
       
-      console.log(`✅ 业务数据加载成功 (${filename}):`, {
+      console.log(`业务数据加载成功 (${filename}):`, {
         dataFormat: serviceDataSource === rawData ? '旧格式' : '新格式(data字段)',
         active: processedData.active_requests.length,
         pending: processedData.pending_requests.length,
@@ -354,12 +354,12 @@ export function useServiceData() {
     
     // 缓存业务ID和相关信息
     moduleDrawnServiceIds.add(service.request_id);
-    console.log(`✅ 添加业务ID到缓存: ${service.request_id}`);
+    console.log(`添加业务ID到缓存: ${service.request_id}`);
     console.log('当前缓存大小:', moduleDrawnServiceIds.size);
     console.log('调用栈:', new Error().stack?.split('\n').slice(1,4).join('\n'));
     
     moduleLastViewer = viewer; // 保存原始的viewer（可能是函数）
-    console.log(`📝 设置 moduleLastViewer - 类型: ${typeof viewer}, 是函数: ${typeof viewer === 'function'}`);
+    console.log(`设置 moduleLastViewer - 类型: ${typeof viewer}, 是函数: ${typeof viewer === 'function'}`);
     if (typeof viewer === 'function') {
       try {
         const testResult = viewer();
@@ -569,7 +569,7 @@ export function useServiceData() {
     // 只有在明确要求时才从缓存中移除该业务ID
     if (removeFromCache) {
       moduleDrawnServiceIds.delete(serviceId);
-      console.log(`🗑️ 从缓存中移除业务ID: ${serviceId}`);
+      console.log(`从缓存中移除业务ID: ${serviceId}`);
       console.log('移除后缓存大小:', moduleDrawnServiceIds.size);
       console.log('调用栈:', new Error().stack?.split('\n').slice(1,4).join('\n'));
       logCacheState(`移除业务ID ${serviceId} 后`);
@@ -607,7 +607,7 @@ export function useServiceData() {
     
     // 清除所有缓存的业务ID和选项
     moduleDrawnServiceIds.clear();
-    console.log(`🗑️🗑️ 清除所有缓存的业务ID`);
+    console.log(`清除所有缓存的业务ID`);
     console.log('调用栈:', new Error().stack?.split('\n').slice(1,5).join('\n'));
     moduleLastDrawOptions = null;
     console.log('清除所有路径显示和缓存，停止自动重绘功能');
@@ -630,7 +630,7 @@ export function useServiceData() {
     // 缓存绘制选项和网络数据
     moduleLastDrawOptions = { ...options };
     moduleLastViewer = viewer;
-    console.log(`📝 在批量绘制中设置 moduleLastViewer - 类型: ${typeof viewer}, 是函数: ${typeof viewer === 'function'}`);
+    console.log(`在批量绘制中设置 moduleLastViewer - 类型: ${typeof viewer}, 是函数: ${typeof viewer === 'function'}`);
     if (typeof viewer === 'function') {
       try {
         const testResult = viewer();
@@ -707,7 +707,7 @@ export function useServiceData() {
       });
     }
     
-    console.log(`✅ 绘制了 ${pathCount} 条业务路径`);
+    console.log(`绘制了 ${pathCount} 条业务路径`);
     console.log('绘制后的缓存业务ID数量:', moduleDrawnServiceIds.size);
     console.log('绘制后的缓存业务ID列表:', Array.from(moduleDrawnServiceIds));
     logCacheState('drawMultipleServicePaths完成后');
@@ -874,13 +874,13 @@ export function useServiceData() {
     // 如果传入了viewer，更新缓存的viewer
     if (viewer) {
       moduleLastViewer = viewer;
-      console.log(`📝 在网络数据更新中设置 moduleLastViewer - 类型: ${typeof viewer}, 是函数: ${typeof viewer === 'function'}`);
+      console.log(`在网络数据更新中设置 moduleLastViewer - 类型: ${typeof viewer}, 是函数: ${typeof viewer === 'function'}`);
       if (typeof viewer === 'function') {
         try {
           const testResult = viewer();
-          console.log(`   函数调用结果类型: ${typeof testResult}, 有entities: ${!!(testResult?.entities)}`);
+          console.log(`函数调用结果类型: ${typeof testResult}, 有entities: ${!!(testResult?.entities)}`);
         } catch (e) {
-          console.warn('   函数调用测试失败:', e.message);
+          console.warn('函数调用测试失败:', e.message);
         }
       } else if (typeof viewer === 'object') {
         console.log(`   对象有entities: ${!!(viewer?.entities)}`);
@@ -901,7 +901,7 @@ export function useServiceData() {
     
     // 如果有缓存的业务路径，立即重新绘制
     if (moduleDrawnServiceIds.size > 0 && validViewer) {
-      console.log(`🔄 基于新网络数据重绘 ${moduleDrawnServiceIds.size} 条业务路径`);
+      console.log(`基于新网络数据重绘 ${moduleDrawnServiceIds.size} 条业务路径`);
       // 延迟一小段时间，确保业务数据有时间更新
       setTimeout(() => {
         redrawCachedServicePaths();

@@ -62,10 +62,19 @@
       </div>
       
       <!-- 右侧面板区域 -->
-      <div class="right-panel-container" v-if="selectedService || showRightPanel">
+      <div class="right-panel-container" v-if="selectedService || showRightPanel || showDataPanel">
+        <!-- 图表面板 -->
+        <ChartPanel 
+          v-if="showDataPanel"
+          ref="chartPanelRef"
+          :selected-data="selectedSimulationData"
+          :current-frame-data="currentGraphData"
+          :time-frame="timeFrame"
+          @close="handleChartPanelClose"
+        />
         <!-- 业务详情面板 -->
         <ServiceDetail 
-          v-if="selectedService"
+          v-else-if="selectedService"
           :selected-service="selectedService"
           @close="handleCloseServiceDetail"
         />
@@ -80,7 +89,7 @@
       </div>
       
       <RightCollapsedSidebar 
-        v-show="!showRightPanel && !selectedService" 
+        v-show="!showRightPanel && !selectedService && !showDataPanel" 
         @reopen="reopenRightPanel"
       />
     </div>
@@ -99,6 +108,7 @@ import BottomCollapsedSidebar from './BottomCollapsedSidebar.vue';
 import ControlPanel from './ControlPanel.vue';
 import ServicePanel from './ServicePanel.vue';
 import ServiceDetail from './ServiceDetail.vue';
+import ChartPanel from './ChartPanel.vue';
 
 
 import { useCesium } from '../composables/useCesium.js';
@@ -133,6 +143,7 @@ const showDataPanel = ref(false);
 const selectedSimulationData = ref({});
 const showObjectViewer = ref(true);
 const objectViewerRef = ref(null);
+const chartPanelRef = ref(null);
 
 // 侧边栏状态管理
 const showLeftPanel = ref(true);
@@ -147,6 +158,22 @@ function handleDataSelection(data) {
   selectedSimulationData.value = data;
   showDataPanel.value = true;
   console.log('选择的仿真数据:', data);
+  
+  // 关闭其他面板，确保图表面板独占右侧
+  showRightPanel.value = false;
+  selectedEntity.value = null;
+  selectedEntityRawData.value = null;
+  
+  // 如果有业务详情面板打开，也关闭它
+  if (selectedService.value) {
+    closeServiceDetail();
+  }
+}
+
+// 处理图表面板关闭
+function handleChartPanelClose() {
+  showDataPanel.value = false;
+  console.log('图表面板已关闭');
 }
 
 // 自定义选择指示器
@@ -499,14 +526,14 @@ watch(isLoggedIn, async (newLoginStatus) => {
 }, { immediate: false });
 
 async function loadTimeFrame(frame) {
-  console.log(`加载时间帧: ${frame}分钟`);
+  console.log(`强制加载帧: ${frame}`);
   
   try {
     timeFrame.value = frame;
     
     // 检查登录状态
     if (!isLoggedIn.value) {
-      console.log('用户未登录，尝试从本地文件加载数据');
+      console.log('用户未登录，从本地文件强制加载数据');
       
       // 检查是否已选择文件夹
       const currentFolder = getCurrentDataFolder();
@@ -515,31 +542,35 @@ async function loadTimeFrame(frame) {
         return;
       }
       
-      // 未登录时从本地加载数据
+      // 根据文件夹类型确定时间间隔和文件命名规则
+      let timeInterval, fileTimeValue;
+      
+      if (currentFolder === 'new') {
+        timeInterval = 10; // new文件夹：每10秒一帧
+        // 计算实际的文件时间值：(帧数-1) * 间隔 + 间隔
+        fileTimeValue = (frame - 1) * 10 + 10;
+      } else {
+        timeInterval = 60; // old文件夹：每60秒一帧
+        // 计算实际的文件时间值：(帧数-1) * 间隔 + 间隔
+        fileTimeValue = (frame - 1) * 60 + 60;
+      }
+      
+      // 直接构建文件名，不依赖时间计算
+      const filename = `./data/${currentFolder}/network_state_${fileTimeValue}.00.json`;
+      console.log(`强制加载文件: ${filename} (文件夹: ${currentFolder}, 帧索引: ${frame}, 文件时间值: ${fileTimeValue}秒)`);
+      
       try {
-        // 动态检测文件夹的时间间隔
-        let timeInterval = 60; // 默认60秒间隔
-        
-        // 尝试检测第一个可用的时间间隔
-        const possibleIntervals = [10, 60]; // 常见的时间间隔
-        for (const interval of possibleIntervals) {
-          const testResponse = await fetch(`./data/${currentFolder}/network_state_${interval}.00.json`);
-          if (testResponse.ok) {
-            timeInterval = interval;
-            break;
-          }
-        }
-        
-        const timeSeconds = frame * timeInterval;
-        const filename = `./data/${currentFolder}/network_state_${timeSeconds}.00.json`;
-        console.log(`尝试加载文件: ${filename} (文件夹: ${currentFolder}, 时间帧: ${frame}, 时间间隔: ${timeInterval}秒, 时间: ${timeSeconds}秒)`);
-        
         const networkData = await loadGraphData(filename);
         
         if (networkData) {
           console.log('本地网络数据加载成功:', networkData);
           currentGraphData = networkData;
           processNetworkData(networkData);
+          
+          // 如果图表面板是打开的，更新图表数据
+          if (showDataPanel.value && chartPanelRef.value) {
+            chartPanelRef.value.addDataPoint(frame, networkData);
+          }
           
           // 同时尝试加载业务数据
           try {
@@ -548,7 +579,7 @@ async function loadTimeFrame(frame) {
             
             // 更新ObjectViewer中的文件显示
             const networkFileName = filename.split('/').pop();
-            const serviceFileName = `service_state_${timeSeconds}.00.json`;
+            const serviceFileName = `service_state_${fileTimeValue}.00.json`;
             if (objectViewerRef.value) {
               objectViewerRef.value.updateLoadedFiles(networkFileName, serviceFileName);
             }
@@ -578,11 +609,12 @@ async function loadTimeFrame(frame) {
       return;
     }
     
-    // 使用API加载数据
-    console.log(`使用API加载数据，进程ID: ${currentProcessId}, 时间戳: ${frame * 60}`);
+    // 使用API加载数据，直接基于帧数计算时间戳
+    const timeStamp = frame * 60; // API使用60秒间隔
+    console.log(`使用API强制加载数据，进程ID: ${currentProcessId}, 帧: ${frame}, 时间戳: ${timeStamp}`);
     
     const [networkData, serviceDataResult] = await Promise.all([
-      loadGraphDataFromAPI(currentProcessId, frame * 60),
+      loadGraphDataFromAPI(currentProcessId, timeStamp),
       loadServiceData(frame)
     ]);
     
@@ -597,6 +629,11 @@ async function loadTimeFrame(frame) {
     currentGraphData = networkData;
     processNetworkData(networkData);
     
+    // 如果图表面板是打开的，更新图表数据
+    if (showDataPanel.value && chartPanelRef.value) {
+      chartPanelRef.value.addDataPoint(frame, networkData);
+    }
+    
   } catch (error) {
     console.error(`加载时间帧失败:`, error);
   }
@@ -604,19 +641,29 @@ async function loadTimeFrame(frame) {
 
 // 处理网络数据的通用函数
 function processNetworkData(networkData) {
+  console.log('processNetworkData 开始处理数据:', networkData);
+  
   // 检查viewer是否可用
   if (!viewer() || !viewer().entities) {
     console.warn('Cesium viewer未准备好，跳过数据处理');
     return;
   }
   
+  console.log('Cesium viewer可用，当前实体数量:', viewer().entities.values.length);
+  
   // 更新业务数据的网络数据引用，并传递viewer
   updateNetworkDataAndRedraw(networkData, viewer());
   
   if (getPreviousFrameData() === null) {
+    console.log('这是第一帧数据，清空现有实体并创建新实体');
     viewer().entities.removeAll();
+    console.log('已清空所有实体，开始创建新实体...');
+    
     createEntities(networkData);
+    console.log('实体创建完成，当前实体数量:', viewer().entities.values.length);
+    
     addRoadmLinks(networkData);
+    console.log('链路创建完成，最终实体数量:', viewer().entities.values.length);
     
     setPreviousFrameData(networkData);
     updateVisibility();
@@ -628,6 +675,7 @@ function processNetworkData(networkData) {
     return;
   }
   
+  console.log('这不是第一帧，执行动画过渡');
   animateTransition(viewer(), getPreviousFrameData(), networkData, (satelliteIds) => {
     // 动画完成回调
     console.log('动画完成，更新的卫星:', satelliteIds);
@@ -869,7 +917,7 @@ onMounted(async () => {
     let isInitialSetup = true; // 标记是否为初始设置阶段
     
     setupTimelineControl((frame) => {
-      console.log(`时间轴控制：切换到帧 ${frame}`);
+      console.log(`时间轴控制：切换到帧 ${frame}, 当前播放状态: ${isPlaying.value}`);
       
       // 在初始设置阶段忽略时间轴变化
       if (isInitialSetup) {
@@ -877,13 +925,22 @@ onMounted(async () => {
         return;
       }
       
-      // 只有在非播放状态时才响应时间轴
-      if (frame !== timeFrame.value && !isPlaying.value) {
+      // 只有当帧数真正改变时才处理
+      if (frame !== timeFrame.value) {
         isTimelineControlled = true;
-        timeFrame.value = frame; // 直接更新timeFrame而不触发loadTimeFrame
-        loadTimeFrame(frame).then(() => {
+        timeFrame.value = frame;
+        
+        // 如果正在播放，不立即加载帧（让播放循环处理）
+        // 如果暂停中，立即加载帧
+        if (!isPlaying.value) {
+          console.log('暂停状态下的时间轴控制，立即加载帧:', frame);
+          loadTimeFrame(frame).then(() => {
+            isTimelineControlled = false;
+          });
+        } else {
+          console.log('播放状态下的时间轴控制，由播放循环处理');
           isTimelineControlled = false;
-        });
+        }
       }
     });
     
@@ -925,11 +982,29 @@ onMounted(async () => {
       const { folderName, folderInfo } = event.detail;
       console.log(`数据文件夹已更改为: ${folderName}`, folderInfo);
       
+      // 重置前一帧数据，确保新文件夹的第一帧被当作初始帧处理
+      setPreviousFrameData(null);
+      console.log('已重置前一帧数据，新文件夹的第一帧将创建新实体');
+      
       // 更新useDataLoader中的文件夹设置
       setDataFolder(folderName);
       
-      // 使用新的重置时钟函数
+      // 使用新的重置时钟函数，确保时间轴从第一帧开始
       resetClockRange(folderName);
+      
+      // 确保播放状态被重置
+      if (isPlaying.value) {
+        togglePlayback(loadTimeFrame); // 停止播放
+      }
+      
+      // 重置时间帧到第一帧
+      timeFrame.value = 1;
+      
+      // 手动跳转到第一帧，避免时间追赶
+      setTimeout(() => {
+        jumpToTimeFrame(1);
+        console.log('已重置到第一帧');
+      }, 300);
       
       // 如果当前是未登录状态，立即加载新文件夹的数据
       if (!isLoggedIn.value) {
@@ -957,10 +1032,18 @@ onMounted(async () => {
           }
           currentGraphData = null;
           
-          // 加载新文件夹的默认数据（60秒时间帧）
-          const defaultFrame = 1; // 对应60秒
-          timeFrame.value = defaultFrame;
-          await loadTimeFrame(defaultFrame);
+          // 短暂延迟后加载新文件夹的第一帧数据
+          setTimeout(async () => {
+            try {
+              const defaultFrame = 1;
+              timeFrame.value = defaultFrame;
+              await loadTimeFrame(defaultFrame);
+              console.log('新文件夹数据加载完成');
+            } catch (error) {
+              console.error('加载新文件夹数据失败:', error);
+            }
+          }, 500); // 延迟500ms，确保时钟重置完成
+          
         } catch (error) {
           console.error('加载新文件夹数据失败:', error);
         }

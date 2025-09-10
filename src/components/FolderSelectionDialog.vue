@@ -130,26 +130,54 @@ async function analyzeFolderContents(folderName) {
   let networkFiles = 0;
   let serviceFiles = 0;
   
-  // 检测一些常见的时间戳文件
-  const testTimestamps = [60, 120, 180, 240, 300, 600, 1200, 1800, 3600];
+  // 根据实际数据结构，检测更多的时间戳文件
+  // 从10秒开始，每10秒一个文件，检测到1500秒（约150个文件）
+  const maxChecks = 50; // 限制检查次数，避免太多请求
+  const timestamps = [];
   
-  for (const timestamp of testTimestamps) {
-    try {
-      const networkResponse = await fetch(`./data/${folderName}/network_state_${timestamp}.00.json`);
-      if (networkResponse.ok) networkFiles++;
-      
-      const serviceResponse = await fetch(`./data/${folderName}/service_state_${timestamp}.00.json`);
-      if (serviceResponse.ok) serviceFiles++;
-    } catch (error) {
-      // 忽略不存在的文件
-    }
+  // 生成时间戳列表：10, 20, 30, ..., 500
+  for (let i = 1; i <= maxChecks; i++) {
+    timestamps.push(i * 10);
   }
+  
+  // 并发检测前50个文件，提高检测效率
+  const checkPromises = timestamps.map(async (timestamp) => {
+    try {
+      const [networkResponse, serviceResponse] = await Promise.all([
+        fetch(`./data/${folderName}/network_state_${timestamp}.00.json`),
+        fetch(`./data/${folderName}/service_state_${timestamp}.00.json`)
+      ]);
+      
+      return {
+        networkExists: networkResponse.ok,
+        serviceExists: serviceResponse.ok
+      };
+    } catch (error) {
+      return {
+        networkExists: false,
+        serviceExists: false
+      };
+    }
+  });
+  
+  // 等待所有检测完成
+  const results = await Promise.all(checkPromises);
+  
+  // 统计存在的文件数量
+  results.forEach(result => {
+    if (result.networkExists) networkFiles++;
+    if (result.serviceExists) serviceFiles++;
+  });
+  
+  // 如果检测到了maxChecks个文件，说明可能还有更多
+  const networkSuffix = networkFiles === maxChecks ? `${networkFiles}+` : networkFiles.toString();
+  const serviceSuffix = serviceFiles === maxChecks ? `${serviceFiles}+` : serviceFiles.toString();
   
   return {
     name: folderName,
     description: getFolderDescription(folderName),
-    networkFiles: networkFiles > 0 ? `${networkFiles}+` : '未知',
-    serviceFiles: serviceFiles > 0 ? `${serviceFiles}+` : '未知'
+    networkFiles: networkFiles > 0 ? networkSuffix : '未知',
+    serviceFiles: serviceFiles > 0 ? serviceSuffix : '未知'
   };
 }
 

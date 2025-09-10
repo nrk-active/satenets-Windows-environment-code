@@ -324,41 +324,48 @@ export function useAnimation(timelineControlRef = null) {
     
     if (isPlaying.value) {
       // 开始播放
-      console.log('开始播放，保持当前动画进度（如果有）');
-      console.log('当前时间帧:', timeFrame.value);
-      console.log('动画进行状态:', animationInProgress.value);
+      console.log('开始播放，强制锁定当前帧：', timeFrame.value);
       
-      // 禁用时间轴自动播放
-      if (timelineControlRef && timelineControlRef.setTimelineAnimation) {
-        timelineControlRef.setTimelineAnimation(false);
+      // 使用强制设置帧数接口，确保精确的帧控制
+      if (timelineControlRef && timelineControlRef.viewer && timelineControlRef.viewer.forceSetFrame) {
+        timelineControlRef.viewer.forceSetFrame(timeFrame.value);
+        console.log('已强制锁定到当前帧:', timeFrame.value);
       }
       
-      // 如果当前没有动画进行，才开始播放下一帧
-      // 如果有动画正在进行，让它继续完成
-      if (!animationInProgress.value) {
-        // 立即开始播放下一帧，不需要延迟
-        playNextFrame(onFrameLoad);
-      } else {
-        console.log('动画正在进行中，继续当前动画进度');
-        // 动画继续进行，但需要确保完成后继续播放循环
-        // 我们在 animateTransition 中会检查 isPlaying 状态来决定是否继续
-      }
+      // 短暂延迟后启用动画，确保帧锁定生效
+      setTimeout(() => {
+        if (timelineControlRef && timelineControlRef.setTimelineAnimation) {
+          timelineControlRef.setTimelineAnimation(true);
+          console.log('已启用时间轴动画');
+        }
+        
+        // 开始播放循环
+        if (!animationInProgress.value) {
+          playNextFrame(onFrameLoad);
+        }
+      }, 100); // 减少延迟，提高响应性
+      
     } else {
       // 暂停播放
-      console.log('暂停播放，保持当前动画状态');
+      console.log('暂停播放，完全锁定当前帧');
       
-      // 清理播放定时器，但保留动画帧继续进行
+      // 立即禁用时间轴动画
+      if (timelineControlRef && timelineControlRef.setTimelineAnimation) {
+        timelineControlRef.setTimelineAnimation(false);
+        console.log('已禁用时间轴动画');
+      }
+      
+      // 清理播放定时器
       if (playbackTimer) {
         clearTimeout(playbackTimer);
         playbackTimer = null;
+        console.log('已清理播放定时器');
       }
       
-      // 不清理 currentAnimationFrame，让当前动画继续完成
-      // 这样暂停时动画不会突然停止，而是自然完成
-      
-      // 重新启用时间轴
-      if (timelineControlRef && timelineControlRef.setTimelineAnimation) {
-        timelineControlRef.setTimelineAnimation(true);
+      // 强制锁定到当前帧，防止任何时间漂移
+      if (timelineControlRef && timelineControlRef.viewer && timelineControlRef.viewer.forceSetFrame) {
+        timelineControlRef.viewer.forceSetFrame(timeFrame.value);
+        console.log('暂停时强制锁定到当前帧:', timeFrame.value);
       }
     }
   }
@@ -388,16 +395,24 @@ export function useAnimation(timelineControlRef = null) {
     // 立即更新timeFrame的值，确保状态同步
     timeFrame.value = nextTimeFrame;
     
+    // 播放状态下不使用forceSetFrame，避免时钟冲突
+    // 让时间轴自然推进，只在暂停/手动操作时使用forceSetFrame
+    console.log(`播放模式：直接加载帧 ${nextTimeFrame}，不重置时钟`);
+    
+    // 直接触发数据加载，不操作时钟
     if (onFrameLoad) {
       onFrameLoad(nextTimeFrame);
     }
     
-    // 减少延迟，让播放更连贯，但保持检查播放状态
+    // 设置下一次播放的定时器 - 调整播放速度
+    const playbackInterval = currentFolder === 'new' ? 1000 : 3000; // new文件夹1秒一帧，old文件夹3秒一帧
+    console.log(`设置播放间隔: ${playbackInterval}ms (文件夹: ${currentFolder})`);
+    
     playbackTimer = setTimeout(() => {
       if (isPlaying.value) { // 只有在仍在播放时才继续
         playNextFrame(onFrameLoad);
       }
-    }, 100); // 保持100ms延迟
+    }, playbackInterval);
   }
 
   function cleanup() {

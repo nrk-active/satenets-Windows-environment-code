@@ -20,13 +20,30 @@ export function useCesium() {
   let highlightedLinks = [];
 
   function initializeCesium(containerId) {
-    Cesium.Ion.defaultAccessToken = CESIUM_CONFIG.ACCESS_TOKEN;
+    // 不再需要Cesium Ion访问令牌，完全使用本地资源
+    // Cesium.Ion.defaultAccessToken = CESIUM_CONFIG.ACCESS_TOKEN;
+    
+    console.log('初始化Cesium (仅本地资源模式)...');
+    
+    // 添加全局错误处理，抑制瓦片加载错误
+    const originalConsoleError = console.error;
+    console.error = function(...args) {
+      const message = args.join(' ');
+      // 忽略OSM和其他地图瓦片加载错误
+      if (message.includes('OpenStreetMapImageryProvider') || 
+          message.includes('Failed to obtain image tile') ||
+          message.includes('imagery tile') ||
+          message.includes('TileMapServiceImageryProvider')) {
+        return; // 不输出这些错误
+      }
+      originalConsoleError.apply(console, args);
+    };
     
     viewer = new Cesium.Viewer(containerId, {
       animation: true, // 启用动画控件
       timeline: true,  // 启用时间轴
       fullscreenButton: false,
-      baseLayerPicker: true, // 启用地图选择按钮
+      baseLayerPicker: false, // 禁用地图选择按钮，只使用本地资源
       selectionIndicator: false, // 禁用原生选择指示器，使用自定义的
       infoBox: false, // 禁用默认信息框
       requestRenderMode: false, // 改为连续渲染以获得更好的视觉效果
@@ -46,6 +63,38 @@ export function useCesium() {
         }
       }
     });
+
+    // 配置本地地球纹理资源
+    try {
+      // 移除所有默认图层
+      if (viewer.imageryLayers.length > 0) {
+        viewer.imageryLayers.removeAll();
+      }
+      
+      // 直接使用本地图片文件，不通过复杂的Provider
+      // 创建一个简单的纹理URL
+      const textureUrl = window.location.origin + '/texture/earth.jpg';
+      console.log('尝试加载纹理URL:', textureUrl);
+      
+      // 使用最简单的方式：UrlTemplateImageryProvider配置为单张图片
+      const earthImageryProvider = new Cesium.UrlTemplateImageryProvider({
+        url: textureUrl,
+        rectangle: Cesium.Rectangle.fromDegrees(-180.0, -90.0, 180.0, 90.0),
+        tilingScheme: new Cesium.GeographicTilingScheme({
+          numberOfLevelZeroTilesX: 1,
+          numberOfLevelZeroTilesY: 1
+        }),
+        maximumLevel: 0,
+        credit: 'Natural Earth'
+      });
+      
+      viewer.imageryLayers.addImageryProvider(earthImageryProvider);
+      
+      console.log('Cesium: 正在加载本地地球纹理...');
+    } catch (error) {
+      console.warn('Cesium: 本地底图配置失败', error);
+      useBackupEarthRendering();
+    }
 
     // 启用光照和阴影 - 大幅提高地球亮度
     viewer.scene.globe.enableLighting = true;
@@ -305,36 +354,332 @@ export function useCesium() {
     
     viewer.cesiumWidget.creditContainer.style.display = "none";
     
-    // 添加OpenStreetMap作为额外选项，保留Cesium默认选项
-    if (viewer.baseLayerPicker) {
-      // 添加OpenStreetMap到现有的imagery providers列表
-      const openStreetMapProvider = new Cesium.ProviderViewModel({
-        name: 'OpenStreetMap',
-        iconUrl: Cesium.buildModuleUrl('Widgets/Images/ImageryProviders/openStreetMap.png'),
-        tooltip: 'OpenStreetMap - 开源地图',
-        creationFunction: function() {
-          return new Cesium.OpenStreetMapImageryProvider({
-            url: 'https://a.tile.openstreetmap.org/'
+    console.log('Cesium viewer初始化完成，仅使用本地地图资源');
+    
+    // 延迟加载国界线数据，确保地球纹理先加载完成
+    setTimeout(() => {
+      loadLocalCountryBorders();
+    }, 2000);
+    
+    return viewer;
+  }
+
+  // 简单地球纹理测试
+  function testSimpleEarthTexture() {
+    if (!viewer) return;
+    
+    console.log('🌍 开始简单地球纹理测试...');
+    
+    // 尝试最直接的方法
+    const img = new Image();
+    img.onload = function() {
+      console.log('✅ 图片可以直接访问，尺寸:', img.width, 'x', img.height);
+      
+      // 创建canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = 2048;
+      canvas.height = 1024;
+      const ctx = canvas.getContext('2d');
+      
+      // 绘制图片
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      
+      // 转换为data URL
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      
+      try {
+        // 移除现有图层
+        viewer.imageryLayers.removeAll();
+        
+        // 使用data URL创建纹理
+        const provider = new Cesium.SingleTileImageryProvider({
+          url: dataUrl,
+          rectangle: Cesium.Rectangle.fromDegrees(-180.0, -90.0, 180.0, 90.0)
+        });
+        
+        viewer.imageryLayers.addImageryProvider(provider);
+        
+        console.log('🎉 地球纹理通过canvas加载成功！');
+        viewer.scene.requestRender();
+        
+      } catch (error) {
+        console.error('Canvas纹理创建失败:', error);
+        useBackupEarthRendering();
+      }
+    };
+    
+    img.onerror = function() {
+      console.error('❌ 无法访问地球纹理图片');
+      useBackupEarthRendering();
+    };
+    
+    // 尝试加载图片
+    img.crossOrigin = 'anonymous';
+    img.src = './texture/earth.jpg';
+  }
+  
+  // 备用地球渲染方案
+  function useBackupEarthRendering() {
+    if (!viewer) return;
+    
+    console.log('应用备用地球渲染方案...');
+    
+    // 移除所有图层
+    viewer.imageryLayers.removeAll();
+    
+    // 设置更逼真的地球颜色
+    viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#4a5d23'); // 地球绿褐色
+    
+    // 启用地形和大气效果以增强视觉
+    viewer.scene.globe.enableLighting = true;
+    viewer.scene.globe.atmosphereLightIntensity = 2.0;
+    viewer.scene.globe.atmosphereBrightnessShift = 0.2;
+    
+    viewer.scene.requestRender();
+  }
+
+  // 测试并加载地球纹理
+  async function testAndLoadEarthTexture() {
+    if (!viewer) return;
+    
+    console.log('🌍 开始测试地球纹理加载...');
+    
+    // 尝试最简单直接的方法：创建canvas纹理
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      const imageLoadPromise = new Promise((resolve, reject) => {
+        img.onload = () => {
+          console.log(`✅ 图片加载成功 (尺寸: ${img.width}x${img.height})`);
+          resolve(img);
+        };
+        img.onerror = (error) => {
+          console.log(`❌ 图片加载失败:`, error);
+          reject(error);
+        };
+      });
+      
+      // 尝试多个可能的路径
+      const texturePaths = [
+        './texture/earth.jpg',
+        '/texture/earth.jpg', 
+        'texture/earth.jpg',
+        window.location.origin + '/texture/earth.jpg'
+      ];
+      
+      let loadedImage = null;
+      let successPath = null;
+      
+      for (const path of texturePaths) {
+        try {
+          console.log(`尝试路径: ${path}`);
+          img.src = path;
+          loadedImage = await imageLoadPromise;
+          successPath = path;
+          break;
+        } catch (error) {
+          console.log(`路径 ${path} 失败`);
+          continue;
+        }
+      }
+      
+      if (!loadedImage) {
+        throw new Error('所有路径都无法加载图片');
+      }
+      
+      // 创建canvas并绘制图片
+      const canvas = document.createElement('canvas');
+      canvas.width = 1024;  // 降低分辨率以提高性能
+      canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+      
+      // 绘制地球图片到canvas
+      ctx.drawImage(loadedImage, 0, 0, canvas.width, canvas.height);
+      
+      // 将canvas转换为data URL
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      
+      // 移除现有图层
+      viewer.imageryLayers.removeAll();
+      
+      // 使用data URL创建Single Tile Imagery Provider
+      const earthImageryProvider = new Cesium.SingleTileImageryProvider({
+        url: dataUrl,
+        rectangle: Cesium.Rectangle.fromDegrees(-180.0, -90.0, 180.0, 90.0),
+        credit: 'Natural Earth'
+      });
+      
+      const layer = viewer.imageryLayers.addImageryProvider(earthImageryProvider);
+      
+      console.log(`🎉 地球纹理加载成功! 使用路径: ${successPath}`);
+      console.log(`Canvas纹理尺寸: ${canvas.width}x${canvas.height}`);
+      
+      // 强制刷新场景
+      viewer.scene.requestRender();
+      
+      return; // 成功加载，退出
+      
+    } catch (error) {
+      console.error('Canvas纹理方法失败:', error);
+    }
+    
+    // 如果canvas方法失败，尝试原来的方法
+    await tryOriginalTextureMethod();
+  }
+  
+  // 原始纹理加载方法
+  async function tryOriginalTextureMethod() {
+    console.log('尝试原始纹理加载方法...');
+    
+    // 可能的纹理路径
+    const texturePaths = [
+      './texture/earth.jpg',
+      '/texture/earth.jpg', 
+      'texture/earth.jpg'
+    ];
+    
+    for (const path of texturePaths) {
+      try {
+        console.log(`尝试加载纹理路径: ${path}`);
+        
+        // 移除现有图层
+        viewer.imageryLayers.removeAll();
+        
+        let earthImageryProvider;
+        
+        try {
+          // 方法1: 使用TileMapServiceImageryProvider（更适合单张图片）
+          earthImageryProvider = new Cesium.TileMapServiceImageryProvider({
+            url: path,
+            maximumLevel: 0, // 只使用最低级别（单张图片）
+            rectangle: Cesium.Rectangle.fromDegrees(-180.0, -90.0, 180.0, 90.0),
+            credit: 'Natural Earth - Local'
           });
+        } catch (tmsError) {
+          console.log('TileMapService方法失败，尝试UrlTemplateImageryProvider:', tmsError);
+          
+          // 方法2: 使用UrlTemplateImageryProvider
+          earthImageryProvider = new Cesium.UrlTemplateImageryProvider({
+            url: path,
+            rectangle: Cesium.Rectangle.fromDegrees(-180.0, -90.0, 180.0, 90.0),
+            credit: 'Natural Earth - Local',
+            maximumLevel: 0
+          });
+        }
+        
+        const layer = viewer.imageryLayers.addImageryProvider(earthImageryProvider);
+        
+        // 等待图层准备就绪
+        await layer.readyPromise;
+        
+        console.log(`🎉 地球纹理加载成功! 使用路径: ${path}`);
+        
+        // 强制刷新场景
+        viewer.scene.requestRender();
+        
+        return; // 成功加载，退出循环
+        
+      } catch (error) {
+        console.log(`纹理路径 ${path} 加载失败:`, error);
+        continue; // 尝试下一个路径
+      }
+    }
+    
+    // 如果所有路径都失败，使用备用方案
+    console.warn('⚠️ 所有纹理路径都失败，使用备用地球渲染方案');
+    useBackupEarthRendering();
+  }
+  
+  // 备用地球渲染方案
+  function useBackupEarthRendering() {
+    if (!viewer) return;
+    
+    console.log('应用备用地球渲染方案...');
+    
+    // 移除所有图层
+    viewer.imageryLayers.removeAll();
+    
+    // 设置更逼真的地球颜色
+    viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#4a5d23'); // 地球绿褐色
+    
+    // 启用地形和大气效果以增强视觉
+    viewer.scene.globe.enableLighting = true;
+    viewer.scene.globe.atmosphereLightIntensity = 2.0;
+    viewer.scene.globe.atmosphereBrightnessShift = 0.2;
+    
+    // 添加简单的程序化地球材质
+    try {
+      const earthMaterial = new Cesium.Material({
+        fabric: {
+          type: 'Color',
+          uniforms: {
+            color: new Cesium.Color(0.3, 0.4, 0.15, 1.0) // 深绿褐色
+          }
         }
       });
       
-      // 将OpenStreetMap添加到现有列表的开头
-      viewer.baseLayerPicker.viewModel.imageryProviderViewModels.splice(0, 0, openStreetMapProvider);
+      viewer.scene.globe.material = earthMaterial;
+      console.log('✅ 备用地球材质应用成功');
       
-      // 设置OpenStreetMap为默认选择
-      viewer.baseLayerPicker.viewModel.selectedImagery = openStreetMapProvider;
+    } catch (error) {
+      console.warn('备用材质创建失败:', error);
     }
     
-    // 设置默认的imagery layer为OpenStreetMap
-    viewer.imageryLayers.removeAll();
-    viewer.imageryLayers.addImageryProvider(
-      new Cesium.OpenStreetMapImageryProvider({
-        url: 'https://a.tile.openstreetmap.org/'
-      })
-    );
+    viewer.scene.requestRender();
+  }
+
+  // 加载本地矢量国界线数据
+  async function loadLocalCountryBorders() {
+    if (!viewer) return;
     
-    return viewer;
+    try {
+      console.log('开始加载本地国界线数据...');
+      
+      // 加载本地GeoJSON文件
+      const dataSource = await Cesium.GeoJsonDataSource.load('/maps/countries.geo.json', {
+        strokeColor: Cesium.Color.CYAN.withAlpha(1.0),  // 改为青色，更明显
+        strokeWidth: 3,  // 增加线宽
+        fillColor: Cesium.Color.TRANSPARENT,
+        clampToGround: true  // 贴地显示
+      });
+      
+      // 添加到viewer
+      await viewer.dataSources.add(dataSource);
+      
+      // 设置显示样式  
+      const entities = dataSource.entities.values;
+      for (let i = 0; i < entities.length; i++) {
+        const entity = entities[i];
+        if (entity.polygon) {
+          entity.polygon.material = Cesium.Color.TRANSPARENT;
+          entity.polygon.outline = true;
+          entity.polygon.outlineColor = Cesium.Color.CYAN.withAlpha(1.0);
+          entity.polygon.outlineWidth = 3;
+          entity.polygon.height = 0;  // 贴地显示
+          entity.polygon.extrudedHeight = 0;
+        }
+        if (entity.polyline) {
+          entity.polyline.material = Cesium.Color.CYAN.withAlpha(1.0);
+          entity.polyline.width = 3;
+          entity.polyline.clampToGround = true;
+        }
+      }
+      
+      console.log(`本地国界线数据加载成功，共加载 ${entities.length} 个国家/地区边界`);
+      
+      // 强制刷新场景以确保国界线显示
+      viewer.scene.requestRender();
+      
+      // 输出第一个实体的详细信息用于调试
+      if (entities.length > 0) {
+        console.log('第一个国界线实体:', entities[0]);
+        console.log('实体显示状态:', entities[0].show);
+      }
+      
+    } catch (error) {
+      console.warn('加载本地国界线数据失败:', error);
+    }
   }
 
   // 调试时间轴元素的函数
@@ -517,23 +862,40 @@ export function useCesium() {
     
     let lastFrame = 1; // 记录上一次的帧数，避免重复触发
     let isInitialized = false; // 防止初始化时的误触发
+    let isManualDrag = false; // 标记是否正在手动拖拽
+    let ignoreNextChange = false; // 标记是否忽略下次变化（用于程序化设置时间）
     
     // 延迟启用监听器，避免初始化时的自动触发
     setTimeout(() => {
       isInitialized = true;
-    }, 2000); // 2秒后才启用，确保初始化完成
+      console.log('时间轴控制已初始化，开始监听时间变化');
+    }, 2000);
     
-    // 监听时钟变化事件
+    // 监听时钟变化事件 - 降低触发频率
+    let lastTickTime = 0;
     viewer.clock.onTick.addEventListener(function(clock) {
-      // 只有在初始化完成且时钟真是在播放时才响应
-      if (!isInitialized || !clock.shouldAnimate) {
+      // 只有在初始化完成时才响应
+      if (!isInitialized) {
         return;
       }
       
-      // 根据当前时间计算应该显示哪一帧
+      // 如果标记忽略此次变化，则跳过
+      if (ignoreNextChange) {
+        ignoreNextChange = false;
+        return;
+      }
+      
+      // 节流处理：限制触发频率为每500ms最多一次
+      const currentTime = Date.now();
+      if (currentTime - lastTickTime < 500) {
+        return;
+      }
+      lastTickTime = currentTime;
+      
+      // 完全基于时间轴位置计算帧数，不依赖实际时间
       const elapsed = Cesium.JulianDate.secondsDifference(clock.currentTime, clock.startTime);
       
-      // 根据文件夹动态计算时间间隔
+      // 根据文件夹获取时间间隔
       const currentFolder = getCurrentDataFolder();
       let timeInterval, maxFrames;
       
@@ -545,29 +907,78 @@ export function useCesium() {
         maxFrames = 6;
       }
       
+      // 直接按时间间隔计算帧数，强制对应到文件索引
       const frameIndex = Math.floor(elapsed / timeInterval) + 1;
       const clampedFrame = Math.max(1, Math.min(maxFrames, frameIndex));
       
-      // 添加详细的调试日志
-      if (frameIndex !== clampedFrame) {
-        console.warn(`⚠️ 帧数被限制: 计算帧=${frameIndex}, 最大帧=${maxFrames}, 限制后=${clampedFrame}`);
-        console.warn(`当前文件夹=${currentFolder}, 时间间隔=${timeInterval}, 已播放时间=${elapsed}秒`);
-        console.warn(`时钟状态: 开始=${Cesium.JulianDate.toIso8601(clock.startTime)}, 当前=${Cesium.JulianDate.toIso8601(clock.currentTime)}, 结束=${Cesium.JulianDate.toIso8601(clock.stopTime)}`);
+      // 检测是否为用户手动拖拽（非播放状态下的时间变化）
+      if (!clock.shouldAnimate) {
+        isManualDrag = true;
+        console.log(`用户手动拖拽到帧: ${clampedFrame} (文件: ${currentFolder}/network_state_${(clampedFrame-1) * timeInterval + timeInterval}.00.json)`);
+      } else {
+        // 播放状态下，检查帧跳跃但不强制连续（让播放逻辑控制）
+        const frameDiff = Math.abs(clampedFrame - lastFrame);
+        if (frameDiff > 2) {
+          console.log(`播放状态下检测到大帧跳跃 ${lastFrame} → ${clampedFrame}，可能是时间轴异常`);
+          // 不强制重置，而是记录日志供调试
+        }
+        isManualDrag = false;
       }
       
-      // 检查是否到达时钟结束时间
-      const isAtEnd = Cesium.JulianDate.compare(clock.currentTime, clock.stopTime) >= 0;
-      if (isAtEnd) {
-        console.warn(`🔄 时钟已到达结束时间，当前帧=${clampedFrame}`);
-      }
-      
-      // 只有当帧数真正改变时才触发回调，避免重复调用
+      // 只有当帧数真正改变且不是播放状态下的小幅变化时才触发回调
       if (clampedFrame !== lastFrame && onTimeChange) {
+        // 播放状态下，只处理手动拖拽或大幅跳跃
+        if (clock.shouldAnimate && !isManualDrag && Math.abs(clampedFrame - lastFrame) <= 1) {
+          console.log(`播放状态下忽略小幅帧变化: ${lastFrame} → ${clampedFrame}`);
+          return;
+        }
+        
         lastFrame = clampedFrame;
-        console.log(`🎬 时间轴帧变化: ${clampedFrame} (elapsed: ${elapsed.toFixed(1)}s, frameIndex: ${frameIndex}, folder: ${currentFolder})`);
+        console.log(`触发帧变化: ${clampedFrame} (对应文件: ${currentFolder}/network_state_${(clampedFrame-1) * timeInterval + timeInterval}.00.json)`);
         onTimeChange(clampedFrame);
       }
     });
+    
+    // 提供强制设置帧数的接口，绕过时钟计算
+    viewer.forceSetFrame = function(frame) {
+      const currentFolder = getCurrentDataFolder();
+      const timeInterval = currentFolder === 'new' ? 10 : 60;
+      const maxFrames = currentFolder === 'new' ? 360 : 6;
+      
+      const clampedFrame = Math.max(1, Math.min(maxFrames, frame));
+      
+      // 只有在帧数真正改变时才设置时钟
+      if (clampedFrame === lastFrame) {
+        console.log(`帧数未变化，跳过时钟设置: ${clampedFrame}`);
+        return;
+      }
+      
+      const targetTime = Cesium.JulianDate.addSeconds(
+        viewer.clock.startTime, 
+        (clampedFrame - 1) * timeInterval, 
+        new Cesium.JulianDate()
+      );
+      
+      ignoreNextChange = true; // 标记忽略下次变化
+      viewer.clock.currentTime = targetTime;
+      lastFrame = clampedFrame;
+      
+      console.log(`强制设置到帧: ${clampedFrame} (对应文件: ${currentFolder}/network_state_${(clampedFrame-1) * timeInterval + timeInterval}.00.json)`);
+      
+      // 延迟触发回调，避免与播放逻辑冲突
+      setTimeout(() => {
+        if (onTimeChange) {
+          onTimeChange(clampedFrame);
+        }
+      }, 50);
+    };
+    
+    console.log('时间轴控制设置完成，支持强制帧设置接口');
+  }
+
+  // 设置时间轴样式的函数
+  function setupTimelineStyles() {
+    if (!viewer) return;
     
     // 确保时间轴和动画控件可见并设置样式
     setTimeout(() => {
@@ -629,7 +1040,27 @@ export function useCesium() {
     
     const frameSeconds = (frame - 1) * timeInterval;
     const targetTime = Cesium.JulianDate.addSeconds(viewer.clock.startTime, frameSeconds, new Cesium.JulianDate());
-    viewer.clock.currentTime = targetTime;
+    
+    // 确保目标时间在有效范围内
+    if (Cesium.JulianDate.compare(targetTime, viewer.clock.stopTime) <= 0) {
+      // 暂停动画，防止自动播放导致的时间跳跃
+      const wasAnimating = viewer.clock.shouldAnimate;
+      viewer.clock.shouldAnimate = false;
+      
+      // 设置目标时间
+      viewer.clock.currentTime = targetTime;
+      
+      // 如果之前在播放，恢复播放状态
+      if (wasAnimating) {
+        setTimeout(() => {
+          viewer.clock.shouldAnimate = true;
+        }, 100); // 短暂延迟后恢复播放
+      }
+      
+      console.log(`手动跳转到帧 ${frame} (时间: ${frameSeconds}s)`);
+    } else {
+      console.warn(`跳转帧 ${frame} 超出范围，最大帧数: ${Math.floor(Cesium.JulianDate.secondsDifference(viewer.clock.stopTime, viewer.clock.startTime) / timeInterval) + 1}`);
+    }
   }
 
   // 设置播放速度
@@ -641,24 +1072,62 @@ export function useCesium() {
   // 启用/禁用时间轴动画
   function setTimelineAnimation(enabled) {
     if (!viewer) return;
+    
     if (enabled) {
       viewer.clock.shouldAnimate = true;
       viewer.clock.multiplier = 1; // 恢复正常播放速度
+      viewer.clock.canAnimate = true; // 确保可以动画
+      console.log(`时间轴动画启用，当前帧时间: ${Cesium.JulianDate.toIso8601(viewer.clock.currentTime)}`);
     } else {
+      // 暂停时的强制停止措施
+      const currentTime = Cesium.JulianDate.clone(viewer.clock.currentTime);
+      
       viewer.clock.shouldAnimate = false;
-      viewer.clock.multiplier = 0; // 暂停时间轴
+      viewer.clock.multiplier = 0; // 设置倍率为0，完全停止时间推进
+      viewer.clock.canAnimate = false; // 禁止动画
+      
+      // 强制固定当前时间，防止任何形式的时间推进
+      setTimeout(() => {
+        viewer.clock.currentTime = currentTime;
+        viewer.clock.shouldAnimate = false;
+        viewer.clock.multiplier = 0;
+      }, 50);
+      
+      console.log(`时间轴动画暂停，时间已完全冻结，当前帧时间: ${Cesium.JulianDate.toIso8601(currentTime)}`);
     }
-    console.log(`时间轴动画: ${enabled ? '启用' : '禁用'}`);
+    
+    // 强制更新时间轴显示
+    setTimeout(() => {
+      if (viewer.timeline) {
+        viewer.timeline.updateFromClock();
+      }
+    }, 50);
   }
 
   function createEntities(frameData) {
+    console.log('createEntities 开始创建实体，数据:', frameData);
+    
     if (!frameData?.nodes?.length) {
       console.error('没有有效的节点数据');
       return;
     }
     
-    frameData.nodes.forEach(node => {
-      if (viewer.entities.getById(node.id)) return;
+    console.log(`节点数据数量: ${frameData.nodes.length}`);
+    
+    // 确保viewer可用
+    if (!viewer) {
+      console.error('Cesium viewer 未初始化');
+      return;
+    }
+    
+    console.log('Cesium viewer可用，开始创建节点实体...');
+    
+    let createdCount = 0;
+    frameData.nodes.forEach((node, index) => {
+      if (viewer.entities.getById(node.id)) {
+        console.log(`节点 ${node.id} 已存在，跳过`);
+        return;
+      }
       
       let entityConfig;
       switch (node.type) {
@@ -672,19 +1141,35 @@ export function useCesium() {
           entityConfig = createRoadmEntity(node, showRoadm.value);
           break;
         default:
+          console.log(`未知节点类型: ${node.type} (节点ID: ${node.id})`);
           return;
       }
       
       try {
-        viewer.entities.add(entityConfig);
+        const entity = viewer.entities.add(entityConfig);
+        // 在实体上保存原始类型信息，便于后续识别
+        entity.nodeType = node.type;
+        createdCount++;
+        if (index < 5) { // 只打印前5个实体的详细信息
+          console.log(`创建节点 ${node.id} (${node.type}) 成功:`, entity);
+        }
       } catch (error) {
         console.error(`创建节点 ${node.id} 失败:`, error);
       }
     });
+    
+    console.log(`实体创建完成，总共创建了 ${createdCount} 个实体`);
+    console.log(`当前场景中实体总数: ${viewer.entities.values.length}`);
   }
   
   function addRoadmLinks(frameData) {
     if (!frameData?.edges) return;
+    
+    // 确保viewer可用
+    if (!viewer) {
+      console.error('Cesium viewer 未初始化');
+      return;
+    }
     
     const groundEdges = frameData.edges.filter(edge => {
       const sourceNode = frameData.nodes.find(n => n.id === edge.source);
@@ -910,17 +1395,49 @@ export function useCesium() {
   function updateVisibility() {
     if (!viewer) return;
     
+    console.log('开始更新实体可见性...');
+    console.log('当前显示状态:', {
+      卫星: showSatellite.value,
+      地面站: showStation.value, 
+      ROADM: showRoadm.value,
+      链路: showLinks.value
+    });
+    
+    let entityCount = { satellite: 0, station: 0, roadm: 0, links: 0, other: 0 };
+    
     viewer.entities.values.forEach(entity => {
       if (!entity.id) return;
       const entityId = entity.id.toString();
       
+      // 优先使用保存的节点类型信息
+      if (entity.nodeType) {
+        // 调试信息：输出前几个实体的详细信息
+        if (entityCount.satellite + entityCount.station + entityCount.roadm + entityCount.other < 10) {
+          console.log(`实体 ${entityId} (节点类型: ${entity.nodeType})`);
+        }
+        
+        switch (entity.nodeType) {
+          case 'satellite':
+            entity.show = showSatellite.value;
+            entityCount.satellite++;
+            break;
+          case 'station':
+            entity.show = showStation.value;
+            entityCount.station++;
+            console.log(`地面站 ${entityId} 显示状态设置为: ${showStation.value}`);
+            break;
+          case 'roadm':
+            entity.show = showRoadm.value;
+            entityCount.roadm++;
+            break;
+        }
+        return;
+      }
+      
+      // 回退到原来的识别逻辑（用于链路等其他实体）
       const isSatellite = entityId.startsWith('satellite');
-      const isStation = !entityId.startsWith('satellite') && !entityId.startsWith('ROADM') && 
-                       (entity.billboard && entity.billboard.image && 
-                       String(entity.billboard.image.getValue())?.includes('地面站'));
-      const isRoadm = entityId.startsWith('ROADM') || 
-                     (entity.billboard && entity.billboard.image && 
-                     String(entity.billboard.image.getValue())?.includes('核心交换机'));
+      const isRoadm = entityId.startsWith('ROADM');
+      const isStation = !isSatellite && !isRoadm && entity.point && !entityId.includes('-');
       
       const isRoadmRoadmLink = entityId.includes('roadm-roadm-link');
       const isStationRoadmLink = entityId.includes('station-roadm-link');
@@ -928,14 +1445,20 @@ export function useCesium() {
       
       if (isSatellite) {
         entity.show = showSatellite.value;
+        entityCount.satellite++;
       } else if (isStation) {
         entity.show = showStation.value;
+        entityCount.station++;
+        console.log(`地面站 ${entityId} 显示状态设置为: ${showStation.value}`);
       } else if (isRoadm) {
         entity.show = showRoadm.value;
+        entityCount.roadm++;
       } else if (isRoadmRoadmLink) {
         entity.show = showRoadm.value && showLinks.value;
+        entityCount.links++;
       } else if (isStationRoadmLink) {
         entity.show = showStation.value && showRoadm.value && showLinks.value;
+        entityCount.links++;
       } else if (isSatelliteLink) {
         // 处理卫星相关链路的可见性逻辑
         const linkId = entityId;
@@ -946,9 +1469,17 @@ export function useCesium() {
         } else if (linkId.includes('satellite') && linkId.includes('ROADM')) {
           entity.show = showSatellite.value && showRoadm.value && showLinks.value;
         }
+        entityCount.links++;
+      } else {
+        // 未分类的实体，可能是国界线或其他
+        if (entityCount.other < 5) {
+          console.log(`未分类实体 ${entityId}:`, entity);
+        }
+        entityCount.other++;
       }
     });
     
+    console.log('实体统计:', entityCount);
     viewer.scene.requestRender();
   }
 
@@ -1013,8 +1544,8 @@ export function useCesium() {
   function resetClockRange(folderName) {
     if (!viewer) return;
     
-    const currentTime = Cesium.JulianDate.now();
-    const adjustedTime = Cesium.JulianDate.addHours(currentTime, 6, new Cesium.JulianDate());
+    // 使用固定的基准时间，避免与系统时间同步导致的跳跃
+    const baseTime = Cesium.JulianDate.fromDate(new Date('2024-01-01T00:00:00Z'));
     
     let timeInterval = 60;
     let totalFrames = 6;
@@ -1027,20 +1558,25 @@ export function useCesium() {
       totalFrames = 6;
     }
     
-    const startTime = adjustedTime;
+    const startTime = baseTime;
     const endTime = Cesium.JulianDate.addSeconds(startTime, totalFrames * timeInterval, new Cesium.JulianDate());
     
     // 停止动画
     viewer.clock.shouldAnimate = false;
     
-    // 重新设置时钟
+    // 重新设置时钟 - 使用固定时间基准
     viewer.clock.startTime = startTime;
-    viewer.clock.currentTime = startTime;
+    viewer.clock.currentTime = startTime; // 总是从第一帧开始
     viewer.clock.stopTime = endTime;
-    viewer.clock.clockRange = Cesium.ClockRange.CLAMPED;
-    viewer.clock.multiplier = 0;
+    viewer.clock.clockRange = Cesium.ClockRange.LOOP_STOP; // 改为停止循环，避免自动重播
+    viewer.clock.multiplier = 1.0; // 设置为正常倍速，而不是0
     
-    console.log(`✅ 时钟重置完成 - 文件夹: ${folderName}, 时间间隔: ${timeInterval}秒, 总帧数: ${totalFrames}`);
+    // 确保时钟不会自动播放
+    viewer.clock.canAnimate = false;
+    viewer.clock.shouldAnimate = false;
+    
+    console.log(`时钟重置完成 - 文件夹: ${folderName}, 时间间隔: ${timeInterval}秒, 总帧数: ${totalFrames}`);
+    console.log(`时间范围: ${Cesium.JulianDate.toIso8601(startTime)} 到 ${Cesium.JulianDate.toIso8601(endTime)}`);
     
     // 强制刷新时间轴
     setTimeout(() => {
@@ -1048,6 +1584,8 @@ export function useCesium() {
         viewer.timeline.updateFromClock();
         viewer.timeline.resize();
       }
+      // 重新启用时钟控制，但不自动播放
+      viewer.clock.canAnimate = true;
     }, 200);
   }
 

@@ -37,53 +37,68 @@
     <!-- 业务类型显示设置 -->
     <div class="service-display-controls">
       <div class="control-section">
-        <h4>业务类型显示</h4>
-        <div class="control-row">
-          <label class="checkbox-label">
-            <input 
-              type="checkbox" 
-              v-model="displaySettings.showActive"
-              @change="updatePathDisplay"
+        <div class="display-header">
+          <h4>业务类型显示</h4>
+        </div>
+        <!-- 业务类型勾选框和图表并列显示 -->
+        <div class="controls-and-chart-row">
+          <div class="control-checkboxes">
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                v-model="displaySettings.showActive"
+                @change="updatePathDisplay"
+              />
+              <span class="checkmark"></span>
+              活跃业务 ({{ serviceData.active_requests?.length || 0 }})
+            </label>
+            <!-- <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                v-model="displaySettings.showPending"
+                @change="updatePathDisplay"
+              />
+              <span class="checkmark"></span>
+              待处理业务 ({{ serviceData.pending_requests?.length || 0 }})
+            </label> -->
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                v-model="displaySettings.showBlocked"
+                @change="updatePathDisplay"
+              />
+              <span class="checkmark"></span>
+              阻塞业务 ({{ serviceData.blocked_requests?.length || 0 }})
+            </label>
+            <!-- <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                v-model="displaySettings.showEnded"
+                @change="updatePathDisplay"
+              />
+              <span class="checkmark"></span>
+              已结束业务 ({{ serviceData.ended_requests?.length || 0 }})
+            </label> -->
+            <!-- <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                v-model="displaySettings.showFailed"
+                @change="updatePathDisplay"
+              />
+              <span class="checkmark"></span>
+              失败业务 ({{ serviceData.failed_requests?.length || 0 }})
+            </label> -->
+          </div>
+          <!-- 拉长的业务统计图表 -->
+          <div class="extended-chart-container">
+            <div class="chart-title">业务趋势</div>
+            <v-chart 
+              ref="businessChart"
+              class="extended-business-chart" 
+              :option="miniChartOption" 
+              :autoresize="true"
             />
-            <span class="checkmark"></span>
-            活跃业务 ({{ serviceData.active_requests?.length || 0 }})
-          </label>
-          <label class="checkbox-label">
-            <input 
-              type="checkbox" 
-              v-model="displaySettings.showPending"
-              @change="updatePathDisplay"
-            />
-            <span class="checkmark"></span>
-            待处理业务 ({{ serviceData.pending_requests?.length || 0 }})
-          </label>
-          <label class="checkbox-label">
-            <input 
-              type="checkbox" 
-              v-model="displaySettings.showBlocked"
-              @change="updatePathDisplay"
-            />
-            <span class="checkmark"></span>
-            阻塞业务 ({{ serviceData.blocked_requests?.length || 0 }})
-          </label>
-          <label class="checkbox-label">
-            <input 
-              type="checkbox" 
-              v-model="displaySettings.showEnded"
-              @change="updatePathDisplay"
-            />
-            <span class="checkmark"></span>
-            已结束业务 ({{ serviceData.ended_requests?.length || 0 }})
-          </label>
-          <label class="checkbox-label">
-            <input 
-              type="checkbox" 
-              v-model="displaySettings.showFailed"
-              @change="updatePathDisplay"
-            />
-            <span class="checkmark"></span>
-            失败业务 ({{ serviceData.failed_requests?.length || 0 }})
-          </label>
+          </div>
         </div>
       </div>
       
@@ -228,8 +243,28 @@
 </template>
 
 <script setup>
-import { ref, inject, watch, onMounted, computed } from 'vue';
+import { ref, inject, watch, onMounted, onUnmounted, computed, nextTick } from 'vue';
+import { use } from 'echarts/core';
+import { CanvasRenderer } from 'echarts/renderers';
+import { LineChart } from 'echarts/charts';
+import {
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
+  GridComponent
+} from 'echarts/components';
+import VChart from 'vue-echarts';
 import { useServiceData } from '../composables/useServiceData.js';
+
+// 注册 ECharts 组件
+use([
+  CanvasRenderer,
+  LineChart,
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
+  GridComponent
+]);
 
 const props = defineProps({
   serviceData: Object,
@@ -238,6 +273,109 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['selectService', 'close', 'updateServiceData']);
+
+// 图表相关
+const businessChart = ref(null);
+const businessHistoryData = ref([]); // 存储历史业务数据
+const maxHistoryLength = 10; // 最多保留10个数据点
+
+// 防抖定时器
+let updateChartTimer = null;
+
+// 迷你图表配置
+const miniChartOption = ref({
+  animation: false, // 禁用动画来避免闪烁
+  tooltip: {
+    trigger: 'axis',
+    backgroundColor: 'rgba(30, 30, 30, 0.9)',
+    textStyle: {
+      color: '#fff',
+      fontSize: 10
+    },
+    formatter: function(params) {
+      if (!params || params.length === 0) return '';
+      let result = `${params[0].axisValue}<br/>`;
+      params.forEach(param => {
+        result += `${param.seriesName}: ${param.value}<br/>`;
+      });
+      return result;
+    }
+  },
+  grid: {
+    left: 5,
+    right: 5,
+    top: 2,
+    bottom: 2,
+    containLabel: false
+  },
+  xAxis: {
+    type: 'category',
+    data: Array(maxHistoryLength).fill('--'), // 预填充固定长度的数据
+    show: false,
+    boundaryGap: false // 不留边界间隙
+  },
+  yAxis: {
+    type: 'value',
+    show: false,
+    min: 0,
+    max: function(value) {
+      // 动态设置最大值，但保持相对稳定
+      return Math.max(10, Math.ceil(value.max * 1.1));
+    }
+  },
+  series: [
+    {
+      name: '活跃',
+      type: 'line',
+      data: Array(maxHistoryLength).fill(0), // 预填充固定长度的数据
+      smooth: true,
+      symbol: 'none',
+      lineStyle: {
+        color: '#4CAF50',
+        width: 1.5
+      },
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [{
+            offset: 0, color: 'rgba(76, 175, 80, 0.3)'
+          }, {
+            offset: 1, color: 'rgba(76, 175, 80, 0.1)'
+          }]
+        }
+      }
+    },
+    {
+      name: '阻塞',
+      type: 'line',
+      data: Array(maxHistoryLength).fill(0), // 预填充固定长度的数据
+      smooth: true,
+      symbol: 'none',
+      lineStyle: {
+        color: '#FF5722',
+        width: 1.5
+      },
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [{
+            offset: 0, color: 'rgba(255, 87, 34, 0.3)'
+          }, {
+            offset: 1, color: 'rgba(255, 87, 34, 0.1)'
+          }]
+        }
+      }
+    }
+  ]
+});
 
 // 注入 Cesium viewer
 const cesiumViewer = inject('cesiumViewer', null);
@@ -507,8 +645,16 @@ function isServiceSelected(service) {
 
 // 批量绘制选中路径
 function drawSelectedPaths() {
+  console.log('🎨 开始绘制选中路径');
+  console.log('📊 当前选中服务数量:', selectedServices.value.length);
+  console.log('📝 选中的服务ID列表:', selectedServices.value);
+  
   const viewer = cesiumViewer?.() || cesiumViewer;
-  if (!viewer || !props.networkData) return;
+  if (!viewer || !props.networkData) {
+    console.warn('❌ 缺少必要条件:', { viewer: !!viewer, networkData: !!props.networkData });
+    return;
+  }
+  
   // 找到所有选中的业务对象
   const allRequests = [
     ...(props.serviceData.active_requests || []),
@@ -517,8 +663,32 @@ function drawSelectedPaths() {
     ...(props.serviceData.ended_requests || []),
     ...(props.serviceData.failed_requests || [])
   ];
+  
+  console.log('📋 所有业务请求总数:', allRequests.length);
+  console.log('🚫 阻塞业务数量:', props.serviceData.blocked_requests?.length || 0);
+  
   const selected = allRequests.filter(req => selectedServices.value.includes(props.generateServiceId(req)));
-  selected.forEach(service => drawServicePath(viewer, service, props.networkData));
+  console.log('✅ 找到匹配的选中业务:', selected.length);
+  
+  // 特别检查阻塞业务
+  const selectedBlocked = selected.filter(req => 
+    props.serviceData.blocked_requests?.includes(req)
+  );
+  console.log('🟠 选中的阻塞业务:', selectedBlocked.length);
+  
+  if (selectedBlocked.length > 0) {
+    console.log('🔍 第一个阻塞业务详情:', {
+      id: props.generateServiceId(selectedBlocked[0]),
+      hasPath: !!selectedBlocked[0].path,
+      pathLength: selectedBlocked[0].path?.length || 0,
+      path: selectedBlocked[0].path
+    });
+  }
+  
+  selected.forEach((service, index) => {
+    console.log(`🛤️ 绘制第${index + 1}个业务路径:`, props.generateServiceId(service));
+    drawServicePath(viewer, service, props.networkData);
+  });
 }
 
 // 批量清除选中路径
@@ -529,11 +699,146 @@ function clearSelectedPaths() {
   selectedServices.value = []; // 清除后取消选择
 }
 
+// 切换图表显示/隐藏
+function toggleChart() {
+  // 移除这个函数，因为现在是小图表，不需要切换
+}
+
+// 更新业务历史数据 - 修改为固定长度数组方式
+function updateBusinessHistory() {
+  if (!props.serviceData) return;
+  
+  const now = new Date();
+  const timeLabel = now.toLocaleTimeString('zh-CN', { 
+    hour: '2-digit', 
+    minute: '2-digit', 
+    second: '2-digit' 
+  });
+  
+  const activeCount = props.serviceData.active_requests?.length || 0;
+  const blockedCount = props.serviceData.blocked_requests?.length || 0;
+  
+  // 添加新数据点
+  businessHistoryData.value.push({
+    time: timeLabel,
+    active: activeCount,
+    blocked: blockedCount,
+    timestamp: now.getTime()
+  });
+  
+  // 保持最多10个数据点
+  if (businessHistoryData.value.length > maxHistoryLength) {
+    businessHistoryData.value.shift();
+  }
+  
+  // 更新图表数据
+  updateMiniChartDataFixed();
+  
+  console.log('业务历史数据已更新:', {
+    timeLabel,
+    activeCount,
+    blockedCount,
+    totalPoints: businessHistoryData.value.length
+  });
+}
+
+// 新的固定长度数据更新方法
+function updateMiniChartDataFixed() {
+  // 创建固定长度的数组
+  const times = Array(maxHistoryLength).fill('--');
+  const activeData = Array(maxHistoryLength).fill(0);
+  const blockedData = Array(maxHistoryLength).fill(0);
+  
+  // 填充实际数据到数组末尾
+  const dataLength = businessHistoryData.value.length;
+  for (let i = 0; i < dataLength; i++) {
+    const dataIndex = maxHistoryLength - dataLength + i;
+    const historyItem = businessHistoryData.value[i];
+    times[dataIndex] = historyItem.time;
+    activeData[dataIndex] = historyItem.active;
+    blockedData[dataIndex] = historyItem.blocked;
+  }
+  
+  // 使用 nextTick 确保图表已经渲染完成
+  nextTick(() => {
+    if (businessChart.value) {
+      // 直接设置完整的数据，避免部分更新导致的闪烁
+      businessChart.value.setOption({
+        xAxis: {
+          data: times
+        },
+        series: [
+          {
+            data: activeData
+          },
+          {
+            data: blockedData
+          }
+        ]
+      }, false, true); // 第三个参数 true 表示静默更新
+      
+      console.log('固定长度图表数据已更新:', {
+        totalLength: maxHistoryLength,
+        actualData: dataLength,
+        activeData: activeData.filter(v => v > 0),
+        blockedData: blockedData.filter(v => v > 0)
+      });
+    } else {
+      console.warn('图表组件未准备好');
+    }
+  });
+}
+
+// 清空图表历史数据
+function clearBusinessHistory() {
+  console.log('🧹 清空业务趋势图历史数据');
+  businessHistoryData.value = [];
+  
+  // 重置图表显示为初始状态
+  if (businessChart.value) {
+    const times = Array(maxHistoryLength).fill('--');
+    const activeData = Array(maxHistoryLength).fill(0);
+    const blockedData = Array(maxHistoryLength).fill(0);
+    
+    businessChart.value.setOption({
+      xAxis: {
+        data: times
+      },
+      series: [
+        {
+          data: activeData
+        },
+        {
+          data: blockedData
+        }
+      ]
+    }, false, true);
+    
+    console.log('✅ 图表已重置为初始状态');
+  }
+}
+
 // 监听业务数据变化
-watch(() => props.serviceData, (newData) => {
+watch(() => props.serviceData, (newData, oldData) => {
   if (displaySettings.value.autoUpdate && showAllPaths.value && newData) {
     // 自动更新路径显示
     updatePathDisplay();
+  }
+  
+  // 当数据发生实质性变化时更新图表，使用防抖来避免过于频繁的更新
+  if (newData && (!oldData || 
+      newData.active_requests?.length !== oldData.active_requests?.length ||
+      newData.blocked_requests?.length !== oldData.blocked_requests?.length)) {
+    
+    // 清理之前的定时器
+    if (updateChartTimer) {
+      clearTimeout(updateChartTimer);
+    }
+    
+    // 延迟更新图表，避免频繁闪烁
+    updateChartTimer = setTimeout(() => {
+      updateBusinessHistory();
+    }, 100); // 100ms 延迟
   }
 }, { deep: true });
 
@@ -543,6 +848,67 @@ onMounted(() => {
   console.log('cesiumViewer 在挂载时:', cesiumViewer);
   console.log('serviceData:', props.serviceData);
   console.log('networkData:', props.networkData);
+  
+  // 监听文件夹切换事件，切换时清空图表历史数据
+  const handleFolderChange = (event) => {
+    const { folderName } = event.detail;
+    console.log(`📁 检测到文件夹切换到: ${folderName}，清空图表数据`);
+    clearBusinessHistory();
+  };
+  
+  window.addEventListener('data-folder-changed', handleFolderChange);
+  
+  // 存储事件监听器引用以便清理
+  window.servicePanelFolderChangeHandler = handleFolderChange;
+  
+  // 延迟初始化图表，确保DOM已经渲染完成
+  nextTick(() => {
+    setTimeout(() => {
+      console.log('图表组件状态:', businessChart.value);
+      
+      // 初始化图表数据，即使没有业务数据也要创建初始数据点
+      if (!businessHistoryData.value.length) {
+        const now = new Date();
+        const timeLabel = now.toLocaleTimeString('zh-CN', { 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          second: '2-digit' 
+        });
+        
+        businessHistoryData.value.push({
+          time: timeLabel,
+          active: props.serviceData?.active_requests?.length || 0,
+          blocked: props.serviceData?.blocked_requests?.length || 0,
+          timestamp: now.getTime()
+        });
+      }
+      
+      // 强制更新图表显示
+      updateMiniChartDataFixed();
+      
+      // 如果已有初始数据，立即更新图表
+      if (props.serviceData) {
+        console.log('开始初始化图表数据');
+        setTimeout(() => {
+          updateBusinessHistory();
+        }, 200);
+      }
+    }, 300); // 减少延迟时间
+  });
+});
+
+// 组件卸载时清理资源
+onUnmounted(() => {
+  if (updateChartTimer) {
+    clearTimeout(updateChartTimer);
+    updateChartTimer = null;
+  }
+  
+  // 清理文件夹切换事件监听器
+  if (window.servicePanelFolderChangeHandler) {
+    window.removeEventListener('data-folder-changed', window.servicePanelFolderChangeHandler);
+    delete window.servicePanelFolderChangeHandler;
+  }
 });
 </script>
 
@@ -657,6 +1023,59 @@ onMounted(() => {
   background-color: rgba(255, 255, 255, 0.1);
 }
 
+/* ECharts 业务统计图表 */
+.business-chart-container {
+  border-bottom: 1px solid rgba(68, 68, 68, 0.8);
+  background: rgba(35, 35, 35, 0.6);
+  flex-shrink: 0;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 15px;
+  border-bottom: 1px solid rgba(68, 68, 68, 0.6);
+}
+
+.chart-header h4 {
+  margin: 0;
+  font-size: 13px;
+  color: #ffd700;
+}
+
+.chart-toggle-btn {
+  padding: 2px 8px;
+  border: 1px solid rgba(85, 85, 85, 0.8);
+  background: rgba(64, 64, 64, 0.8);
+  color: #ccc;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 10px;
+  transition: all 0.2s ease;
+}
+
+.chart-toggle-btn:hover {
+  background: rgba(80, 80, 80, 0.9);
+  border-color: rgba(119, 119, 119, 0.9);
+}
+
+.chart-toggle-btn.collapsed {
+  background: #3498db;
+  border-color: #2980b9;
+  color: white;
+}
+
+.chart-content {
+  padding: 10px;
+}
+
+.business-trend-chart {
+  width: 100%;
+  height: 120px;
+  background: transparent;
+}
+
 /* 业务显示控制 */
 .service-display-controls {
   padding: 10px 15px;
@@ -669,16 +1088,82 @@ onMounted(() => {
   margin-bottom: 10px;
 }
 
-.control-section h4 {
-  margin: 0 0 8px 0;
-  font-size: 14px;
-  color: #ffd700;
+.display-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
 }
 
-.control-row {
+.control-section h4 {
+  margin: 0;
+  font-size: 14px;
+  color: #ffd700;
+  flex: 0 0 auto;
+}
+
+/* 业务类型控制和图表并列布局 */
+.controls-and-chart-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.control-checkboxes {
   display: flex;
   gap: 15px;
   flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+
+/* 拉长的图表样式 */
+.extended-chart-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(50, 50, 50, 0.4);
+  border: 1px solid rgba(68, 68, 68, 0.6);
+  border-radius: 4px;
+  padding: 2px 6px;
+  width: 400px;
+  height: 35px;
+  flex-shrink: 0;
+}
+
+.chart-title {
+  font-size: 10px;
+  color: #ccc;
+  margin: 0;
+  padding: 0;
+  text-align: center;
+  line-height: 1;
+}
+
+.extended-business-chart {
+  width: 100%;
+  height: 25px;
+  background: transparent;
+  margin: 0;
+  padding: 0;
+}
+
+/* 响应式调整 */
+@media (max-width: 1200px) {
+  .controls-and-chart-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .extended-chart-container {
+    width: 100%;
+    max-width: 300px;
+  }
+  
+  .control-checkboxes {
+    width: 100%;
+  }
 }
 
 .checkbox-label {

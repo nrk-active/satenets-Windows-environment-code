@@ -11,12 +11,12 @@
       </div>
       
       <!-- 显示当前选择的数据文件夹 -->
-      <div v-if="!currentProcessId" class="current-folder">
+      <div v-if="!currentProcessId && hasValidSelection()" class="current-folder">
         当前选择：{{ getCurrentFolderDisplay() }}
       </div>
       
       <!-- 显示当前加载的文件信息 -->
-      <div v-if="!currentProcessId && currentLoadedFiles" class="current-files">
+      <div v-if="!currentProcessId && hasValidSelection() && currentLoadedFiles" class="current-files">
         <div class="file-info">网络数据：{{ currentLoadedFiles.network || '未加载' }}</div>
         <div class="file-info">业务数据：{{ currentLoadedFiles.service || '未加载' }}</div>
       </div>
@@ -165,14 +165,23 @@ const currentLoadedFiles = ref({
   network: null,
   service: null
 });
+// 标记用户是否已主动选择过文件夹
+const hasUserSelected = ref(false);
 
 function getCurrentFolderDisplay() {
   return currentFolderDisplay.value;
 }
 
+function hasValidSelection() {
+  return hasUserSelected.value && currentFolderDisplay.value !== '未选择';
+}
+
 function updateCurrentFolderDisplay() {
   const folder = localStorage.getItem('selectedDataFolder');
+  const userSelected = localStorage.getItem('hasUserSelectedFolder');
+  
   currentFolderDisplay.value = folder || '未选择';
+  hasUserSelected.value = userSelected === 'true';
 }
 
 // 更新当前加载的文件信息
