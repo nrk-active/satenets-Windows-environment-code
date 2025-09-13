@@ -1031,6 +1031,9 @@ export function useCesium() {
     
     console.log('Cesium viewer初始化完成，仅使用本地地图资源');
     
+    // 添加场景模式变化监听，处理2D模式的实体位置问题
+    setupSceneModeHandling(viewer);
+    
     // 延迟加载国界线数据，确保地球纹理先加载完成
     setTimeout(() => {
       loadLocalCountryBorders();
@@ -1732,6 +1735,15 @@ export function useCesium() {
         const entity = viewer.entities.add(entityConfig);
         // 在实体上保存原始类型信息，便于后续识别
         entity.nodeType = node.type;
+        
+        // 确保原始坐标信息被正确保存到实体上
+        if (entityConfig.originalLatLon) {
+          entity.originalLatLon = entityConfig.originalLatLon;
+        }
+        if (entityConfig.originalCartesian) {
+          entity.originalCartesian = entityConfig.originalCartesian;
+        }
+        
         createdCount++;
         if (index < 5) { // 只打印前5个实体的详细信息
           console.log(`创建节点 ${node.id} (${node.type}) 成功:`, entity);
@@ -2075,6 +2087,196 @@ export function useCesium() {
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
   }
 
+  // 处理场景模式变化，修复2D模式下实体位置问题
+  function setupSceneModeHandling(viewer) {
+    console.log('设置场景模式变化监听');
+    
+    // 监听场景模式变化
+    viewer.scene.morphComplete.addEventListener(() => {
+      const sceneMode = viewer.scene.mode;
+      console.log(`场景模式切换完成: ${getSceneModeName(sceneMode)}`);
+      
+      if (sceneMode === Cesium.SceneMode.SCENE2D || 
+          sceneMode === Cesium.SceneMode.COLUMBUS_VIEW) {
+        // 延迟一下，确保场景完全切换完成
+        setTimeout(() => {
+          // 2D模式或哥伦布视图模式下，重新计算所有实体位置
+          recalculateEntityPositionsFor2D(viewer);
+          optimize2DMode(viewer);
+        }, 100);
+      }
+    });
+    
+    // 也监听开始切换事件，用于调试
+    viewer.scene.morphStart.addEventListener(() => {
+      const fromMode = viewer.scene.mode;
+      console.log(`开始切换场景模式，当前模式: ${getSceneModeName(fromMode)}`);
+    });
+  }
+
+  function getSceneModeName(mode) {
+    switch (mode) {
+      case Cesium.SceneMode.SCENE3D:
+        return '3D模式';
+      case Cesium.SceneMode.SCENE2D:
+        return '2D模式';
+      case Cesium.SceneMode.COLUMBUS_VIEW:
+        return '哥伦布视图';
+      default:
+        return '未知模式';
+    }
+  }
+
+  function recalculateEntityPositionsFor2D(viewer) {
+    console.log('重新计算2D模式下的实体位置');
+    const entities = viewer.entities.values;
+    let updatedCount = 0;
+    
+    for (let i = 0; i < entities.length; i++) {
+      const entity = entities[i];
+      
+      // 跳过没有position属性的实体
+      if (!entity.position) {
+        continue;
+      }
+      
+      // 处理地面站和ROADM（有原始经纬度数据）
+      if (entity.originalLatLon) {
+        const { longitude, latitude, height = 0 } = entity.originalLatLon;
+        
+        console.log(`更新地面站/ROADM ${entity.id} 位置: ${longitude}, ${latitude}`);
+        
+        // 在2D模式下，需要完全重新创建位置属性
+        const newPosition = Cesium.Cartesian3.fromDegrees(longitude, latitude, height);
+        
+        // 强制更新实体位置
+        entity.position = newPosition;
+        
+        // 如果实体有point属性，短暂隐藏再显示以触发重新渲染
+        if (entity.point) {
+          const originalShow = entity.point.show;
+          entity.point.show = false;
+          // 立即重新显示
+          requestAnimationFrame(() => {
+            entity.point.show = originalShow;
+          });
+        }
+        
+        updatedCount++;
+        console.log(`✅ ${entity.id} 位置已更新为 (${longitude.toFixed(2)}, ${latitude.toFixed(2)})`);
+      }
+      // 处理卫星（有原始笛卡尔坐标）
+      else if (entity.originalCartesian) {
+        const { x, y, z } = entity.originalCartesian;
+        const cartesianPosition = new Cesium.Cartesian3(x, y, z);
+        
+        // 更新CallbackProperty中的位置
+        if (entity.position && typeof entity.position.getValue === 'function') {
+          entity.position = new Cesium.CallbackProperty(function(time, result) {
+            return Cesium.Cartesian3.clone(cartesianPosition, result);
+          }, false);
+        } else {
+          entity.position = cartesianPosition;
+        }
+        updatedCount++;
+        console.log(`更新卫星 ${entity.id} 位置`);
+      }
+      // 如果没有原始坐标但是地面站或ROADM，尝试从当前位置提取
+      else if (entity.id && (entity.id.startsWith('ROADM') || entity.id.includes('station') || entity.id.startsWith('station'))) {
+        try {
+          let currentPosition = entity.position;
+          
+          // 安全地获取当前位置
+          if (currentPosition && typeof currentPosition.getValue === 'function') {
+            try {
+              currentPosition = currentPosition.getValue(Cesium.JulianDate.now());
+            } catch (error) {
+              console.warn(`无法获取实体 ${entity.id} 的CallbackProperty值:`, error);
+              continue;
+            }
+          }
+          
+          if (currentPosition && currentPosition instanceof Cesium.Cartesian3) {
+            // 将笛卡尔坐标转换为经纬度
+            const cartographic = Cesium.Cartographic.fromCartesian(currentPosition);
+            if (cartographic) {
+              const longitude = Cesium.Math.toDegrees(cartographic.longitude);
+              const latitude = Cesium.Math.toDegrees(cartographic.latitude);
+              
+              console.log(`从当前位置提取 ${entity.id} 坐标: ${longitude}, ${latitude}`);
+              
+              // 保存原始坐标并重新设置位置
+              entity.originalLatLon = { longitude, latitude, height: 10 };
+              
+              // 强制重新创建位置
+              const newPosition = Cesium.Cartesian3.fromDegrees(longitude, latitude, 10);
+              entity.position = newPosition;
+              
+              // 强制触发重新渲染
+              if (entity.point) {
+                const originalShow = entity.point.show;
+                entity.point.show = false;
+                requestAnimationFrame(() => {
+                  entity.point.show = originalShow;
+                });
+              }
+              
+              updatedCount++;
+              console.log(`✅ ${entity.id} 位置已重新设置为 (${longitude.toFixed(2)}, ${latitude.toFixed(2)})`);
+            }
+          }
+        } catch (error) {
+          console.warn(`无法处理实体 ${entity.id} 的位置:`, error);
+        }
+      }
+    }
+    
+    console.log(`已更新 ${updatedCount} 个实体的2D位置`);
+    
+    // 强制场景重新渲染
+    viewer.scene.requestRender();
+    
+    console.log('场景重新渲染已请求');
+  }
+
+  function optimize2DMode(viewer) {
+    console.log('优化2D模式显示');
+    
+    if (viewer.scene.mode === Cesium.SceneMode.SCENE2D) {
+      // 设置2D模式的最佳视图
+      viewer.camera.setView({
+        destination: Cesium.Rectangle.fromDegrees(-180, -90, 180, 90),
+        orientation: {
+          heading: 0.0,
+          pitch: -Cesium.Math.PI_OVER_TWO,
+          roll: 0.0
+        }
+      });
+      
+      // 调整2D模式下的渲染设置
+      viewer.scene.globe.enableLighting = false;
+      viewer.scene.fog.enabled = false;
+      viewer.scene.skyAtmosphere.show = false;
+      
+      // 设置合适的缩放级别下显示标签
+      viewer.scene.camera.changed.addEventListener(() => {
+        const height = viewer.camera.positionCartographic.height;
+        const showLabels = height < 10000000; // 小于1000万米时显示标签
+        showEntityLabels(viewer, showLabels);
+      });
+    }
+  }
+
+  function showEntityLabels(viewer, show) {
+    const entities = viewer.entities.values;
+    for (let i = 0; i < entities.length; i++) {
+      const entity = entities[i];
+      if (entity.label) {
+        entity.label.show = show;
+      }
+    }
+  }
+
   function cleanup() {
     // 清理时间轴位置监听器
     if (window.cleanupTimelinePosition) {
@@ -2092,6 +2294,113 @@ export function useCesium() {
       viewer = null;
     }
   }
+
+  // 手动触发2D模式位置重计算（用于测试）
+  function manuallyFixEntitiesFor2D() {
+    console.log('🔧 手动修复2D模式实体位置');
+    if (!viewer.current) {
+      console.log('❌ viewer 不可用');
+      return;
+    }
+    
+    const entities = viewer.current.entities.values;
+    let fixedCount = 0;
+    
+    console.log(`🔍 找到 ${entities.length} 个实体`);
+    
+    // 先移除所有地面站和ROADM，然后重新创建
+    const toRecreate = [];
+    
+    entities.forEach(entity => {
+      if (entity.id && (entity.id.includes('ROADM') || entity.id.includes('station'))) {
+        if (entity.originalLatLon) {
+          // 保存实体信息用于重新创建
+          toRecreate.push({
+            id: entity.id,
+            originalLatLon: entity.originalLatLon,
+            label: entity.label ? {
+              text: entity.label.text,
+              font: entity.label.font,
+              fillColor: entity.label.fillColor,
+              outlineColor: entity.label.outlineColor,
+              outlineWidth: entity.label.outlineWidth,
+              style: entity.label.style,
+              pixelOffset: entity.label.pixelOffset,
+              showBackground: entity.label.showBackground,
+              backgroundColor: entity.label.backgroundColor
+            } : null,
+            point: entity.point ? {
+              pixelSize: entity.point.pixelSize,
+              color: entity.point.color,
+              outlineColor: entity.point.outlineColor,
+              outlineWidth: entity.point.outlineWidth,
+              show: entity.point.show
+            } : null
+          });
+          
+          // 移除原实体
+          viewer.current.entities.remove(entity);
+        }
+      }
+    });
+    
+    console.log(`🗑️ 移除了 ${toRecreate.length} 个实体，准备重新创建`);
+    
+    // 重新创建所有实体
+    toRecreate.forEach(entityInfo => {
+      const { longitude, latitude } = entityInfo.originalLatLon;
+      
+      // 在2D模式下创建新实体
+      const newEntity = viewer.current.entities.add({
+        id: entityInfo.id,
+        position: Cesium.Cartesian3.fromDegrees(longitude, latitude, 0),
+        originalLatLon: entityInfo.originalLatLon, // 保留原始坐标
+        point: {
+          pixelSize: entityInfo.point?.pixelSize || 8,
+          color: entityInfo.point?.color || Cesium.Color.YELLOW,
+          outlineColor: entityInfo.point?.outlineColor || Cesium.Color.BLACK,
+          outlineWidth: entityInfo.point?.outlineWidth || 1,
+          show: true,
+          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY
+        }
+      });
+      
+      // 如果有标签，也重新添加
+      if (entityInfo.label) {
+        newEntity.label = {
+          text: entityInfo.label.text,
+          font: entityInfo.label.font || '12pt sans-serif',
+          fillColor: entityInfo.label.fillColor || Cesium.Color.WHITE,
+          outlineColor: entityInfo.label.outlineColor || Cesium.Color.BLACK,
+          outlineWidth: entityInfo.label.outlineWidth || 1,
+          style: entityInfo.label.style || Cesium.LabelStyle.FILL_AND_OUTLINE,
+          pixelOffset: entityInfo.label.pixelOffset || new Cesium.Cartesian2(0, -20),
+          showBackground: entityInfo.label.showBackground || false,
+          backgroundColor: entityInfo.label.backgroundColor || Cesium.Color.BLACK.withAlpha(0.7),
+          show: true
+        };
+      }
+      
+      fixedCount++;
+      console.log(`🔧 重新创建 ${entityInfo.id}: (${longitude.toFixed(2)}, ${latitude.toFixed(2)})`);
+    });
+    
+    // 强制重新渲染和布局
+    viewer.current.scene.requestRender();
+    
+    // 触发场景模式变化事件以强制重新布局
+    setTimeout(() => {
+      viewer.current.scene.morphTo2D(0);
+    }, 100);
+    
+    console.log(`✅ 手动修复完成，共重新创建 ${fixedCount} 个实体`);
+    
+    return fixedCount;
+  }
+
+  // 将函数暴露到全局，方便调试
+  window.manuallyFixEntitiesFor2D = manuallyFixEntitiesFor2D;
 
   // 重置时钟范围（用于文件夹切换）
   function resetClockRange(folderName) {
@@ -2176,6 +2485,7 @@ export function useCesium() {
     resetClockRange,
     highlightSelectedLink,
     resetLinkHighlight,
-    cleanup
+    cleanup,
+    manuallyFixEntitiesFor2D
   };
 }

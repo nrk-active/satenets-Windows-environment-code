@@ -12,10 +12,10 @@
           <div ref="latencyChart" class="chart"></div>
         </div>
         
-        <!-- 阻塞率图表 -->
-        <div v-if="selectedData.blockingRate" class="chart-item">
-          <h4>阻塞率</h4>
-          <div ref="blockingChart" class="chart"></div>
+        <!-- 带宽利用率图表 -->
+        <div v-if="selectedData.bandwidthUtil" class="chart-item">
+          <h4>带宽利用率</h4>
+          <div ref="bandwidthChart" class="chart"></div>
         </div>
         
         <!-- 平均跳数图表 -->
@@ -51,19 +51,26 @@ const emit = defineEmits(['close']);
 
 // 图表实例引用
 const latencyChart = ref(null);
-const blockingChart = ref(null);
+const bandwidthChart = ref(null);
 const hopChart = ref(null);
 
 // ECharts实例
 let latencyChartInstance = null;
-let blockingChartInstance = null;
+let bandwidthChartInstance = null;
 let hopChartInstance = null;
 
 // 存储历史数据（最多保留10个切片）
 const historyData = ref({
   timestamps: [], // 时间戳
   latency: [], // 平均延迟数据
-  blocking: [], // 阻塞率数据
+  bandwidthUtil: {  // 带宽利用率数据（替换blocking）
+    overall: [],     // 总利用率
+    isl_inter: [],   // 星间同轨链路
+    isl_intra: [],   // 星间异轨链路
+    sgl: [],         // 星地链路
+    grl: [],         // 地面站-ROADM链路
+    backbone: []     // 骨干网
+  },
   hop: [] // 平均跳数数据
 });
 
@@ -86,23 +93,42 @@ const calculateMetricsFromData = (networkData) => {
     console.log('ChartPanel: 使用network_statistics数据', stats);
     
     const latency = parseFloat(stats.average_latency) || 0;
-    const bandwidth_util = parseFloat(stats.average_bandwidth_utilization) || 0;
     const hop = parseFloat(stats.average_hop_count) || 0;
     
-    // 阻塞率计算：(1 - 带宽利用率) * 100
-    // 但如果带宽利用率很低，说明网络繁忙，阻塞率应该高
-    // 让我们直接使用带宽利用率作为网络负载指标
-    const blocking = bandwidth_util * 100; // 直接使用带宽利用率作为负载百分比
+    // 提取带宽利用率数据（包含六种不同类型的链路）
+    const bandwidthData = stats.bandwidth_utilization_by_type || {};
+    const bandwidthUtil = {
+      overall: parseFloat(bandwidthData.overall || 0) * 100,        // 总利用率
+      isl_inter: parseFloat(bandwidthData.ISL_INTER || 0) * 100,    // 星间同轨链路
+      isl_intra: parseFloat(bandwidthData.ISL_INTRA || 0) * 100,    // 星间异轨链路  
+      sgl: parseFloat(bandwidthData.SGL || 0) * 100,                // 星地链路
+      grl: parseFloat(bandwidthData.GRL || 0) * 100,                // 地面站-ROADM链路
+      backbone: parseFloat(bandwidthData.BACKBONE || 0) * 100      // 骨干网
+    };
+    
+    console.log('ChartPanel: 带宽利用率详细数据', {
+      原始带宽数据: bandwidthData,
+      转换后: bandwidthUtil,
+      时间戳: networkData.timestamp
+    });
     
     const result = {
       latency: latency,
-      blocking: blocking,
+      bandwidthUtil: bandwidthUtil,  // 替换原来的blocking字段
       hop: hop
     };
     
-    console.log('ChartPanel: 计算结果', {
-      原始数据: { latency, bandwidth_util, hop },
-      计算结果: result
+    console.log('ChartPanel: 从network_statistics计算结果', {
+      原始数据: { 
+        平均时延: latency, 
+        带宽利用率原始数据: bandwidthData, 
+        平均跳数: hop 
+      },
+      转换结果: { 
+        平均时延: result.latency + 'ms', 
+        带宽利用率: bandwidthUtil, 
+        平均跳数: result.hop 
+      }
     });
     
     return result;
@@ -112,7 +138,7 @@ const calculateMetricsFromData = (networkData) => {
   const graphData = networkData.data;
   if (!graphData) {
     console.warn('ChartPanel: 无图数据结构');
-    return { latency: 0, blocking: 0, hop: 0 };
+    return { latency: 0, bandwidthUtil: { overall: 0, isl_inter: 0, isl_intra: 0, sgl: 0, grl: 0, backbone: 0 }, hop: 0 };
   }
 
   // 处理图节点和边数据
@@ -171,7 +197,7 @@ const calculateMetricsFromData = (networkData) => {
 
   const result = {
     latency: Math.max(0, avgLatency),
-    blocking: Math.max(0, Math.min(100, blockingRate)),
+    bandwidthUtil: { overall: 0, isl_inter: 0, isl_intra: 0, sgl: 0, grl: 0, backbone: 0 },
     hop: Math.max(1, avgHop)
   };
 
@@ -212,14 +238,30 @@ const addDataPoint = (frame, networkData) => {
   if (existingIndex !== -1) {
     // 更新现有数据
     historyData.value.latency[existingIndex] = metrics.latency;
-    historyData.value.blocking[existingIndex] = metrics.blocking;
+    // 更新带宽利用率的各个字段
+    if (metrics.bandwidthUtil) {
+      historyData.value.bandwidthUtil.overall[existingIndex] = metrics.bandwidthUtil.overall;
+      historyData.value.bandwidthUtil.isl_inter[existingIndex] = metrics.bandwidthUtil.isl_inter;
+      historyData.value.bandwidthUtil.isl_intra[existingIndex] = metrics.bandwidthUtil.isl_intra;
+      historyData.value.bandwidthUtil.sgl[existingIndex] = metrics.bandwidthUtil.sgl;
+      historyData.value.bandwidthUtil.grl[existingIndex] = metrics.bandwidthUtil.grl;
+      historyData.value.bandwidthUtil.backbone[existingIndex] = metrics.bandwidthUtil.backbone;
+    }
     historyData.value.hop[existingIndex] = metrics.hop;
     console.log('ChartPanel: 更新现有数据点', { timestamp, metrics });
   } else {
     // 添加新数据
     historyData.value.timestamps.push(timestamp);
     historyData.value.latency.push(metrics.latency);
-    historyData.value.blocking.push(metrics.blocking);
+    // 添加带宽利用率的各个字段
+    if (metrics.bandwidthUtil) {
+      historyData.value.bandwidthUtil.overall.push(metrics.bandwidthUtil.overall);
+      historyData.value.bandwidthUtil.isl_inter.push(metrics.bandwidthUtil.isl_inter);
+      historyData.value.bandwidthUtil.isl_intra.push(metrics.bandwidthUtil.isl_intra);
+      historyData.value.bandwidthUtil.sgl.push(metrics.bandwidthUtil.sgl);
+      historyData.value.bandwidthUtil.grl.push(metrics.bandwidthUtil.grl);
+      historyData.value.bandwidthUtil.backbone.push(metrics.bandwidthUtil.backbone);
+    }
     historyData.value.hop.push(metrics.hop);
     console.log('ChartPanel: 添加新数据点', { timestamp, metrics });
     
@@ -227,7 +269,14 @@ const addDataPoint = (frame, networkData) => {
     const combined = historyData.value.timestamps.map((ts, index) => ({
       timestamp: ts,
       latency: historyData.value.latency[index],
-      blocking: historyData.value.blocking[index],
+      bandwidthUtil: {
+        overall: historyData.value.bandwidthUtil.overall[index],
+        isl_inter: historyData.value.bandwidthUtil.isl_inter[index],
+        isl_intra: historyData.value.bandwidthUtil.isl_intra[index],
+        sgl: historyData.value.bandwidthUtil.sgl[index],
+        grl: historyData.value.bandwidthUtil.grl[index],
+        backbone: historyData.value.bandwidthUtil.backbone[index]
+      },
       hop: historyData.value.hop[index]
     }));
     
@@ -237,7 +286,12 @@ const addDataPoint = (frame, networkData) => {
     // 重新分配排序后的数据
     historyData.value.timestamps = combined.map(item => item.timestamp);
     historyData.value.latency = combined.map(item => item.latency);
-    historyData.value.blocking = combined.map(item => item.blocking);
+    historyData.value.bandwidthUtil.overall = combined.map(item => item.bandwidthUtil.overall);
+    historyData.value.bandwidthUtil.isl_inter = combined.map(item => item.bandwidthUtil.isl_inter);
+    historyData.value.bandwidthUtil.isl_intra = combined.map(item => item.bandwidthUtil.isl_intra);
+    historyData.value.bandwidthUtil.sgl = combined.map(item => item.bandwidthUtil.sgl);
+    historyData.value.bandwidthUtil.grl = combined.map(item => item.bandwidthUtil.grl);
+    historyData.value.bandwidthUtil.backbone = combined.map(item => item.bandwidthUtil.backbone);
     historyData.value.hop = combined.map(item => item.hop);
   }
 
@@ -246,7 +300,12 @@ const addDataPoint = (frame, networkData) => {
   if (historyData.value.timestamps.length > maxPoints) {
     historyData.value.timestamps = historyData.value.timestamps.slice(-maxPoints);
     historyData.value.latency = historyData.value.latency.slice(-maxPoints);
-    historyData.value.blocking = historyData.value.blocking.slice(-maxPoints);
+    historyData.value.bandwidthUtil.overall = historyData.value.bandwidthUtil.overall.slice(-maxPoints);
+    historyData.value.bandwidthUtil.isl_inter = historyData.value.bandwidthUtil.isl_inter.slice(-maxPoints);
+    historyData.value.bandwidthUtil.isl_intra = historyData.value.bandwidthUtil.isl_intra.slice(-maxPoints);
+    historyData.value.bandwidthUtil.sgl = historyData.value.bandwidthUtil.sgl.slice(-maxPoints);
+    historyData.value.bandwidthUtil.grl = historyData.value.bandwidthUtil.grl.slice(-maxPoints);
+    historyData.value.bandwidthUtil.backbone = historyData.value.bandwidthUtil.backbone.slice(-maxPoints);
     historyData.value.hop = historyData.value.hop.slice(-maxPoints);
     console.log('ChartPanel: 截取最新10个数据点');
   }
@@ -276,7 +335,7 @@ const createChartOption = (type) => {
     }
   });
   
-  let data, color, unit, yAxisMax;
+  let data, color, unit, yAxisMax, seriesConfig;
 
   switch (type) {
     case 'latency':
@@ -284,18 +343,42 @@ const createChartOption = (type) => {
       color = '#00ff88'; // 绿色，匹配您界面中的绿色元素
       unit = 'ms';
       yAxisMax = null;
+      seriesConfig = {
+        data: data,
+        type: 'line',
+        smooth: true,
+        lineStyle: { color: color, width: 2 },
+        itemStyle: { color: color },
+        areaStyle: { color: color + '20' }
+      };
       break;
-    case 'blocking':
-      data = historyData.value.blocking;
-      color = '#ff6b35'; // 橙色，匹配您界面中的橙色元素
+    case 'bandwidth':
+      // 带宽利用率图表使用多条线
+      color = ['#ff6b35', '#00ff88', '#4a9eff', '#ff4757', '#3742fa', '#ffa502']; // 不同颜色
       unit = '%';
       yAxisMax = 100;
+      seriesConfig = [
+        { name: '总利用率', data: historyData.value.bandwidthUtil.overall, type: 'line', smooth: true, lineStyle: { color: color[0], width: 2 }, itemStyle: { color: color[0] } },
+        { name: '星间同轨', data: historyData.value.bandwidthUtil.isl_inter, type: 'line', smooth: true, lineStyle: { color: color[1], width: 2 }, itemStyle: { color: color[1] } },
+        { name: '星间异轨', data: historyData.value.bandwidthUtil.isl_intra, type: 'line', smooth: true, lineStyle: { color: color[2], width: 2 }, itemStyle: { color: color[2] } },
+        { name: '星地链路', data: historyData.value.bandwidthUtil.sgl, type: 'line', smooth: true, lineStyle: { color: color[3], width: 2 }, itemStyle: { color: color[3] } },
+        { name: 'GRL链路', data: historyData.value.bandwidthUtil.grl, type: 'line', smooth: true, lineStyle: { color: color[4], width: 2 }, itemStyle: { color: color[4] } },
+        { name: '骨干网', data: historyData.value.bandwidthUtil.backbone, type: 'line', smooth: true, lineStyle: { color: color[5], width: 2 }, itemStyle: { color: color[5] } }
+      ];
       break;
     case 'hop':
       data = historyData.value.hop;
       color = '#4a9eff'; // 蓝色，匹配您界面中的蓝色元素
       unit = '';
       yAxisMax = null;
+      seriesConfig = {
+        data: data,
+        type: 'line',
+        smooth: true,
+        lineStyle: { color: color, width: 2 },
+        itemStyle: { color: color },
+        areaStyle: { color: color + '20' }
+      };
       break;
     default:
       return {};
@@ -303,18 +386,35 @@ const createChartOption = (type) => {
 
   return {
     backgroundColor: '#000000',
+    legend: type === 'bandwidth' ? {
+      data: ['总利用率', '星间同轨', '星间异轨', '星地链路', 'GRL链路', '骨干网'],
+      textStyle: { color: '#cccccc', fontSize: 10 },
+      top: 5
+    } : null,
     tooltip: {
       trigger: 'axis',
       backgroundColor: '#1a1a1a',
       borderColor: '#333333',
       borderWidth: 1,
+      appendToBody: true,  // 将tooltip添加到body而不是图表容器
+      extraCssText: 'z-index: 10000; box-shadow: 0 2px 8px rgba(0,0,0,0.5);', // 设置最高层级
       textStyle: {
         color: '#ffffff',
         fontSize: 12
       },
       formatter: function(params) {
-        const point = params[0];
-        return `${point.name}<br/>${point.seriesName}: ${point.value}${unit}`;
+        if (Array.isArray(params) && params.length > 1) {
+          // 多系列图表
+          let result = params[0].name + '<br/>';
+          params.forEach(param => {
+            result += `${param.seriesName}: ${param.value}${unit}<br/>`;
+          });
+          return result;
+        } else {
+          // 单系列图表
+          const point = Array.isArray(params) ? params[0] : params;
+          return `${point.name}<br/>${point.seriesName}: ${point.value}${unit}`;
+        }
       }
     },
     xAxis: {
@@ -356,7 +456,7 @@ const createChartOption = (type) => {
         }
       }
     },
-    series: [{
+    series: Array.isArray(seriesConfig) ? seriesConfig : [{
       name: getSeriesName(type),
       type: 'line',
       data: data,
@@ -390,7 +490,7 @@ const createChartOption = (type) => {
       left: '10%',
       right: '5%',
       bottom: '15%',
-      top: '10%',
+      top: '15%',  /* 增加顶部间距避免标题重叠 */
       containLabel: true
     }
   };
@@ -401,8 +501,8 @@ function getSeriesName(type) {
   switch (type) {
     case 'latency':
       return '平均延迟';
-    case 'blocking':
-      return '阻塞率';
+    case 'bandwidth':
+      return '带宽利用率';
     case 'hop':
       return '平均跳数';
     default:
@@ -417,8 +517,8 @@ function updateCharts() {
       latencyChartInstance.setOption(createChartOption('latency'));
     }
     
-    if (props.selectedData.blockingRate && blockingChartInstance) {
-      blockingChartInstance.setOption(createChartOption('blocking'));
+    if (props.selectedData.bandwidthUtil && bandwidthChartInstance) {
+      bandwidthChartInstance.setOption(createChartOption('bandwidth'));
     }
     
     if (props.selectedData.hopCounts && hopChartInstance) {
@@ -436,10 +536,10 @@ function initCharts() {
       latencyChartInstance.setOption(createChartOption('latency'));
     }
     
-    // 初始化阻塞率图表
-    if (props.selectedData.blockingRate && blockingChart.value) {
-      blockingChartInstance = echarts.init(blockingChart.value);
-      blockingChartInstance.setOption(createChartOption('blocking'));
+    // 初始化带宽利用率图表
+    if (props.selectedData.bandwidthUtil && bandwidthChart.value) {
+      bandwidthChartInstance = echarts.init(bandwidthChart.value);
+      bandwidthChartInstance.setOption(createChartOption('bandwidth'));
     }
     
     // 初始化跳数图表
@@ -462,9 +562,9 @@ function destroyCharts() {
     latencyChartInstance = null;
   }
   
-  if (blockingChartInstance) {
-    blockingChartInstance.dispose();
-    blockingChartInstance = null;
+  if (bandwidthChartInstance) {
+    bandwidthChartInstance.dispose();
+    bandwidthChartInstance = null;
   }
   
   if (hopChartInstance) {
@@ -479,8 +579,8 @@ function resizeCharts() {
     latencyChartInstance.resize();
   }
   
-  if (blockingChartInstance) {
-    blockingChartInstance.resize();
+  if (bandwidthChartInstance) {
+    bandwidthChartInstance.resize();
   }
   
   if (hopChartInstance) {
@@ -513,7 +613,7 @@ watch(() => props.timeFrame, (newFrame, oldFrame) => {
   }
 });
 
-onMounted(() => {
+onMounted(async () => {
   console.log('ChartPanel: 组件挂载', {
     selectedData: props.selectedData,
     hasCurrentFrameData: !!props.currentFrameData,
@@ -528,6 +628,9 @@ onMounted(() => {
     console.log('ChartPanel: 挂载时立即添加数据');
     addDataPoint(props.timeFrame, props.currentFrameData);
   }
+  
+  // 尝试加载一些历史数据来显示更多数据点
+  await loadHistoricalData();
 });
 
 onUnmounted(() => {
@@ -539,6 +642,43 @@ onUnmounted(() => {
 defineExpose({
   addDataPoint
 });
+
+// 加载历史数据以显示更多数据点
+const loadHistoricalData = async () => {
+  console.log('ChartPanel: 开始加载历史数据');
+  
+  try {
+    const currentFolder = localStorage.getItem('selectedDataFolder') || 'new';
+    const timeInterval = currentFolder === 'new' ? 10 : 60;
+    const currentFrame = props.timeFrame || 1;
+    
+    // 加载当前帧之前的几个数据点
+    const framesToLoad = Math.min(5, currentFrame - 1); // 最多加载前5个帧
+    console.log(`ChartPanel: 计划加载 ${framesToLoad} 个历史帧`);
+    
+    for (let i = Math.max(1, currentFrame - framesToLoad); i < currentFrame; i++) {
+      const fileTimeValue = (i - 1) * timeInterval + timeInterval;
+      const filename = `./data/${currentFolder}/network_state_${fileTimeValue}.00.json`;
+      
+      try {
+        console.log(`ChartPanel: 加载历史数据帧 ${i}, 文件: ${filename}`);
+        const response = await fetch(filename);
+        if (response.ok) {
+          const rawData = await response.json();
+          addDataPoint(i, rawData);
+        } else {
+          console.warn(`ChartPanel: 无法加载历史数据帧 ${i}: ${response.status}`);
+        }
+      } catch (error) {
+        console.warn(`ChartPanel: 加载历史数据帧 ${i} 时出错:`, error);
+      }
+    }
+    
+    console.log('ChartPanel: 历史数据加载完成');
+  } catch (error) {
+    console.error('ChartPanel: 加载历史数据时出错:', error);
+  }
+};
 </script>
 
 <style scoped>
@@ -594,12 +734,14 @@ defineExpose({
   padding: 10px;
   background: #000000;
   overflow-y: auto;
+  overflow-x: visible;  /* 水平方向允许溢出，避免tooltip被裁剪 */
 }
 
 .chart-container {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  overflow: visible;  /* 允许子元素溢出 */
 }
 
 .chart-item {
@@ -607,6 +749,8 @@ defineExpose({
   border: 1px solid #333333;
   border-radius: 0;
   padding: 10px;
+  position: relative;  /* 确保内部元素定位正确 */
+  overflow: visible;   /* 允许tooltip溢出 */
 }
 
 .chart-item h4 {
@@ -619,8 +763,10 @@ defineExpose({
 
 .chart {
   width: 100%;
-  height: 200px;
+  height: 300px;  /* 增加高度以避免标题和轴标签重叠 */
   background: #000000;
+  position: relative;  /* 确保tooltip定位正确 */
+  overflow: visible;   /* 允许tooltip溢出容器 */
 }
 
 /* 滚动条样式 */

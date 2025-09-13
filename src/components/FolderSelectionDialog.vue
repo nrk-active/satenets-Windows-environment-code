@@ -75,9 +75,7 @@ async function scanDataFolders() {
     
     // 预定义的可能文件夹列表 - 包含所有已知的文件夹
     const possibleFolders = [
-      'new', 'old', 'test', 'backup', 
-      'simulation1', 'simulation2', 
-      'Test1', 'Test2',  // 添加你的新文件夹
+      'old', 'new','new_10s', 'old_60s', 'new_60s', // 添加你的新文件夹
     ];
     const validFolders = [];
     

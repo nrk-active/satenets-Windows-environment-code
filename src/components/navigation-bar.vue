@@ -107,22 +107,22 @@
       <div class="nav-item-left" @click="handlePauseSimulation">
           暂停仿真
       </div>
-      <div class="nav-item-left">
+      <!-- <div class="nav-item-left" @click="handleStopSimulation">
           停止
-      </div>
-      <div class="nav-item-left">
+      </div> -->
+      <div class="nav-item-left" @click="increaseSpeed">
           加速
       </div>
     
-      <div class="nav-item-left">
+      <div class="nav-item-left" @click="decreaseSpeed">
         减速
       </div>
-      <!-- <div class="nav-item-left">
-        链路
-      </div> -->
+       <div class="nav-item-right" @click="showSimulationResultDialog">
+        仿真结果展示
+      </div>
+   
     </div>
-    <div class="nav-center-group">
-      <!-- 居中内容 -->
+    <!-- <div class="nav-center-group">
       <div class="progress-bar-nav">
         <div class="progress-time">
           <span class="progress-label"><b>仿真时间</b></span>
@@ -137,25 +137,25 @@
           </div>
         </div>
       </div>
-    </div>
+    </div> -->
     <div class="nav-right-group">
       <!-- 右侧按钮 -->
       <!-- <div class="nav-item-right" @click="showBusinessDesignDialog">
         业务设置
       </div> -->
-      <div class="nav-item-right" @click="showSimulationResultDialog">
+      <!-- <div class="nav-item-right" @click="showSimulationResultDialog">
         仿真结果展示
-      </div>
-      <div class="nav-item-right" :class="{ active: currentView === 'sat' }">
+      </div> -->
+      <!-- <div class="nav-item-right" :class="{ active: currentView === 'sat' }">
         <div id="satButton" @click="switchToSatView">
             三维场景展示
         </div>
-      </div>
-      <div class="nav-item-right" :class="{ active: currentView === 'topography' }">
+      </div> -->
+      <!-- <div class="nav-item-right" :class="{ active: currentView === 'topography' }">
         <div id="topographyButton" @click="switchToTopographyView">
             天地一体化展示
         </div>
-      </div>
+      </div> -->
     </div>
   </div>
   
@@ -245,7 +245,10 @@ const emit = defineEmits([
   'logout', 
   'login-success',
   'start-local-simulation',
-  'pause-local-simulation'
+  'pause-local-simulation',
+  'stop-simulation',
+  'increase-speed',
+  'decrease-speed'
 ]);
 
 const isSimulating = ref(false);
@@ -340,6 +343,95 @@ function handlePauseSimulation() {
   } else {
     // 未登录状态下暂停本地仿真
     emit('pause-local-simulation');
+  }
+}
+
+// 处理停止仿真 - 清除所有仿真相关缓存
+function handleStopSimulation() {
+  console.log('=== 停止仿真并清除缓存 ===');
+  
+  // 显示确认对话框
+  const confirmed = confirm('确定要停止仿真吗？这将清除所有仿真数据和缓存，需要重新开始。');
+  
+  if (!confirmed) {
+    return;
+  }
+  
+  try {
+    // 1. 清除本地组件状态
+    isSimulating.value = false;
+    selectedProcessId.value = null;
+    selectedDataFolder.value = null;
+    
+    // 2. 清除全局状态
+    if (globalSelectedProcessId && globalSelectedProcessId.value !== undefined) {
+      globalSelectedProcessId.value = null;
+    }
+    
+    // 3. 清除 localStorage 中的仿真相关数据
+    const keysToRemove = [
+      // 进程相关
+      'selectedProcessId',
+      'selectedProcessInfo',
+      // 数据文件夹相关
+      'selectedDataFolder',
+      'hasUserSelectedFolder',
+      // 仿真状态相关
+      'simulationProgress',
+      'simulationTime',
+      'currentTimeFrame',
+      // 缓存数据
+      'networkDataCache',
+      'serviceDataCache',
+      'entityCache',
+      'animationCache',
+      // 用户选择状态
+      'selectedEntityId',
+      'selectedSimulationData',
+      'chartPanelData',
+      'showSatellite',
+      'showStation', 
+      'showRoadm',
+      'showLinks'
+    ];
+    
+    keysToRemove.forEach(key => {
+      localStorage.removeItem(key);
+      console.log(`已清除 localStorage: ${key}`);
+    });
+    
+    // 4. 发送停止事件给父组件
+    emit('stop-simulation');
+    
+    // 5. 发送全局事件通知其他组件清除缓存
+    const stopEvent = new CustomEvent('simulation-stopped', {
+      detail: { 
+        message: '仿真已停止，所有缓存已清除',
+        timestamp: Date.now()
+      }
+    });
+    window.dispatchEvent(stopEvent);
+    
+    // 6. 清除任何正在运行的定时器或动画
+    const clearAnimationEvent = new CustomEvent('clear-all-animations', {
+      detail: { message: '清除所有动画和定时器' }
+    });
+    window.dispatchEvent(clearAnimationEvent);
+    
+    // 7. 重置仿真进度和时间（如果有的话）
+    if (simulationProgress && simulationProgress.value !== undefined) {
+      simulationProgress.value = 0;
+    }
+    if (simulationTime && simulationTime.value !== undefined) {
+      simulationTime.value = { start: '', end: '' };
+    }
+    
+    console.log('仿真已停止，所有缓存已清除');
+    alert('仿真已停止，所有数据已清除。请重新从Open菜单选择文件夹开始。');
+    
+  } catch (error) {
+    console.error('停止仿真时发生错误:', error);
+    alert('停止仿真时发生错误，请刷新页面重试。');
   }
 }
 
@@ -456,6 +548,15 @@ const handleDataSelected = (data) => {
 const handleBusinessSettings = (settings) => {
   emit('business-settings-confirmed', settings);
   console.log('业务设计设置:', settings);
+};
+
+// 播放速度控制函数
+const increaseSpeed = () => {
+  emit('increase-speed');
+};
+
+const decreaseSpeed = () => {
+  emit('decrease-speed');
 };
 
 // 添加当前视图状态

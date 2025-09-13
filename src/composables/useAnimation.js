@@ -4,7 +4,7 @@ import * as Cesium from "cesium";
 import { ANIMATION_CONFIG, SIMULATION_CONFIG } from '../constants/index.js';
 import { useDataLoader } from './useDataLoader.js';
 
-export function useAnimation(timelineControlRef = null) {
+export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () => 1) {
   const isPlaying = ref(false);
   const timeFrame = ref(1);
   const animationInProgress = ref(false);
@@ -388,8 +388,10 @@ export function useAnimation(timelineControlRef = null) {
     
     if (animationInProgress.value) {
       console.log('动画进行中，等待动画完成后继续播放');
-      // 缩短检查间隔，提高响应性
-      playbackTimer = setTimeout(() => playNextFrame(onFrameLoad), 20);
+      // 根据播放速度调整检查间隔，加速时更频繁检查
+      const currentSpeed = getPlaybackSpeed();
+      const checkInterval = Math.max(5, 20 / currentSpeed);
+      playbackTimer = setTimeout(() => playNextFrame(onFrameLoad), checkInterval);
       return;
     }
     
@@ -416,9 +418,11 @@ export function useAnimation(timelineControlRef = null) {
       onFrameLoad(nextTimeFrame);
     }
     
-    // 设置下一次播放的定时器 - 调整播放速度
-    const playbackInterval = currentFolder === 'new' ? 1000 : 3000; // new文件夹1秒一帧，old文件夹3秒一帧
-    console.log(`设置播放间隔: ${playbackInterval}ms (文件夹: ${currentFolder})`);
+    // 设置下一次播放的定时器 - 根据播放速度调整间隔
+    const baseInterval = currentFolder === 'new' ? 1000 : 3000; // new文件夹1秒一帧，old文件夹3秒一帧
+    const currentSpeed = getPlaybackSpeed(); // 获取当前播放速度
+    const playbackInterval = Math.max(100, baseInterval / currentSpeed); // 最小间隔100ms，确保加速效果明显
+    console.log(`设置播放间隔: ${playbackInterval}ms (基础间隔: ${baseInterval}ms, 播放速度: ${currentSpeed}x, 文件夹: ${currentFolder})`);
     
     playbackTimer = setTimeout(() => {
       if (isPlaying.value) { // 只有在仍在播放时才继续

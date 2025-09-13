@@ -87,5 +87,14 @@ export function processGraphData(rawData) {
     });
   }
 
-  return { nodes, edges };
+  return { 
+    nodes, 
+    edges,
+    // 保留原始的网络统计信息
+    network_statistics: rawData.network_statistics || null,
+    // 保留时间戳信息
+    timestamp: rawData.timestamp || null,
+    // 保留其他可能的元数据
+    sim_id: rawData.sim_id || null
+  };
 }

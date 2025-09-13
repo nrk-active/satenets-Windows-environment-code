@@ -12,8 +12,8 @@
             <span>平均延迟</span>
           </label>
           <label class="checkbox-item">
-            <input type="checkbox" v-model="selectedData.blockingRate">
-            <span>阻塞率</span>
+            <input type="checkbox" v-model="selectedData.bandwidthUtil">
+            <span>带宽利用率</span>
           </label>
           <label class="checkbox-item">
             <input type="checkbox" v-model="selectedData.hopCounts">
@@ -46,7 +46,7 @@ import { reactive } from 'vue';
 
 const selectedData = reactive({
   averageLatency: true,
-  blockingRate: true,
+  bandwidthUtil: true,
   hopCounts: true,
   spicesCounts: true,
   intraplaneCounts: true,

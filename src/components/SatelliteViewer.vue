@@ -9,6 +9,9 @@
       @login-success="handleLoginSuccess"
       @start-local-simulation="handleStartLocalSimulation"
       @pause-local-simulation="handlePauseLocalSimulation"
+      @stop-simulation="handleStopSimulation"
+      @increase-speed="handleIncreaseSpeed"
+      @decrease-speed="handleDecreaseSpeed"
       :is-local-simulation-running="isPlaying"
     />
     
@@ -38,6 +41,11 @@
       
       <!-- 中间Cesium容器 -->
       <div id="cesiumContainer">
+        <!-- 播放速度显示 -->
+        <div class="speed-display-panel">
+          <div class="current-speed">{{ playbackSpeed }}x</div>
+        </div>
+        
         <!-- 自定义选择指示器 -->
         <div 
           v-if="selectedEntity" 
@@ -146,8 +154,12 @@ function handleLogout() {
 }
 
 // 处理仿真数据选择
-const showDataPanel = ref(false);
-const selectedSimulationData = ref({});
+const showDataPanel = ref(false); // 默认不显示，只有用户选择后才显示
+const selectedSimulationData = ref({
+  averageLatency: true,     // 显示平均延迟图表
+  bandwidthUtil: true,      // 显示带宽利用率图表
+  hopCounts: true          // 显示平均跳数图表
+});
 const showObjectViewer = ref(true);
 const objectViewerRef = ref(null);
 const chartPanelRef = ref(null);
@@ -341,6 +353,10 @@ const {
 // 提供 Cesium viewer 给子组件
 provide('cesiumViewer', viewer);
 
+// 播放速度控制
+const playbackSpeed = ref(1); // 当前播放速度
+const speedOptions = [0.25, 0.5, 1, 2, 4]; // 可选速度，最大4倍
+
 const { 
   isPlaying,
   timeFrame,
@@ -353,7 +369,74 @@ const {
   getPreviousFrameData
 } = useAnimation({
   setTimelineAnimation
-});// 主要业务逻辑
+}, () => playbackSpeed.value); // 传入播放速度获取函数
+
+// 增加播放速度
+function increaseSpeed() {
+  const currentIndex = speedOptions.indexOf(playbackSpeed.value);
+  if (currentIndex < speedOptions.length - 1) {
+    const oldSpeed = playbackSpeed.value;
+    playbackSpeed.value = speedOptions[currentIndex + 1];
+    setPlaybackRate(playbackSpeed.value);
+    console.log(`播放速度从 ${oldSpeed}x 增加到: ${playbackSpeed.value}x`);
+    
+    // 如果当前正在播放，立即应用新速度到Cesium时钟
+    if (isPlaying.value && viewer()) {
+      viewer().clock.multiplier = playbackSpeed.value;
+      console.log(`已应用Cesium时钟倍率: ${playbackSpeed.value}x`);
+    }
+    
+    // 速度变化会在下一次播放循环时自动生效（通过getPlaybackSpeed函数）
+  } else {
+    console.log(`已达到最大播放速度: ${playbackSpeed.value}x`);
+  }
+}
+
+// 减少播放速度
+function decreaseSpeed() {
+  const currentIndex = speedOptions.indexOf(playbackSpeed.value);
+  if (currentIndex > 0) {
+    const oldSpeed = playbackSpeed.value;
+    playbackSpeed.value = speedOptions[currentIndex - 1];
+    setPlaybackRate(playbackSpeed.value);
+    console.log(`播放速度从 ${oldSpeed}x 减少到: ${playbackSpeed.value}x`);
+    
+    // 如果当前正在播放，立即应用新速度到Cesium时钟
+    if (isPlaying.value && viewer()) {
+      viewer().clock.multiplier = playbackSpeed.value;
+      console.log(`已应用Cesium时钟倍率: ${playbackSpeed.value}x`);
+    }
+    
+    // 速度变化会在下一次播放循环时自动生效（通过getPlaybackSpeed函数）
+  } else {
+    console.log(`已达到最小播放速度: ${playbackSpeed.value}x`);
+  }
+}
+
+// 重置播放速度
+function resetSpeed() {
+  playbackSpeed.value = 1;
+  setPlaybackRate(1);
+  console.log('播放速度重置到: 1x');
+  
+  // 如果当前正在播放，立即应用新速度到Cesium时钟
+  if (isPlaying.value && viewer()) {
+    viewer().clock.multiplier = 1;
+  }
+  
+  // 速度变化会在下一次播放循环时自动生效（通过getPlaybackSpeed函数）
+}
+
+// 处理navigation-bar的播放速度事件
+function handleIncreaseSpeed() {
+  increaseSpeed();
+}
+
+function handleDecreaseSpeed() {
+  decreaseSpeed();
+}
+
+// 主要业务逻辑
 let currentGraphData = null;
 
 // 监听显示状态变化
@@ -392,6 +475,69 @@ function handlePauseLocalSimulation() {
   if (!isLoggedIn.value) {
     console.log('暂停本地仿真播放');
     togglePlayback(loadTimeFrame, viewer());
+  }
+}
+
+// 处理停止仿真 - 清除所有缓存和状态
+function handleStopSimulation() {
+  console.log('=== SatelliteViewer: 处理停止仿真 ===');
+  
+  try {
+    // 1. 停止当前正在进行的动画和播放
+    if (!isLoggedIn.value) {
+      // 停止本地仿真播放
+      console.log('停止本地仿真播放');
+      if (isPlaying.value) {
+        togglePlayback(loadTimeFrame, viewer());
+      }
+    }
+    
+    // 2. 重置播放状态
+    isPlaying.value = false;
+    timeFrame.value = 1;
+    playbackSpeed.value = 1;
+    
+    // 3. 清除所有缓存
+    console.log('清除网络数据缓存...');
+    clearCache();
+    console.log('清除服务数据缓存...');  
+    clearServiceCache();
+    
+    // 4. 重置所有数据状态
+    currentGraphData.value = null;
+    serviceData.value = null;
+    selectedEntity.value = null;
+    selectedService.value = null;
+    selectedEntityRawData.value = null;
+    
+    // 5. 重置面板状态
+    showRightPanel.value = false;
+    showDataPanel.value = false;
+    selectedSimulationData.value = {};
+    
+    // 6. 清除Cesium场景中的所有实体
+    const cesiumViewer = viewer();
+    if (cesiumViewer) {
+      console.log('清除Cesium场景实体...');
+      cesiumViewer.entities.removeAll();
+      cesiumViewer.scene.primitives.removeAll();
+      
+      // 重置相机位置到默认视角
+      cesiumViewer.camera.setView({
+        destination: Cesium.Cartesian3.fromDegrees(0.0, 0.0, 20000000.0)
+      });
+    }
+    
+    // 7. 重置实体显示状态
+    showSatellite.value = true;
+    showStation.value = true; 
+    showRoadm.value = true;
+    showLinks.value = true;
+    
+    console.log('SatelliteViewer: 停止仿真完成，所有状态已重置');
+    
+  } catch (error) {
+    console.error('SatelliteViewer: 停止仿真时发生错误:', error);
   }
 }
 
@@ -1219,6 +1365,15 @@ onMounted(async () => {
       console.log('未检测到数据源，ObjectViewer面板保持隐藏');
     }
     
+    // 添加全局停止事件监听器
+    window.addEventListener('simulation-stopped', () => {
+      handleStopSimulation();
+    });
+    
+    window.addEventListener('clear-all-animations', () => {
+      handleStopSimulation();
+    });
+    
   } catch (err) {
     console.error("初始化失败:", err);
   }
@@ -1242,6 +1397,10 @@ onUnmounted(() => {
     window.removeEventListener('data-folder-changed', window.currentHandleDataFolderChange);
     delete window.currentHandleDataFolderChange;
   }
+  
+  // 清理停止仿真事件监听器
+  window.removeEventListener('simulation-stopped', handleStopSimulation);
+  window.removeEventListener('clear-all-animations', handleStopSimulation);
   
   // 清理时间轴检查定时器
   if (window.timelineCheckInterval) {
@@ -1305,6 +1464,41 @@ defineExpose({
   min-width: 0; /* 防止flex项目收缩问题 */
   height: 100%;
   overflow: hidden;
+}
+
+/* 播放速度控制面板 */
+.speed-display-panel {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 8px 12px;
+  backdrop-filter: blur(5px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.current-speed {
+  color: #00ff88;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  font-weight: bold;
+  text-align: center;
+  background: rgba(0, 255, 136, 0.1);
+  padding: 4px 8px;
+  border-radius: 2px;
+  border: 1px solid rgba(0, 255, 136, 0.3);
+}
+
+.speed-hint {
+  color: #888;
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+  text-align: center;
+  margin-top: 2px;
+  opacity: 0.8;
 }
 
 /* 自定义选择指示器样式 */
