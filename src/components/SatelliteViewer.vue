@@ -370,7 +370,9 @@ const {
   togglePlayback,
   cleanup: cleanupAnimation,
   setPreviousFrameData,
-  getPreviousFrameData
+  getPreviousFrameData,
+  clearEntityPositionCache,
+  setEntityPositionCache
 } = useAnimation({
   setTimelineAnimation
 }, () => playbackSpeed.value); // 传入播放速度获取函数
@@ -828,6 +830,9 @@ function processNetworkData(networkData) {
     createEntities(networkData);
     console.log('实体创建完成，当前实体数量:', viewer().entities.values.length);
     
+    // 关键修复：为新创建的卫星实体建立与动画系统的连接
+    rebuildEntityAnimationBindings(networkData);
+    
     addRoadmLinks(networkData);
     console.log('链路创建完成，最终实体数量:', viewer().entities.values.length);
     
@@ -900,6 +905,56 @@ function processNetworkData(networkData) {
   lastProcessedFrame = currentFrame;
   
   // 预加载下一帧数据的逻辑可以根据需要添加
+}
+
+// 重新建立实体与动画系统的绑定连接
+function rebuildEntityAnimationBindings(networkData) {
+  console.log('开始重新建立实体与动画系统的绑定连接');
+  
+  if (!viewer() || !viewer().entities) {
+    console.warn('Cesium viewer未准备好，跳过绑定重建');
+    return;
+  }
+  
+  let reboundCount = 0;
+  const satellites = networkData.nodes.filter(node => node.type === 'satellite');
+  
+  satellites.forEach(satelliteNode => {
+    const entity = viewer().entities.getById(satelliteNode.id);
+    if (entity && entity.position) {
+      // 获取当前位置（从新创建实体的静态位置）
+      let currentPosition;
+      if (typeof entity.position.getValue === 'function') {
+        currentPosition = entity.position.getValue(Cesium.JulianDate.now());
+      } else if (entity.position instanceof Cesium.Cartesian3) {
+        currentPosition = entity.position;
+      }
+      
+      if (currentPosition) {
+        // 重新为动画系统建立缓存和 CallbackProperty
+        const position = new Cesium.Cartesian3(
+          currentPosition.x,
+          currentPosition.y, 
+          currentPosition.z
+        );
+        
+        const callbackProperty = new Cesium.CallbackProperty(function(time, result) {
+          return Cesium.Cartesian3.clone(position, result);
+        }, false);
+        
+        // 将新的位置缓存到动画系统中，需要先获取动画系统的缓存设置函数
+        setEntityPositionCache(satelliteNode.id, { position, callbackProperty });
+        
+        // 替换实体的位置属性为动画系统控制的 CallbackProperty
+        entity.position = callbackProperty;
+        
+        reboundCount++;
+        console.log(`✅ 重新绑定卫星 ${satelliteNode.id} 到动画系统`);
+      }
+    }
+  });
+  
+  console.log(`实体绑定重建完成，共重新绑定 ${reboundCount} 个卫星实体`);
 }
 
 function handleSatelliteClick(entityId) {
@@ -1320,6 +1375,10 @@ onMounted(async () => {
       // 重置前一帧数据，确保新文件夹的第一帧被当作初始帧处理
       setPreviousFrameData(null);
       console.log('已重置前一帧数据，新文件夹的第一帧将创建新实体');
+      
+      // 清理实体位置缓存，确保新文件夹的实体能够正确绑定到动画系统
+      clearEntityPositionCache();
+      console.log('已清理实体位置缓存，新实体将重新建立动画绑定');
       
       // 更新useDataLoader中的文件夹设置
       setDataFolder(folderName);

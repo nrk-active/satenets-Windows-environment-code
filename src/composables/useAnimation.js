@@ -575,6 +575,14 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
     togglePlayback,
     cleanup,
     setPreviousFrameData: (data) => { previousFrameData = data; },
-    getPreviousFrameData: () => previousFrameData
+    getPreviousFrameData: () => previousFrameData,
+    clearEntityPositionCache: () => {
+      console.log('清除动画系统位置缓存');
+      entityPositionCache.clear();
+    },
+    setEntityPositionCache: (entityId, cacheData) => {
+      entityPositionCache.set(entityId, cacheData);
+      console.log(`设置实体 ${entityId} 的位置缓存`);
+    }
   };
 }
