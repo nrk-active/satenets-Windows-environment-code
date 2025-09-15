@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import * as Cesium from 'cesium';
 import { LRUCache } from '../utils/lruCache.js';
 import { CACHE_CONFIG } from '../constants/index.js';
+import { parseFolderName } from '../utils/folderParser.js';
 
 // 模块初始化标识
 const moduleInitTime = Date.now();
@@ -67,18 +68,9 @@ export function useServiceData() {
         };
       }
       
-      // 动态检测文件夹的时间间隔
-      let timeInterval = 60; // 默认60秒间隔
-      
-      // 尝试检测第一个可用的时间间隔
-      const possibleIntervals = [10, 60]; // 常见的时间间隔
-      for (const interval of possibleIntervals) {
-        const testResponse = await fetch(`./data/${currentFolder}/service_state_${interval}.00.json`);
-        if (testResponse.ok) {
-          timeInterval = interval;
-          break;
-        }
-      }
+      // 动态解析文件夹的时间间隔
+      const config = parseFolderName(currentFolder);
+      const timeInterval = config.interval;
       
       const timeSeconds = frame * timeInterval;
       const filename = `./data/${currentFolder}/service_state_${timeSeconds}.00.json`;

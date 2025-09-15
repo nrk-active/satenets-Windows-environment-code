@@ -112,7 +112,7 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, watch, inject, ref, provide } from 'vue';
+import { onMounted, onUnmounted, watch, inject, ref, provide, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import NavigationBar from './navigation-bar.vue';
 import ObjectViewer from './ObjectViewer.vue';
@@ -163,6 +163,9 @@ const selectedSimulationData = ref({
 const showObjectViewer = ref(true);
 const objectViewerRef = ref(null);
 const chartPanelRef = ref(null);
+
+// 帧跳跃距离检测变量
+let lastProcessedFrame = null; // 跟踪上一次处理的帧号，用于检测大跨度跳跃
 
 // 侧边栏状态管理
 const showLeftPanel = ref(true);
@@ -317,7 +320,8 @@ const {
   setPlaybackRate,
   setTimelineAnimation,
   resetClockRange,
-  cleanup: cleanupCesium
+  cleanup: cleanupCesium,
+  parseFolderName
 } = useCesium();
 
 const { 
@@ -698,22 +702,30 @@ async function loadTimeFrame(frame) {
       // 根据文件夹类型确定时间间隔和文件命名规则
       let timeInterval, fileTimeValue;
       
-      if (currentFolder === 'new') {
-        timeInterval = 10; // new文件夹：每10秒一帧
-        // 计算实际的文件时间值：(帧数-1) * 间隔 + 间隔
-        fileTimeValue = (frame - 1) * 10 + 10;
-      } else {
-        timeInterval = 60; // old文件夹：每60秒一帧
-        // 计算实际的文件时间值：(帧数-1) * 间隔 + 间隔
-        fileTimeValue = (frame - 1) * 60 + 60;
-      }
+      // 使用动态解析
+      const config = parseFolderName(currentFolder);
+      timeInterval = config.interval;
+      // 计算实际的文件时间值：帧数 * 间隔
+      fileTimeValue = frame * timeInterval;
       
       // 直接构建文件名，不依赖时间计算
       const filename = `./data/${currentFolder}/network_state_${fileTimeValue}.00.json`;
       console.log(`强制加载文件: ${filename} (文件夹: ${currentFolder}, 帧索引: ${frame}, 文件时间值: ${fileTimeValue}秒)`);
       
       try {
-        const networkData = await loadGraphData(filename);
+        let networkData = null;
+        
+        // 首先检查是否有预加载的数据
+        if (window.preloadedFrame === frame && window.preloadedData) {
+          console.log(`使用预加载的帧 ${frame} 数据`);
+          networkData = window.preloadedData;
+          // 清除预加载缓存
+          window.preloadedData = null;
+          window.preloadedFrame = null;
+        } else {
+          console.log(`实时加载帧 ${frame} 数据`);
+          networkData = await loadGraphData(filename);
+        }
         
         if (networkData) {
           console.log('本地网络数据加载成功:', networkData);
@@ -763,7 +775,8 @@ async function loadTimeFrame(frame) {
     }
     
     // 使用API加载数据，直接基于帧数计算时间戳
-    const timeStamp = frame * 60; // API使用60秒间隔
+    const config = parseFolderName(getCurrentDataFolder());
+    const timeStamp = frame * config.interval; // 使用动态间隔
     console.log(`使用API强制加载数据，进程ID: ${currentProcessId}, 帧: ${frame}, 时间戳: ${timeStamp}`);
     
     const [networkData, serviceDataResult] = await Promise.all([
@@ -821,6 +834,10 @@ function processNetworkData(networkData) {
     setPreviousFrameData(networkData);
     updateVisibility();
     
+    // 初始化帧跟踪
+    lastProcessedFrame = timeFrame.value;
+    console.log(`初始化帧跟踪: ${lastProcessedFrame}`);
+    
     // 更新ObjectViewer的数据
     if (objectViewerRef.value) {
       objectViewerRef.value.updateData(networkData);
@@ -828,17 +845,59 @@ function processNetworkData(networkData) {
     return;
   }
   
-  console.log('这不是第一帧，执行动画过渡');
-  animateTransition(viewer(), getPreviousFrameData(), networkData, (satelliteIds) => {
-    // 动画完成回调
-    console.log('动画完成，更新的卫星:', satelliteIds);
-    // 更新ObjectViewer的数据
-    if (objectViewerRef.value) {
-      objectViewerRef.value.updateData(networkData);
-    }
-    // 动画完成后再次更新网络数据以确保路径重绘
-    updateNetworkDataAndRedraw(networkData, viewer());
-  });
+  console.log('这不是第一帧，检查帧跳跃距离');
+  
+  // 检查帧跳跃距离，决定是否使用动画
+  const currentFrame = timeFrame.value;
+  const previousFrame = lastProcessedFrame || 1;
+  const frameJumpDistance = Math.abs(currentFrame - previousFrame);
+  
+  console.log(`帧跳跃检测: 上一帧=${previousFrame}, 当前帧=${currentFrame}, 跳跃距离=${frameJumpDistance}`);
+  
+  // 定义跳跃阈值：如果跨越超过10个时间片，就不播放动画
+  const FRAME_JUMP_THRESHOLD = 10;
+  const shouldUseInstantMode = frameJumpDistance > FRAME_JUMP_THRESHOLD;
+  
+  if (shouldUseInstantMode) {
+    console.log(`🚀 帧跳跃距离${frameJumpDistance}超过阈值${FRAME_JUMP_THRESHOLD}，启用瞬间模式避免穿越动画`);
+    
+    // 临时启用瞬间模式
+    const wasInstantMode = instantMode.value;
+    instantMode.value = true;
+    
+    // 执行瞬间切换动画
+    animateTransition(viewer(), getPreviousFrameData(), networkData, (satelliteIds) => {
+      // 动画完成回调
+      console.log('瞬间切换完成，更新的卫星:', satelliteIds);
+      
+      // 恢复原来的模式
+      instantMode.value = wasInstantMode;
+      
+      // 更新ObjectViewer的数据
+      if (objectViewerRef.value) {
+        objectViewerRef.value.updateData(networkData);
+      }
+      // 动画完成后再次更新网络数据以确保路径重绘
+      updateNetworkDataAndRedraw(networkData, viewer());
+    });
+  } else {
+    console.log(`帧跳跃距离${frameJumpDistance}在正常范围内，使用常规动画过渡`);
+    
+    // 执行常规动画过渡
+    animateTransition(viewer(), getPreviousFrameData(), networkData, (satelliteIds) => {
+      // 动画完成回调
+      console.log('动画完成，更新的卫星:', satelliteIds);
+      // 更新ObjectViewer的数据
+      if (objectViewerRef.value) {
+        objectViewerRef.value.updateData(networkData);
+      }
+      // 动画完成后再次更新网络数据以确保路径重绘
+      updateNetworkDataAndRedraw(networkData, viewer());
+    });
+  }
+  
+  // 更新上一次处理的帧号
+  lastProcessedFrame = currentFrame;
   
   // 预加载下一帧数据的逻辑可以根据需要添加
 }
@@ -920,12 +979,13 @@ function handleTimeJump(frame) {
     
     // 验证帧数范围
     const currentFolder = getCurrentDataFolder();
-    const maxFrames = currentFolder === 'new' ? 360 : 6;
+    const config = parseFolderName(currentFolder);
+    const maxFrames = config.totalFrames; // 完全依赖配置解析
     
     // 限制帧数在有效范围内
     const safeFrame = Math.min(Math.max(1, Math.round(frameNumber)), maxFrames);
     if (safeFrame !== frameNumber) {
-      console.warn(`帧数已调整: ${frameNumber} → ${safeFrame}`);
+      console.warn(`帧数已调整: ${frameNumber} → ${safeFrame} (文件夹: ${currentFolder}, 最大帧数: ${maxFrames})`);
     }
     
     // 强制加载指定帧
@@ -1118,6 +1178,12 @@ onMounted(async () => {
           viewer.forceSetFrame(targetFrame);
         }
         
+        // 手动更新自定义时间轴显示
+        if (window.simulationTimelineControl) {
+          window.simulationTimelineControl.updateFrame(targetFrame, targetFrame);
+          console.log(`手动更新时间轴显示到帧 ${targetFrame}`);
+        }
+        
         // 跳转时使用瞬间模式，避免动画插值
         const wasInstantMode = instantMode.value;
         instantMode.value = true;
@@ -1131,6 +1197,16 @@ onMounted(async () => {
           // 如果是在播放状态下跳转，从新位置继续播放
           if (isPlaying.value) {
             console.log(`从帧 ${targetFrame} 继续播放`);
+            // 确保Cesium时钟立即开始动画
+            nextTick(() => {
+              if (viewer && viewer.clock) {
+                viewer.clock.shouldAnimate = true;
+                // 确保时间轴控制知道仿真正在运行
+                if (window.simulationTimelineControl) {
+                  window.simulationTimelineControl.setSimulationRunning(true);
+                }
+              }
+            });
           }
         });
       }
@@ -1167,11 +1243,10 @@ onMounted(async () => {
       // 根据当前数据文件夹设置时间轴总帧数
       const currentFolder = getCurrentDataFolder();
       if (window.simulationTimelineControl) {
-        if (currentFolder === 'new') {
-          window.simulationTimelineControl.setTotalFrames(360); // new文件夹有360帧
-        } else {
-          window.simulationTimelineControl.setTotalFrames(6); // old文件夹有6帧
-        }
+        const config = parseFolderName(currentFolder);
+        const totalFrames = config.totalFrames; // 完全依赖配置解析
+        window.simulationTimelineControl.setTotalFrames(totalFrames);
+        console.log(`时间轴设置完成：文件夹 ${currentFolder}，总帧数 ${totalFrames}`);
         
         // 初始化时间轴到第1帧
         window.simulationTimelineControl.updateFrame(timeFrame.value, timeFrame.value);
@@ -1180,6 +1255,45 @@ onMounted(async () => {
     
     // 启用瞬间模式以支持流畅的手动控制
     instantMode.value = false; // 改为false以显示动画效果
+    
+    // 设置全局预加载函数，供动画系统调用
+    window.preloadNextFrame = async (nextFrame) => {
+      try {
+        console.log(`开始预加载帧 ${nextFrame}`);
+        
+        // 检查是否已经预加载过这一帧
+        if (window.preloadedFrame === nextFrame) {
+          console.log(`帧 ${nextFrame} 已经预加载过，跳过`);
+          return;
+        }
+        
+        // 异步预加载数据，不阻塞当前动画
+        const currentFolder = getCurrentDataFolder();
+        if (!currentFolder) {
+          console.warn('未选择数据文件夹，无法预加载');
+          return;
+        }
+        
+        // 计算预加载文件名
+        const config = parseFolderName(currentFolder);
+        const fileTimeValue = nextFrame * config.interval;
+        const filename = `./data/${currentFolder}/network_state_${fileTimeValue}.00.json`;
+        
+        // 异步加载数据到缓存
+        const networkData = await loadGraphData(filename);
+        if (networkData) {
+          window.preloadedData = networkData;
+          window.preloadedFrame = nextFrame;
+          console.log(`帧 ${nextFrame} 预加载完成`);
+        } else {
+          console.warn(`帧 ${nextFrame} 预加载失败`);
+        }
+      } catch (error) {
+        console.error(`预加载帧 ${nextFrame} 出错:`, error);
+      }
+    };
+    
+    console.log('预加载系统已初始化');
     console.log('已启用动画模式，支持流畅的时间轴拖拽');
     
     // 强制显示时间轴控件（注释掉，因为现在要隐藏原生时间轴）
@@ -1199,6 +1313,10 @@ onMounted(async () => {
       const { folderName, folderInfo } = event.detail;
       console.log(`数据文件夹已更改为: ${folderName}`, folderInfo);
       
+      // 解析文件夹配置
+      const config = parseFolderName(folderName);
+      console.log('解析的文件夹配置:', config);
+      
       // 重置前一帧数据，确保新文件夹的第一帧被当作初始帧处理
       setPreviousFrameData(null);
       console.log('已重置前一帧数据，新文件夹的第一帧将创建新实体');
@@ -1213,14 +1331,9 @@ onMounted(async () => {
       if (window.simulationTimelineControl) {
         window.simulationTimelineControl.reset();
         
-        // 根据新文件夹设置总帧数
-        if (folderName === 'new') {
-          window.simulationTimelineControl.setTotalFrames(360); // new文件夹有360帧
-        } else {
-          window.simulationTimelineControl.setTotalFrames(6); // old文件夹有6帧
-        }
-        
-        console.log(`时间轴已重置并配置为${folderName}文件夹`);
+        // 根据解析的配置设置总帧数
+        window.simulationTimelineControl.setTotalFrames(config.totalFrames);
+        console.log(`时间轴已重置并配置为${folderName}文件夹，总帧数: ${config.totalFrames}，时间间隔: ${config.interval}秒`);
       }
       
       // 如果当前是未登录状态，立即加载新文件夹的数据
@@ -1300,6 +1413,13 @@ onMounted(async () => {
     viewer().scene.postRender.addEventListener(updateSelectionIndicator);
     
     console.log('Cesium初始化完成，时间轴控制已启用');
+    
+    // 检查是否有已保存的文件夹设置，如果有则立即设置时钟范围
+    const savedFolder = getCurrentDataFolder();
+    if (savedFolder && savedFolder !== 'new') { // 'new'是默认值，说明没有真正选择过
+      console.log(`检测到已保存的文件夹设置: ${savedFolder}，立即配置时钟范围`);
+      resetClockRange(savedFolder);
+    }
     
     // 不再自动加载默认数据，等待用户选择文件夹
     if (!isLoggedIn.value) {
@@ -1385,6 +1505,18 @@ onUnmounted(() => {
   
   // 清理时间轴帧切换事件监听器
   window.removeEventListener('timeline-frame-change', handleTimelineFrameChange);
+  
+  // 清理预加载系统
+  if (window.preloadNextFrame) {
+    delete window.preloadNextFrame;
+  }
+  if (window.preloadedData) {
+    delete window.preloadedData;
+  }
+  if (window.preloadedFrame) {
+    delete window.preloadedFrame;
+  }
+  console.log('预加载系统已清理');
   
   // 清理窗口调整大小监听器
   if (window.currentHandleResize) {

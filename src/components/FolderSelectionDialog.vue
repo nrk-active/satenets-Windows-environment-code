@@ -31,10 +31,6 @@
               <div class="folder-icon">📁</div>
               <div class="folder-details">
                 <div class="folder-name">{{ folder.name }}</div>
-                <div class="folder-stats">
-                  <span class="file-count">网络文件: {{ folder.networkFiles }}个</span>
-                  <span class="service-count">业务文件: {{ folder.serviceFiles }}个</span>
-                </div>
                 <div class="folder-description">{{ folder.description }}</div>
               </div>
             </div>
@@ -75,7 +71,8 @@ async function scanDataFolders() {
     
     // 预定义的可能文件夹列表 - 包含所有已知的文件夹
     const possibleFolders = [
-      'old', 'new','new_10s', 'old_60s', 'new_60s', // 添加你的新文件夹
+      'old_60s_360s', 'new_10s_3600s', 'new_60s_3600s', // 新格式文件夹
+      'old', 'new', // 兼容旧格式文件夹
     ];
     const validFolders = [];
     
@@ -100,15 +97,11 @@ async function scanDataFolders() {
       // 至少添加一些常见的文件夹选项
       validFolders.push({
         name: 'new',
-        description: '新数据集 - 包含最新的仿真数据',
-        networkFiles: '未知',
-        serviceFiles: '未知'
+        description: '新数据集 - 包含最新的仿真数据'
       });
       validFolders.push({
         name: 'old',
-        description: '旧数据集 - 包含历史仿真数据',
-        networkFiles: '未知',
-        serviceFiles: '未知'
+        description: '旧数据集 - 包含历史仿真数据'
       });
     }
     
@@ -124,66 +117,30 @@ async function scanDataFolders() {
 
 // 分析文件夹内容
 async function analyzeFolderContents(folderName) {
-  // 尝试检测文件夹中的文件数量
-  let networkFiles = 0;
-  let serviceFiles = 0;
-  
-  // 根据实际数据结构，检测更多的时间戳文件
-  // 从10秒开始，每10秒一个文件，检测到1500秒（约150个文件）
-  const maxChecks = 50; // 限制检查次数，避免太多请求
-  const timestamps = [];
-  
-  // 生成时间戳列表：10, 20, 30, ..., 500
-  for (let i = 1; i <= maxChecks; i++) {
-    timestamps.push(i * 10);
-  }
-  
-  // 并发检测前50个文件，提高检测效率
-  const checkPromises = timestamps.map(async (timestamp) => {
-    try {
-      const [networkResponse, serviceResponse] = await Promise.all([
-        fetch(`./data/${folderName}/network_state_${timestamp}.00.json`),
-        fetch(`./data/${folderName}/service_state_${timestamp}.00.json`)
-      ]);
-      
-      return {
-        networkExists: networkResponse.ok,
-        serviceExists: serviceResponse.ok
-      };
-    } catch (error) {
-      return {
-        networkExists: false,
-        serviceExists: false
-      };
-    }
-  });
-  
-  // 等待所有检测完成
-  const results = await Promise.all(checkPromises);
-  
-  // 统计存在的文件数量
-  results.forEach(result => {
-    if (result.networkExists) networkFiles++;
-    if (result.serviceExists) serviceFiles++;
-  });
-  
-  // 如果检测到了maxChecks个文件，说明可能还有更多
-  const networkSuffix = networkFiles === maxChecks ? `${networkFiles}+` : networkFiles.toString();
-  const serviceSuffix = serviceFiles === maxChecks ? `${serviceFiles}+` : serviceFiles.toString();
-  
+  // 直接返回文件夹信息，不进行文件统计
   return {
     name: folderName,
-    description: getFolderDescription(folderName),
-    networkFiles: networkFiles > 0 ? networkSuffix : '未知',
-    serviceFiles: serviceFiles > 0 ? serviceSuffix : '未知'
+    description: getFolderDescription(folderName)
   };
 }
 
 // 获取文件夹描述
 function getFolderDescription(folderName) {
+  // 尝试解析新格式：{类型}_{切片间隔}_{总时长}
+  const newFormatMatch = folderName.match(/^(\w+)_(\d+)s_(\d+)s$/);
+  if (newFormatMatch) {
+    const [, type, intervalStr, durationStr] = newFormatMatch;
+    const interval = parseInt(intervalStr, 10);
+    const totalDuration = parseInt(durationStr, 10);
+    const totalFrames = Math.ceil(totalDuration / interval);
+    
+    return `${type}数据集 - 切片间隔: ${interval}秒, 总时长: ${totalDuration}秒 (${totalFrames}帧)`;
+  }
+  
+  // 兼容旧格式描述
   const descriptions = {
-    'new': '新数据集 - 包含最新的仿真数据文件',
-    'old': '旧数据集 - 包含历史仿真数据文件',
+    'new': '新数据集 - 包含最新的仿真数据文件 (360帧, 10秒间隔)',
+    'old': '旧数据集 - 包含历史仿真数据文件 (6帧, 60秒间隔)',
     'test': '测试数据集 - 用于测试的仿真数据',
     'backup': '备份数据集 - 备份的仿真数据',
     'simulation1': '仿真场景1 - 特定场景的仿真数据',
@@ -347,21 +304,6 @@ onMounted(() => {
   font-weight: bold;
   font-size: 16px;
   color: #4CAF50;
-}
-
-.folder-stats {
-  display: flex;
-  gap: 20px;
-  font-size: 12px;
-  color: #ccc;
-}
-
-.file-count, .service-count {
-  background-color: rgba(76, 175, 80, 0.1);
-  color: #4CAF50;
-  padding: 2px 6px;
-  border-radius: 4px;
-  border: 1px solid rgba(76, 175, 80, 0.3);
 }
 
 .folder-description {

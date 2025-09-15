@@ -4,13 +4,17 @@ import * as Cesium from "cesium";
 import { CESIUM_CONFIG } from '../constants/index.js';
 import { createSatelliteEntity, createStationEntity, createRoadmEntity, getEntityPosition } from '../utils/cesiumHelpers.js';
 import { useDataLoader } from './useDataLoader.js';
+import { parseFolderName } from '../utils/folderParser.js';
 
 export function useCesium() {
   let viewer = null;
   let handler = null;
   
-  // 从useDataLoader获取getCurrentDataFolder函数
+  // 获取数据加载器的功能
   const { getCurrentDataFolder } = useDataLoader();
+  
+  // 当前时间轴配置（避免重复解析）
+  let currentTimelineConfig = { isDefault: true, interval: 60, totalDuration: 360 };
   
   // 显示状态管理
   const showSatellite = ref(true);
@@ -131,7 +135,8 @@ export function useCesium() {
     
     // 配置时钟以支持仿真同步 - 从0:00:00开始，但允许全时间轴拖拽
     viewer.clock.startTime = adjustedTime;
-    viewer.clock.stopTime = Cesium.JulianDate.addSeconds(adjustedTime, 3600, new Cesium.JulianDate()); 
+    // 初始设置一个默认的stopTime，会在resetClockRange中被正确设置
+    viewer.clock.stopTime = Cesium.JulianDate.addSeconds(adjustedTime, 360, new Cesium.JulianDate()); 
     // 设置为起始时间，显示0:00:00
     viewer.clock.currentTime = adjustedTime;
     viewer.clock.clockRange = Cesium.ClockRange.UNBOUNDED; // 不限制范围，允许任意时间跳转
@@ -258,7 +263,19 @@ export function useCesium() {
           margin-right: 8px;
           font-family: monospace;
         `;
-        currentTimeDisplay.textContent = '00:01:00';
+        
+        // 初始化当前时间显示，根据数据文件夹状态设置
+        const currentFolder = getCurrentDataFolder();
+        const currentConfig = parseFolderName(currentFolder);
+        
+        // 更新全局时间轴配置
+        currentTimelineConfig = currentConfig;
+        
+        if (currentConfig.isDefault) {
+          currentTimeDisplay.textContent = '--:--:--';
+        } else {
+          currentTimeDisplay.textContent = '00:00:00';
+        }
         
         // 创建时间轴轨道容器
         const trackContainer = document.createElement('div');
@@ -345,6 +362,7 @@ export function useCesium() {
         
         // 创建总时间显示 - 根据数据文件夹动态计算
         const totalTimeDisplay = document.createElement('div');
+        totalTimeDisplay.id = 'custom-total-time-display'; // 添加ID便于后续更新
         totalTimeDisplay.style.cssText = `
           color: #ccc;
           font-size: 11px;
@@ -354,19 +372,18 @@ export function useCesium() {
           font-family: monospace;
         `;
         
-        // 根据数据文件夹计算总时间
-        const currentFolder = getCurrentDataFolder();
-        let totalSeconds;
-        if (currentFolder === 'new') {
-          totalSeconds = 360 * 10; // 360帧 × 10秒/帧 = 3600秒 = 1小时
+        // 根据数据文件夹计算总时间 - 使用全局配置  
+        if (currentTimelineConfig.isDefault) {
+          // 默认状态显示虚线
+          totalTimeDisplay.textContent = '--:--:--';
         } else {
-          totalSeconds = 6 * 60; // 6帧 × 60秒/帧 = 360秒 = 6分钟
+          const totalSeconds = currentTimelineConfig.totalDuration; // 直接使用解析得到的总时长
+          const totalMinutes = Math.floor(totalSeconds / 60);
+          const remainingSeconds = totalSeconds % 60;
+          const totalHours = Math.floor(totalMinutes / 60);
+          const displayMinutes = totalMinutes % 60;
+          totalTimeDisplay.textContent = `${totalHours.toString().padStart(2, '0')}:${displayMinutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
         }
-        const totalMinutes = Math.floor(totalSeconds / 60);
-        const remainingSeconds = totalSeconds % 60;
-        const totalHours = Math.floor(totalMinutes / 60);
-        const displayMinutes = totalMinutes % 60;
-        totalTimeDisplay.textContent = `${totalHours.toString().padStart(2, '0')}:${displayMinutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
         
         // 创建刻度标记容器
         const tickContainer = document.createElement('div');
@@ -519,23 +536,109 @@ export function useCesium() {
           debouncedAdjustPosition();
         });
         
-        // 简单的一次性调整，不需要持续监听DOM变化
-        console.log('时间轴位置调整系统已初始化');
-        
-        // 保存清理函数
-        window.cleanupTimelinePosition = function() {
-          window.removeEventListener('resize', debouncedAdjustPosition);
-          window.removeEventListener('panel-state-changed', debouncedAdjustPosition);
-          if (adjustTimeout) {
-            clearTimeout(adjustTimeout);
-          }
+        // 添加DOM变化监听器，监听底部面板的变化
+        const observeBottomPanels = () => {
+          const observer = new MutationObserver((mutations) => {
+            let shouldAdjust = false;
+            
+            mutations.forEach((mutation) => {
+              // 检查是否有面板相关的DOM变化
+              if (mutation.type === 'attributes' && 
+                  (mutation.attributeName === 'style' || mutation.attributeName === 'class')) {
+                const target = mutation.target;
+                if (target.classList.contains('service-panel') || 
+                    target.classList.contains('chart-panel') ||
+                    target.classList.contains('data-panel') ||
+                    target.classList.contains('collapsed-bottom-panel')) {
+                  shouldAdjust = true;
+                  console.log(`检测到面板DOM变化: ${target.className}`);
+                }
+              }
+              
+              // 检查是否有新的面板被添加或移除
+              if (mutation.type === 'childList') {
+                mutation.addedNodes.forEach((node) => {
+                  if (node.nodeType === 1 && 
+                      (node.classList?.contains('service-panel') ||
+                       node.classList?.contains('chart-panel') ||
+                       node.classList?.contains('data-panel'))) {
+                    shouldAdjust = true;
+                    console.log(`检测到新面板添加: ${node.className}`);
+                  }
+                });
+              }
+            });
+            
+            if (shouldAdjust) {
+              debouncedAdjustPosition();
+            }
+          });
+          
+          // 观察整个文档的变化
+          observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['style', 'class']
+          });
+          
+          // 保存observer到清理函数中
+          let timelineCleanupFunctions = [];
+          
+          timelineCleanupFunctions.push(() => observer.disconnect());
+          
+          console.log('已启动底部面板DOM变化监听器');
+          
+          // 定期检查位置（作为备用机制）
+          const intervalCheck = setInterval(() => {
+            if (!isAdjusting) {
+              debouncedAdjustPosition();
+            }
+          }, 1000); // 每秒检查一次
+          
+          timelineCleanupFunctions.push(() => clearInterval(intervalCheck));
+          
+          // 统一保存清理函数
+          window.cleanupTimelinePosition = function() {
+            window.removeEventListener('resize', debouncedAdjustPosition);
+            window.removeEventListener('panel-state-changed', debouncedAdjustPosition);
+            if (adjustTimeout) {
+              clearTimeout(adjustTimeout);
+            }
+            // 执行所有清理函数
+            timelineCleanupFunctions.forEach(cleanup => cleanup());
+            console.log('时间轴位置调整系统已清理');
+          };
         };
+        
+        // 启动DOM监听
+        observeBottomPanels();
+        
+        console.log('时间轴位置调整系统已初始化');
         
         // 仿真状态管理
         let currentFrame = 1;
         let maxRunFrame = 1; // 已经运行过的最大帧数
-        let totalFrames = 6; // 默认6帧
+        
+        // 动态获取总帧数
+        function getTotalFrames() {
+          const currentFolder = getCurrentDataFolder();
+          const config = parseFolderName(currentFolder);
+          return config.totalFrames; // 完全依赖配置解析，不使用硬编码回退
+        }
+        
+        let totalFrames = getTotalFrames(); // 动态计算总帧数
         let isSimulationRunning = false;
+        
+        // 暴露更新totalFrames的全局函数
+        window.updateTimelineTotalFrames = function(newTotalFrames) {
+          if (newTotalFrames) {
+            totalFrames = newTotalFrames;
+          } else {
+            totalFrames = getTotalFrames(); // 如果没有提供参数，重新计算
+          }
+          console.log(`时间轴总帧数已更新: ${totalFrames} (文件夹: ${getCurrentDataFolder()})`);
+        };
         
         // 更新时间轴显示
         function updateTimelineDisplay(frame, maxFrame = null, skipNeedleUpdate = false) {
@@ -543,9 +646,15 @@ export function useCesium() {
             maxRunFrame = Math.max(maxRunFrame, maxFrame);
           }
           
-          currentFrame = frame;
-          const percentage = (frame - 1) / (totalFrames - 1);
-          const maxPercentage = (maxRunFrame - 1) / (totalFrames - 1);
+          // 确保帧数在有效范围内
+          const clampedFrame = Math.max(1, Math.min(totalFrames, frame));
+          const clampedMaxRunFrame = Math.max(1, Math.min(totalFrames, maxRunFrame));
+          
+          currentFrame = clampedFrame;
+          
+          // 计算百分比并确保在 0-100% 范围内
+          const percentage = Math.max(0, Math.min(1, (clampedFrame - 1) / (totalFrames - 1)));
+          const maxPercentage = Math.max(0, Math.min(1, (clampedMaxRunFrame - 1) / (totalFrames - 1)));
           
           // 更新指针位置 - 在仿真运行时避免任何过渡动画
           if (!isDragging && !skipNeedleUpdate) {
@@ -557,17 +666,28 @@ export function useCesium() {
           runTrack.style.transition = isSimulationRunning ? 'none' : 'width 0.1s ease-out';
           runTrack.style.width = (maxPercentage * 100) + '%';
           
-          // 更新时间显示 - 根据数据文件夹计算实际时间
-          const currentFolder = getCurrentDataFolder();
-          const timeInterval = currentFolder === 'new' ? 10 : 60; // new文件夹10秒间隔，old文件夹60秒间隔
-          const totalSeconds = (frame - 1) * timeInterval;
+          // 更新时间显示 - 使用全局配置，避免重复解析
+          const timeInterval = currentTimelineConfig.interval;
+          const totalSeconds = frame * timeInterval; // 修改公式：帧1对应1个间隔
           const minutes = Math.floor(totalSeconds / 60);
           const seconds = totalSeconds % 60;
-          currentTimeDisplay.textContent = `${Math.floor(minutes/60).toString().padStart(2, '0')}:${(minutes%60).toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
           
-          // 只在调试模式下输出日志，避免性能影响
-          if (!isSimulationRunning) {
-            console.log(`时间轴更新: 当前帧=${frame}, 最大运行帧=${maxRunFrame}, 总帧数=${totalFrames}`);
+          // 检查是否超过停止时间
+          const stopTime = currentTimelineConfig.totalDuration;
+          const shouldStop = totalSeconds >= stopTime;
+          
+          if (currentTimelineConfig.isDefault) {
+            // 默认状态下显示虚线，表示未选择文件夹
+            currentTimeDisplay.textContent = '--:--:--';
+          } else {
+            // 如果达到或超过停止时间，显示停止时间
+            if (shouldStop) {
+              const stopMinutes = Math.floor(stopTime / 60);
+              const stopSeconds = stopTime % 60;
+              currentTimeDisplay.textContent = `${Math.floor(stopMinutes/60).toString().padStart(2, '0')}:${(stopMinutes%60).toString().padStart(2, '0')}:${stopSeconds.toString().padStart(2, '0')}`;
+            } else {
+              currentTimeDisplay.textContent = `${Math.floor(minutes/60).toString().padStart(2, '0')}:${(minutes%60).toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
           }
         }
         
@@ -584,10 +704,10 @@ export function useCesium() {
         }
         
         // 跳转到指定帧的通用函数
-        function jumpToFrame(targetFrame) {
-          // 只能选择已经运行过的帧
-          if (targetFrame > maxRunFrame) {
-            console.log(`无法跳转到帧${targetFrame}，最大可用帧为${maxRunFrame}`);
+        function jumpToFrame(targetFrame, isDragging = false) {
+          // 允许跳转到任何有效的帧，不限制于已运行的帧
+          if (targetFrame < 1 || targetFrame > totalFrames) {
+            console.log(`无法跳转到帧${targetFrame}，有效范围是1-${totalFrames}`);
             return false;
           }
           
@@ -597,25 +717,72 @@ export function useCesium() {
             return false;
           }
           
-          console.log(`跳转到帧: ${targetFrame}`);
+          console.log(`跳转到帧: ${targetFrame}, 拖拽模式: ${isDragging}`);
           
-          // 触发帧切换事件
-          const frameChangeEvent = new CustomEvent('timeline-frame-change', {
-            detail: { frame: targetFrame, forceUpdate: true }
+          // 更新currentFrame状态
+          currentFrame = targetFrame;
+          
+          // 如果跳转到的帧超过了之前的最大运行帧，更新maxRunFrame
+          // 这样用户可以从跳转的位置开始播放
+          if (targetFrame > maxRunFrame) {
+            maxRunFrame = targetFrame;
+            console.log(`更新最大运行帧到: ${maxRunFrame}`);
+          }
+          
+          // 关键修复：同步更新动画系统的timeFrame状态
+          // 通过全局事件通知动画系统更新当前帧
+          const frameUpdateEvent = new CustomEvent('timeline-frame-update', {
+            detail: { 
+              targetFrame: targetFrame,
+              source: 'timeline-jump',
+              isDragging: isDragging
+            }
           });
-          window.dispatchEvent(frameChangeEvent);
+          window.dispatchEvent(frameUpdateEvent);
+          console.log(`已通知动画系统更新到帧 ${targetFrame}`);
           
-          // 更新显示 - 但不更新currentFrame，保持滑块在拖拽位置
-          const needlePosition = (targetFrame - 1) / (totalFrames - 1);
+          // 只有在非拖拽状态下才触发数据加载事件
+          if (!isDragging) {
+            // 触发帧切换事件
+            const frameChangeEvent = new CustomEvent('timeline-frame-change', {
+              detail: { frame: targetFrame, forceUpdate: true }
+            });
+            window.dispatchEvent(frameChangeEvent);
+          }
+          
+          // 更新时间轴显示
+          const clampedTargetFrame = Math.max(1, Math.min(totalFrames, targetFrame));
+          const clampedMaxRunFrame = Math.max(1, Math.min(totalFrames, maxRunFrame));
+          
+          const needlePosition = Math.max(0, Math.min(1, (clampedTargetFrame - 1) / (totalFrames - 1)));
           needle.style.left = (needlePosition * 100) + '%';
           
-          // 更新时间显示 - 根据数据文件夹计算实际时间
-          const currentFolder = getCurrentDataFolder();
-          const timeInterval = currentFolder === 'new' ? 10 : 60; // new文件夹10秒间隔，old文件夹60秒间隔
-          const totalSeconds = (targetFrame - 1) * timeInterval;
+          // 更新已运行区域显示
+          const maxPercentage = Math.max(0, Math.min(1, (clampedMaxRunFrame - 1) / (totalFrames - 1)));
+          runTrack.style.width = (maxPercentage * 100) + '%';
+          
+          // 更新时间显示 - 使用全局配置，避免重复解析
+          const timeInterval = currentTimelineConfig.interval;
+          const totalSeconds = targetFrame * timeInterval; // 修改公式：帧1对应1个间隔
           const minutes = Math.floor(totalSeconds / 60);
           const seconds = totalSeconds % 60;
-          currentTimeDisplay.textContent = `${Math.floor(minutes/60).toString().padStart(2, '0')}:${(minutes%60).toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+          
+          // 检查是否超过停止时间
+          const stopTime = currentTimelineConfig.totalDuration;
+          const shouldStop = totalSeconds >= stopTime;
+          
+          if (currentTimelineConfig.isDefault) {
+            currentTimeDisplay.textContent = '--:--:--';
+          } else {
+            // 如果达到或超过停止时间，显示停止时间
+            if (shouldStop) {
+              const stopMinutes = Math.floor(stopTime / 60);
+              const stopSeconds = stopTime % 60;
+              currentTimeDisplay.textContent = `${Math.floor(stopMinutes/60).toString().padStart(2, '0')}:${(stopMinutes%60).toString().padStart(2, '0')}:${stopSeconds.toString().padStart(2, '0')}`;
+            } else {
+              currentTimeDisplay.textContent = `${Math.floor(minutes/60).toString().padStart(2, '0')}:${(minutes%60).toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+          }
           
           return true;
         }
@@ -626,9 +793,9 @@ export function useCesium() {
           dragStartX = e.clientX;
           backgroundTrack.style.cursor = 'grabbing';
           
-          // 立即跳转到点击位置
+          // 立即跳转到点击位置，但不触发数据加载（拖拽开始）
           const targetFrame = calculateTargetFrame(e.clientX);
-          jumpToFrame(targetFrame);
+          jumpToFrame(targetFrame, true);
           
           e.preventDefault();
         });
@@ -643,28 +810,44 @@ export function useCesium() {
           
           const targetFrame = calculateTargetFrame(e.clientX);
           
-          // 计算滑块位置并直接设置
-          const rect = backgroundTrack.getBoundingClientRect();
-          const x = e.clientX - rect.left;
-          const percentage = Math.max(0, Math.min(1, x / rect.width));
+          // 确保目标帧在有效范围内
+          const clampedTargetFrame = Math.max(1, Math.min(totalFrames, targetFrame));
           
-          // 只在可用范围内移动滑块
-          if (targetFrame <= maxRunFrame) {
-            needle.style.left = (percentage * 100) + '%';
+          // 基于有效的目标帧计算正确的百分比位置
+          const validPercentage = (clampedTargetFrame - 1) / (totalFrames - 1);
+          
+          // 只在有效范围内移动滑块
+          if (clampedTargetFrame >= 1 && clampedTargetFrame <= totalFrames) {
+            needle.style.left = (validPercentage * 100) + '%';
             
-            // 更新时间显示但不立即触发帧切换
-            const currentFolder = getCurrentDataFolder();
-            const timeInterval = currentFolder === 'new' ? 10 : 60;
-            const totalSeconds = (targetFrame - 1) * timeInterval;
+            // 更新时间显示但不立即触发帧切换 - 使用全局配置，避免重复解析
+            const timeInterval = currentTimelineConfig.interval;
+            const totalSeconds = clampedTargetFrame * timeInterval; // 修改公式：帧1对应1个间隔
             const minutes = Math.floor(totalSeconds / 60);
             const seconds = totalSeconds % 60;
+            
+            // 检查是否超过停止时间
+            const stopTime = currentTimelineConfig.totalDuration;
+            const shouldStop = totalSeconds >= stopTime;
+            
             // 使用已有的currentTimeDisplay元素
             if (currentTimeDisplay) {
-              currentTimeDisplay.textContent = `${Math.floor(minutes/60).toString().padStart(2, '0')}:${(minutes%60).toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+              if (currentTimelineConfig.isDefault) {
+                currentTimeDisplay.textContent = '--:--:--';
+              } else {
+                // 如果达到或超过停止时间，显示停止时间
+                if (shouldStop) {
+                  const stopMinutes = Math.floor(stopTime / 60);
+                  const stopSeconds = stopTime % 60;
+                  currentTimeDisplay.textContent = `${Math.floor(stopMinutes/60).toString().padStart(2, '0')}:${(stopMinutes%60).toString().padStart(2, '0')}:${stopSeconds.toString().padStart(2, '0')}`;
+                } else {
+                  currentTimeDisplay.textContent = `${Math.floor(minutes/60).toString().padStart(2, '0')}:${(minutes%60).toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                }
+              }
             }
             
             // 防抖处理：拖拽过程中允许一些实时反馈，但限制频率
-            lastDragFrame = targetFrame;
+            lastDragFrame = clampedTargetFrame;
             if (dragDebounceTimer) {
               clearTimeout(dragDebounceTimer);
             }
@@ -672,13 +855,13 @@ export function useCesium() {
             // 减少防抖时间，提供更好的响应性，但检查动画状态
             dragDebounceTimer = setTimeout(() => {
               if (lastDragFrame !== null && !window.animationInProgress) {
-                jumpToFrame(lastDragFrame);
+                jumpToFrame(lastDragFrame, true); // 拖拽期间不触发数据加载
                 lastDragFrame = null;
               } else if (window.animationInProgress) {
                 // 如果动画还在进行，延迟重试
                 setTimeout(() => {
                   if (lastDragFrame !== null && !window.animationInProgress) {
-                    jumpToFrame(lastDragFrame);
+                    jumpToFrame(lastDragFrame, true); // 拖拽期间不触发数据加载
                     lastDragFrame = null;
                   }
                 }, 100);
@@ -702,14 +885,14 @@ export function useCesium() {
             }
             
             if (lastDragFrame !== null && !window.animationInProgress) {
-              jumpToFrame(lastDragFrame);
+              jumpToFrame(lastDragFrame, false); // 拖拽结束时触发数据加载
               lastDragFrame = null;
             } else if (window.animationInProgress) {
               // 如果动画还在进行，等待动画完成后再切换
               console.log('动画进行中，等待完成后切换帧');
               const waitForAnimation = () => {
                 if (!window.animationInProgress && lastDragFrame !== null) {
-                  jumpToFrame(lastDragFrame);
+                  jumpToFrame(lastDragFrame, false); // 拖拽结束时触发数据加载
                   lastDragFrame = null;
                 } else if (window.animationInProgress) {
                   setTimeout(waitForAnimation, 50);
@@ -1514,16 +1697,8 @@ export function useCesium() {
       
       // 计算当前帧数
       const elapsed = Cesium.JulianDate.secondsDifference(currentTime, clock.startTime);
-      const currentFolder = getCurrentDataFolder();
-      let timeInterval, maxFrames;
-      
-      if (currentFolder === 'new') {
-        timeInterval = 10;
-        maxFrames = 360;
-      } else {
-        timeInterval = 60;
-        maxFrames = 6;
-      }
+      const timeInterval = currentTimelineConfig.interval;
+      const maxFrames = Math.ceil(currentTimelineConfig.totalDuration / currentTimelineConfig.interval);
       
       const frameIndex = Math.floor(elapsed / timeInterval) + 1;
       const clampedFrame = Math.max(1, Math.min(maxFrames, frameIndex));
@@ -1533,22 +1708,21 @@ export function useCesium() {
         lastFrame = clampedFrame;
         lastProcessedTime = Cesium.JulianDate.clone(currentTime);
         
-        console.log(`🎯 时间轴变化到帧: ${clampedFrame} (播放状态: ${clock.shouldAnimate}, 经过时间: ${elapsed.toFixed(1)}s)`);
+        // console.log(`🎯 时间轴变化到帧: ${clampedFrame} (播放状态: ${clock.shouldAnimate}, 经过时间: ${elapsed.toFixed(1)}s)`);
         onTimeChange(clampedFrame);
       }
     });
     
     // 提供强制设置帧数的接口，支持向前向后跳转
     viewer.forceSetFrame = function(frame) {
-      const currentFolder = getCurrentDataFolder();
-      const timeInterval = currentFolder === 'new' ? 10 : 60;
-      const maxFrames = currentFolder === 'new' ? 360 : 6;
+      const timeInterval = currentTimelineConfig.interval;
+      const maxFrames = Math.ceil(currentTimelineConfig.totalDuration / currentTimelineConfig.interval);
       
       const clampedFrame = Math.max(1, Math.min(maxFrames, frame));
       
       const targetTime = Cesium.JulianDate.addSeconds(
         viewer.clock.startTime, 
-        (clampedFrame - 1) * timeInterval, 
+        clampedFrame * timeInterval, 
         new Cesium.JulianDate()
       );
       
@@ -1620,11 +1794,10 @@ export function useCesium() {
   function jumpToTimeFrame(frame) {
     if (!viewer) return;
     
-    // 根据当前文件夹动态计算时间间隔
-    const currentFolder = getCurrentDataFolder();
-    const timeInterval = currentFolder === 'new' ? 10 : 60;
+    // 根据当前文件夹动态计算时间间隔 - 使用全局配置
+    const timeInterval = currentTimelineConfig.interval;
     
-    const frameSeconds = (frame - 1) * timeInterval;
+    const frameSeconds = frame * timeInterval; // 修改公式：帧1对应1个间隔
     const targetTime = Cesium.JulianDate.addSeconds(viewer.clock.startTime, frameSeconds, new Cesium.JulianDate());
     
     // 确保目标时间在有效范围内
@@ -1643,7 +1816,7 @@ export function useCesium() {
         }, 100); // 短暂延迟后恢复播放
       }
       
-      console.log(`手动跳转到帧 ${frame} (时间: ${frameSeconds}s)`);
+      console.log(`手动跳转到帧 ${frame} (时间: ${frameSeconds}s, 间隔: ${timeInterval}s)`);
     } else {
       console.warn(`跳转帧 ${frame} 超出范围，最大帧数: ${Math.floor(Cesium.JulianDate.secondsDifference(viewer.clock.stopTime, viewer.clock.startTime) / timeInterval) + 1}`);
     }
@@ -2383,7 +2556,7 @@ export function useCesium() {
       }
       
       fixedCount++;
-      console.log(`🔧 重新创建 ${entityInfo.id}: (${longitude.toFixed(2)}, ${latitude.toFixed(2)})`);
+      console.log(`重新创建 ${entityInfo.id}: (${longitude.toFixed(2)}, ${latitude.toFixed(2)})`);
     });
     
     // 强制重新渲染和布局
@@ -2394,7 +2567,7 @@ export function useCesium() {
       viewer.current.scene.morphTo2D(0);
     }, 100);
     
-    console.log(`✅ 手动修复完成，共重新创建 ${fixedCount} 个实体`);
+    console.log(`手动修复完成，共重新创建 ${fixedCount} 个实体`);
     
     return fixedCount;
   }
@@ -2406,22 +2579,35 @@ export function useCesium() {
   function resetClockRange(folderName) {
     if (!viewer) return;
     
+    // 解析文件夹名称获取配置
+    const config = parseFolderName(folderName);
+    
+    // 更新全局时间轴配置
+    currentTimelineConfig = config;
+    
     // 使用固定的基准时间，避免与系统时间同步导致的跳跃
     const baseTime = Cesium.JulianDate.fromDate(new Date('2024-01-01T00:00:00Z'));
     
-    let timeInterval = 60;
-    let totalFrames = 6;
+    const timeInterval = config.interval; // 每帧的时间间隔（秒）
+    const totalDuration = config.totalDuration; // 总时长（秒）
+    const calculatedTotalFrames = Math.ceil(totalDuration / timeInterval); // 计算总帧数
     
-    if (folderName === 'new') {
-      timeInterval = 10; // new文件夹每10秒一帧
-      totalFrames = 360; // 360个文件，总共3600秒
-    } else {
-      timeInterval = 60; // old文件夹每60秒一帧  
-      totalFrames = 6;
+    console.log(`解析文件夹配置:`, {
+      folderName,
+      type: config.type,
+      interval: timeInterval,
+      totalDuration,
+      totalFrames: calculatedTotalFrames,
+      isDefault: config.isDefault
+    });
+    
+    // 更新全局totalFrames变量（如果setupTimelineControl已经执行）
+    if (typeof window !== 'undefined' && window.updateTimelineTotalFrames) {
+      window.updateTimelineTotalFrames(calculatedTotalFrames);
     }
     
     const startTime = baseTime;
-    const endTime = Cesium.JulianDate.addSeconds(startTime, totalFrames * timeInterval, new Cesium.JulianDate());
+    const endTime = Cesium.JulianDate.addSeconds(startTime, totalDuration, new Cesium.JulianDate());
     
     // 停止动画
     viewer.clock.shouldAnimate = false;
@@ -2431,14 +2617,30 @@ export function useCesium() {
     viewer.clock.currentTime = startTime; // 总是从第一帧开始
     viewer.clock.stopTime = endTime;
     viewer.clock.clockRange = Cesium.ClockRange.UNBOUNDED; // 使用UNBOUNDED，允许完全自由的时间跳转
-    viewer.clock.multiplier = 1; // 设置为1，避免影响拖拽
+    viewer.clock.multiplier = timeInterval; // 设置multiplier为时间间隔，这样每个时钟tick对应一帧的时间跳跃
     
     // 允许时钟交互，但默认不播放
     viewer.clock.canAnimate = true; // 允许动画，这样时间轴才能正常交互
     viewer.clock.shouldAnimate = false; // 但默认不播放
     
-    console.log(`时钟重置完成 - 文件夹: ${folderName}, 时间间隔: ${timeInterval}秒, 总帧数: ${totalFrames}, 时钟倍率: ${timeInterval}`);
+    console.log(`时钟重置完成 - 文件夹: ${folderName}, 时间间隔: ${timeInterval}秒, 总时长: ${totalDuration}秒, 总帧数: ${calculatedTotalFrames}`);
     console.log(`时间范围: ${Cesium.JulianDate.toIso8601(startTime)} 到 ${Cesium.JulianDate.toIso8601(endTime)}`);
+    
+    // 更新自定义时间轴的总时间显示
+    const totalTimeDisplay = document.querySelector('#custom-total-time-display');
+    if (totalTimeDisplay) {
+      if (config.isDefault) {
+        totalTimeDisplay.textContent = '--:--:--';
+        console.log(`总时间显示已更新为默认状态: ${totalTimeDisplay.textContent}`);
+      } else {
+        const totalMinutes = Math.floor(totalDuration / 60);
+        const remainingSeconds = totalDuration % 60;
+        const totalHours = Math.floor(totalMinutes / 60);
+        const displayMinutes = totalMinutes % 60;
+        totalTimeDisplay.textContent = `${totalHours.toString().padStart(2, '0')}:${displayMinutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+        console.log(`总时间显示已更新: ${totalTimeDisplay.textContent}`);
+      }
+    }
     
     // 强制刷新时间轴并确保可交互
     setTimeout(() => {
@@ -2486,6 +2688,7 @@ export function useCesium() {
     highlightSelectedLink,
     resetLinkHighlight,
     cleanup,
-    manuallyFixEntitiesFor2D
+    manuallyFixEntitiesFor2D,
+    parseFolderName
   };
 }
