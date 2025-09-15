@@ -405,30 +405,24 @@ function adjustPosition() {
     
     position.left = `${leftOffset}px`;
     
-    // 与仿真时间轴使用相同的底部面板检测逻辑
-    const bottomPanels = [
-      document.querySelector('.service-panel'),
-      document.querySelector('.chart-panel'),
-      document.querySelector('.data-panel')
-    ];
+    // 只响应 ServicePanel 组件的位置变化
+    const servicePanel = document.querySelector('.service-panel');
     
     let maxBottomHeight = 60; // 默认底部距离
     
-    bottomPanels.forEach(panel => {
-      if (panel) {
-        const rect = panel.getBoundingClientRect();
-        const isVisible = rect.height > 0 && 
-                        getComputedStyle(panel).display !== 'none' &&
-                        getComputedStyle(panel).visibility !== 'hidden';
-        
-        if (isVisible && rect.height > 50) {
-          // 面板可见且有合理高度，计算需要的底部距离
-          const panelHeight = rect.height;
-          const bottomDistance = panelHeight + 10; // 面板高度 + 10px间距
-          maxBottomHeight = Math.max(maxBottomHeight, bottomDistance);
-        }
+    if (servicePanel) {
+      const rect = servicePanel.getBoundingClientRect();
+      const isVisible = rect.height > 0 && 
+                      getComputedStyle(servicePanel).display !== 'none' &&
+                      getComputedStyle(servicePanel).visibility !== 'hidden';
+      
+      if (isVisible && rect.height > 50) {
+        // ServicePanel 可见且有合理高度，计算需要的底部距离
+        const panelHeight = rect.height;
+        const bottomDistance = panelHeight + 10; // 面板高度 + 10px间距
+        maxBottomHeight = bottomDistance;
       }
-    });
+    }
     
     // 检查收起的底部面板
     const collapsedBottomPanel = document.querySelector('.collapsed-bottom-panel');
@@ -492,7 +486,7 @@ onMounted(() => {
     setTimeout(adjustPosition, 100);
   });
   
-  // 观察可能影响布局的元素
+  // 观察可能影响布局的元素 - 只观察ServicePanel
   const elementsToObserve = [
     document.querySelector('.object-viewer-container'),
     document.querySelector('.object-viewer'),
