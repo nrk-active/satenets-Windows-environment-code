@@ -74,6 +74,40 @@ const historyData = ref({
   hop: [] // 平均跳数数据
 });
 
+// 解析文件夹名称格式：{类型}_{切片间隔}_{总时长}
+const parseFolderName = (folderName) => {
+  // 默认配置
+  const defaultConfig = {
+    type: 'unknown',
+    interval: 60,  // 秒
+    totalDuration: 360 // 秒
+  };
+  
+  if (!folderName) {
+    return defaultConfig;
+  }
+  
+  // 尝试解析新格式：如 "old_60s_360s"
+  const newFormatMatch = folderName.match(/^(\w+)_(\d+)s_(\d+)s$/);
+  if (newFormatMatch) {
+    const [, type, intervalStr, durationStr] = newFormatMatch;
+    return {
+      type: type,
+      interval: parseInt(intervalStr, 10),
+      totalDuration: parseInt(durationStr, 10)
+    };
+  }
+  
+  // 兼容老格式
+  if (folderName === 'new') {
+    return { type: 'new', interval: 10, totalDuration: 3600 };
+  } else if (folderName === 'old') {
+    return { type: 'old', interval: 60, totalDuration: 360 };
+  }
+  
+  return defaultConfig;
+};
+
 // 从网络数据计算仿真指标
 const calculateMetricsFromData = (networkData) => {
   if (!networkData) {
@@ -649,7 +683,8 @@ const loadHistoricalData = async () => {
   
   try {
     const currentFolder = localStorage.getItem('selectedDataFolder') || 'new';
-    const timeInterval = currentFolder === 'new' ? 10 : 60;
+    const config = parseFolderName(currentFolder);
+    const timeInterval = config.interval;
     const currentFrame = props.timeFrame || 1;
     
     // 加载当前帧之前的几个数据点

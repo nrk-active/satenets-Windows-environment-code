@@ -60,6 +60,7 @@
 import { ref, computed, watch, inject } from 'vue';
 import * as Cesium from 'cesium';
 import { useDataLoader } from '../composables/useDataLoader.js';
+import { parseFolderName } from '../utils/folderParser.js';
 
 const props = defineProps({
   networkData: {
@@ -174,24 +175,92 @@ function jumpToTime() {
   }
   
   const totalSeconds = parseTimeToSeconds(timeInput.value);
-  const currentFolder = getCurrentDataFolder();
+  let currentFolder = getCurrentDataFolder();
   
-  // 根据文件夹类型计算时间间隔和帧数
-  let timeInterval, maxFrames;
-  if (currentFolder === 'new') {
-    timeInterval = 10; // new文件夹每10秒一帧
-    maxFrames = 360; // 360帧
-  } else {
-    timeInterval = 60; // old文件夹每60秒一帧
-    maxFrames = 6; // 6帧
+  // 如果getCurrentDataFolder返回null，尝试从localStorage直接获取
+  if (!currentFolder) {
+    currentFolder = localStorage.getItem('selectedDataFolder');
+    console.log(`从localStorage获取文件夹: ${currentFolder}`);
   }
   
-  // 计算目标帧数
-  const targetFrame = Math.floor(totalSeconds / timeInterval) + 1;
+  // 如果仍然没有文件夹信息，尝试从ObjectViewer的显示中推断
+  if (!currentFolder) {
+    const objectViewerElement = document.querySelector('.current-folder');
+    if (objectViewerElement) {
+      const text = objectViewerElement.textContent;
+      const match = text.match(/当前选择：(.+)/);
+      if (match && match[1] !== '未选择') {
+        currentFolder = match[1];
+        console.log(`从ObjectViewer推断文件夹: ${currentFolder}`);
+      }
+    }
+  }
+  
+  // 如果还是没有，使用默认推断逻辑
+  if (!currentFolder) {
+    // 检查是否有已加载的数据，从中推断可能的文件夹
+    const hasData = props.networkData?.nodes?.length > 0;
+    if (hasData) {
+      // 根据节点数量推断可能的文件夹类型
+      const nodeCount = props.networkData.nodes.length;
+      if (nodeCount > 5000) {
+        currentFolder = 'new_10s_3600s'; // 大数据集通常是new文件夹
+        console.log(`根据节点数量(${nodeCount})推断文件夹: ${currentFolder}`);
+      } else {
+        currentFolder = 'old_60s_360s'; // 小数据集通常是old文件夹
+        console.log(`根据节点数量(${nodeCount})推断文件夹: ${currentFolder}`);
+      }
+    } else {
+      console.warn('无法确定当前数据文件夹，使用默认配置');
+      currentFolder = 'old_60s_360s'; // 默认文件夹
+    }
+  }
+  
+  // 根据文件夹类型计算时间间隔和帧数
+  const config = parseFolderName(currentFolder);
+  const timeInterval = config.interval;
+  const totalDuration = config.totalDuration;
+  const maxFrames = Math.ceil(config.totalDuration / config.interval);
+  
+  console.log(`使用文件夹: ${currentFolder}, 时间间隔: ${timeInterval}秒, 总时长: ${totalDuration}秒, 最大帧数: ${maxFrames}`);
+  
+  // 检查输入时间是否超出文件夹总时长
+  if (totalSeconds > totalDuration) {
+    console.warn(`输入时间 ${timeInput.value} (${totalSeconds}秒) 超出当前文件夹最大时长 ${totalDuration}秒`);
+    
+    // 计算最大时长的时间格式
+    const maxHours = Math.floor(totalDuration / 3600);
+    const maxMinutes = Math.floor((totalDuration % 3600) / 60);
+    const maxSecs = totalDuration % 60;
+    const maxTimeStr = `${maxHours.toString().padStart(2, '0')}:${maxMinutes.toString().padStart(2, '0')}:${maxSecs.toString().padStart(2, '0')}`;
+    
+    alert(`输入的时间超出范围！\n当前文件夹 "${currentFolder}" 的最大时长为: ${maxTimeStr}\n请输入不超过此时长的时间。`);
+    showErrorFeedback('.time-input');
+    return;
+  }
+  
+  // 修正时间到帧数的转换逻辑
+  // 时间轴显示使用公式：totalSeconds = frame * timeInterval
+  // 所以反向计算：frame = totalSeconds / timeInterval
+  // 处理边界情况：
+  // - 0秒对应帧1（显示为1*60=60秒）
+  // - 60秒对应帧1（显示为1*60=60秒）
+  // - 120秒对应帧2（显示为2*60=120秒）
+  let targetFrame;
+  if (totalSeconds === 0) {
+    targetFrame = 1; // 0秒对应帧1
+  } else {
+    // 计算最接近的帧数：找到使得frame * timeInterval最接近totalSeconds的帧
+    targetFrame = Math.round(totalSeconds / timeInterval);
+    // 确保至少是帧1
+    targetFrame = Math.max(1, targetFrame);
+  }
+  
+  // 确保不超过最大帧数
   const clampedFrame = Math.max(1, Math.min(maxFrames, targetFrame));
   
   try {
-    console.log(`跳转到时间: ${timeInput.value} (${totalSeconds}秒) -> 第${clampedFrame}帧`);
+    console.log(`跳转到时间: ${timeInput.value} (${totalSeconds}秒) -> 第${clampedFrame}帧 (时间间隔: ${timeInterval}秒, 最大帧数: ${maxFrames})`);
     
     // 添加视觉反馈
     const jumpBtn = document.querySelector('.time-jump .jump-button');
@@ -210,26 +279,30 @@ function jumpToTime() {
       detail: { frame: Number(clampedFrame), forceUpdate: true }
     });
     window.dispatchEvent(frameChangeEvent);
+    console.log(`已发送timeline-frame-change事件，目标帧: ${clampedFrame}`);
   } catch (error) {
     console.error('跳转时间时出错:', error);
     showErrorFeedback('.time-input');
   }
   
-  // 如果实际跳转的帧数与输入不完全匹配，给出提示
-  const actualSeconds = (clampedFrame - 1) * timeInterval;
+  // 计算实际跳转后的时间并更新输入框显示
+  // 使用与时间轴显示一致的公式：frame * timeInterval
+  const actualSeconds = clampedFrame * timeInterval;
+  const actualHours = Math.floor(actualSeconds / 3600);
+  const actualMinutes = Math.floor((actualSeconds % 3600) / 60);
+  const actualSecsRemainder = actualSeconds % 60;
+  const actualTimeStr = `${actualHours.toString().padStart(2, '0')}:${actualMinutes.toString().padStart(2, '0')}:${actualSecsRemainder.toString().padStart(2, '0')}`;
+  
   if (actualSeconds !== totalSeconds) {
-    const actualHours = Math.floor(actualSeconds / 3600);
-    const actualMinutes = Math.floor((actualSeconds % 3600) / 60);
-    const actualSecs = actualSeconds % 60;
-    const actualTimeStr = `${actualHours.toString().padStart(2, '0')}:${actualMinutes.toString().padStart(2, '0')}:${actualSecs.toString().padStart(2, '0')}`;
-    
-    console.log(`实际跳转到: ${actualTimeStr} (第${clampedFrame}帧)`);
-    
-    // 更新输入框显示实际时间
-    setTimeout(() => {
-      timeInput.value = actualTimeStr;
-    }, 500);
+    console.log(`输入时间 ${timeInput.value} (${totalSeconds}秒) 调整为最近的有效时间: ${actualTimeStr} (${actualSeconds}秒, 第${clampedFrame}帧)`);
+  } else {
+    console.log(`时间跳转精确匹配: ${actualTimeStr} (${actualSeconds}秒, 第${clampedFrame}帧)`);
   }
+  
+  // 更新输入框显示为实际跳转的时间
+  setTimeout(() => {
+    timeInput.value = actualTimeStr;
+  }, 500);
 }
 
 // 过滤节点并显示建议

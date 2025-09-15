@@ -87,7 +87,10 @@
   <div class="navigation-bar">
     <div class="nav-left-group">
       <!-- 左侧按钮 -->
-      <div class="nav-item-left" @click="openActionMenu">
+      <div class="nav-item-left" 
+        @click="openActionMenu"
+        :class="{ 'nav-disabled': isSimulationDisabled }"
+        >
           Open
       </div>
       <div class="nav-item-left" @click="saveActionMenu">
@@ -100,7 +103,7 @@
         <!-- 仿真相关菜单 -->
       <div class="nav-item-left"
         @click="handleStartSimulationClick" 
-        :class="{ 'disabled': isSimulationDisabled }"
+        :class="{ 'nav-disabled': isSimulationDisabled }"
         >
           {{ getSimulationButtonText() }}
       </div>
@@ -469,13 +472,13 @@ const activeDropdown = ref(null);
 const showDialog = ref(false);
 
 // 切换下拉菜单的显示状态
-const toggleDropdown = (menu) => {
-  if (activeDropdown.value === menu) {
-    activeDropdown.value = null;
-  } else {
-    activeDropdown.value = menu;
-  }
-};
+// const toggleDropdown = (menu) => {
+//   if (activeDropdown.value === menu) {
+//     activeDropdown.value = null;
+//   } else {
+//     activeDropdown.value = menu;
+//   }
+// };
 
 // 显示新建想定对话框
 const showNewScenarioDialog = () => {
@@ -655,6 +658,12 @@ function openSettingDialog() {
 
 // 打开文件夹选择弹窗（用于未登录状态）
 function openActionMenu() {
+  // 检查动画是否正在播放，如果是则不执行
+  if (isSimulationDisabled.value) {
+    console.log('动画播放中，Open按钮被禁用');
+    return;
+  }
+  
   if (props.isLoggedIn) {
     // 已登录状态：显示进程选择弹窗
     showProcessDialog.value = true;
@@ -895,13 +904,13 @@ function logout() {
   background-color: #555;
 }
 
-.nav-item-left.disabled {
+.nav-item-left.nav-disabled {
   color: #666;
   cursor: not-allowed;
   opacity: 0.6;
 }
 
-.nav-item-left.disabled:hover {
+.nav-item-left.nav-disabled:hover {
   background-color: transparent;
 }
 .nav-item-right {

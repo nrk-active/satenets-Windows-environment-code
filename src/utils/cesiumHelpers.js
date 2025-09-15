@@ -77,7 +77,7 @@ export function createStationEntity(node, show = true) {
   const longitude = parseFloat(node.position[0]);
   const latitude = parseFloat(node.position[1]);
   
-  console.log(`创建地面站 ${node.id}: 经度=${longitude}, 纬度=${latitude}`);
+  // console.log(`创建地面站 ${node.id}: 经度=${longitude}, 纬度=${latitude}`);
   
   // 转换为笛卡尔坐标（类似卫星处理方式）
   const cartesianPosition = Cesium.Cartesian3.fromDegrees(longitude, latitude, 100);
@@ -107,7 +107,7 @@ export function createStationEntity(node, show = true) {
     height: 100
   };
   
-  console.log(`地面站 ${node.id} 原始坐标已保存:`, entity.originalLatLon);
+  // console.log(`地面站 ${node.id} 原始坐标已保存:`, entity.originalLatLon);
   
   return entity;
 }
@@ -116,7 +116,7 @@ export function createRoadmEntity(node, show = true) {
   const longitude = parseFloat(node.position[0]);
   const latitude = parseFloat(node.position[1]);
   
-  console.log(`创建ROADM ${node.id}: 经度=${longitude}, 纬度=${latitude}`);
+  // console.log(`创建ROADM ${node.id}: 经度=${longitude}, 纬度=${latitude}`);
   
   // 转换为笛卡尔坐标（类似卫星处理方式）
   const cartesianPosition = Cesium.Cartesian3.fromDegrees(longitude, latitude, 100);
@@ -146,7 +146,7 @@ export function createRoadmEntity(node, show = true) {
     height: 100
   };
   
-  console.log(`ROADM ${node.id} 原始坐标已保存:`, entity.originalLatLon);
+  // console.log(`ROADM ${node.id} 原始坐标已保存:`, entity.originalLatLon);
   
   return entity;
 }

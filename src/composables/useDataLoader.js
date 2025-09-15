@@ -41,7 +41,7 @@ export function useDataLoader() {
 
   // 获取当前选择的数据文件夹
   function getCurrentDataFolder() {
-    return selectedDataFolder.value || 'new'; // 如果没有设置，默认返回'new'
+    return selectedDataFolder.value; // 返回null如果没有设置
   }
 
   // 检查登录状态的函数

@@ -10,6 +10,65 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
   const animationInProgress = ref(false);
   const instantMode = ref(false); // 新增：瞬间模式控制
   
+  // 获取数据加载器功能
+  const { getCurrentDataFolder } = useDataLoader();
+
+  // 解析文件夹名称格式：{类型}_{切片间隔}_{总时长}
+  function parseFolderName(folderName) {
+    // 默认配置
+    const defaultConfig = {
+      type: 'unknown',
+      interval: 60,  // 秒
+      totalDuration: 360, // 秒
+      playbackInterval: 3000 // 毫秒，播放间隔
+    };
+    
+    if (!folderName) {
+      return defaultConfig;
+    }
+    
+    // 尝试解析新格式：如 "old_60s_360s"
+    const newFormatMatch = folderName.match(/^(\w+)_(\d+)s_(\d+)s$/);
+    if (newFormatMatch) {
+      const [, type, intervalStr, durationStr] = newFormatMatch;
+      const interval = parseInt(intervalStr, 10);
+      const totalDuration = parseInt(durationStr, 10);
+      
+      // 根据切片间隔计算播放间隔：
+      // 60秒间隔 -> 3000ms播放间隔（慢）
+      // 10秒间隔 -> 1000ms播放间隔（快）
+      const playbackInterval = interval >= 60 ? 3000 : 1000;
+      
+      return {
+        type: type,
+        interval: interval,
+        totalDuration: totalDuration,
+        playbackInterval: playbackInterval
+      };
+    }
+    
+    // 兼容旧格式
+    if (folderName === 'new') {
+      return {
+        type: 'new',
+        interval: 10,
+        totalDuration: 3600,
+        playbackInterval: 1000
+      };
+    } else if (folderName === 'old') {
+      return {
+        type: 'old', 
+        interval: 60,
+        totalDuration: 360,
+        playbackInterval: 3000
+      };
+    }
+    
+    // 如果无法解析，返回默认值
+    console.warn(`无法解析文件夹名称格式: ${folderName}，使用默认配置`);
+    return defaultConfig;
+  }
+  
   // 将动画状态暴露到全局，供时间轴检查
   window.animationInProgress = animationInProgress.value;
   
@@ -20,12 +79,21 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
     set: (value) => { animationInProgress.value = value; }
   });
   
-  // 获取数据加载器的函数
-  const { getCurrentDataFolder } = useDataLoader();
-  
   let currentAnimationFrame = null;
   let playbackTimer = null;
   let previousFrameData = null;
+  
+  // 监听时间轴跳转事件，同步更新timeFrame状态
+  window.addEventListener('timeline-frame-update', (event) => {
+    const { targetFrame, source, isDragging } = event.detail;
+    console.log(`收到时间轴帧更新事件: 目标帧=${targetFrame}, 来源=${source}, 拖拽模式=${isDragging}`);
+    
+    // 只有在非拖拽状态或拖拽结束时才更新timeFrame，避免播放过程中的冲突
+    if (!isDragging || source === 'timeline-jump') {
+      timeFrame.value = targetFrame;
+      console.log(`动画系统timeFrame已同步更新到: ${targetFrame}`);
+    }
+  });
   
   // 添加实体位置缓存，避免频繁创建CallbackProperty
   const entityPositionCache = new Map();
@@ -36,8 +104,9 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
   function animateTransition(viewer, fromData, toData, onComplete) {
     console.log("开始过渡动画");
     
-    // 重置强制停止标志
+    // 重置强制停止标志和预加载标志
     forceStopAnimation = false;
+    window.preloadTriggered = false;
     
     // 先清理可能存在的动画
     if (currentAnimationFrame) {
@@ -195,7 +264,7 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
       maxDistance = Math.max(maxDistance, distance);
     });
     
-    // 根据移动距离调整动画时长
+    // 根据移动距离和播放速度调整动画时长
     // 增加动画时间以提供更好的视觉体验
     let adaptiveTransitionDuration = ANIMATION_CONFIG.TRANSITION_DURATION;
     if (maxDistance < 50000) { // 小于50km
@@ -206,7 +275,11 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
       adaptiveTransitionDuration = 2000; // 2000ms
     }
     
-    console.log(`最大移动距离: ${(maxDistance/1000).toFixed(1)}km, 动画时长: ${adaptiveTransitionDuration}ms`);
+    // 根据播放速度调整动画时长
+    const currentSpeed = getPlaybackSpeed();
+    adaptiveTransitionDuration = Math.max(100, adaptiveTransitionDuration / currentSpeed);
+    
+    console.log(`最大移动距离: ${(maxDistance/1000).toFixed(1)}km, 基础动画时长: ${adaptiveTransitionDuration * currentSpeed}ms, 播放速度: ${currentSpeed}x, 实际动画时长: ${adaptiveTransitionDuration}ms`);
     
     // 为每个卫星准备或复用CallbackProperty
     satellitePairs.forEach(pair => {
@@ -288,6 +361,24 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
       lastFrameTime = timestamp;
       const fraction = Math.min(elapsed / adaptiveTransitionDuration, 1.0);
       
+      // 预加载机制：当动画进行到70%时开始预加载下一帧
+      if (fraction >= 0.7 && !window.preloadTriggered && isPlaying.value) {
+        window.preloadTriggered = true;
+        console.log('动画进行到70%，开始预加载下一帧数据');
+        
+        // 计算下一帧
+        const currentFolder = getCurrentDataFolder();
+        const folderConfig = parseFolderName(currentFolder);
+        const maxFrames = folderConfig.totalFrames; // 完全依赖配置解析
+        
+        const nextFrame = timeFrame.value >= maxFrames ? 1 : timeFrame.value + 1;
+        
+        // 触发预加载（异步进行，不阻塞当前动画）
+        if (window.preloadNextFrame) {
+          window.preloadNextFrame(nextFrame);
+        }
+      }
+      
       // 更新位置，直接修改缓存的位置对象，避免创建新的CallbackProperty
       satellitePairs.forEach(pair => {
         const newX = pair.fromX + (pair.toX - pair.fromX) * fraction;
@@ -331,6 +422,7 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
     const wasPlaying = isPlaying.value;
     isPlaying.value = !isPlaying.value;
     console.log(`播放状态切换为: ${isPlaying.value ? '播放' : '暂停'} (之前: ${wasPlaying ? '播放' : '暂停'})`);
+    console.log(`当前播放将从第 ${timeFrame.value} 帧开始`);
     
     if (isPlaying.value) {
       // 开始播放
@@ -397,12 +489,34 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
     
     // 根据当前文件夹动态计算最大帧数
     const currentFolder = getCurrentDataFolder();
-    const maxFrames = currentFolder === 'new' ? 
-      SIMULATION_CONFIG.NEW_FOLDER_MAX_FRAMES : 
-      SIMULATION_CONFIG.OLD_FOLDER_MAX_FRAMES;
+    const folderConfig = parseFolderName(currentFolder);
+    const maxFrames = folderConfig.totalFrames; // 完全依赖配置解析
     
     const nextTimeFrame = timeFrame.value >= maxFrames ? 1 : timeFrame.value + 1;
     console.log(`播放逻辑: 当前帧 ${timeFrame.value} → 下一帧 ${nextTimeFrame} (最大帧数: ${maxFrames}, 文件夹: ${currentFolder})`);
+    
+    // 计算播放间隔并立即设置下一次播放的定时器
+    // 关键改进：从当前帧开始计时，并考虑动画时长
+    const baseInterval = folderConfig.playbackInterval;
+    const currentSpeed = getPlaybackSpeed();
+    
+    // 预估动画时长（与animateTransition中的逻辑保持一致）
+    // 基础动画时长1500ms，根据播放速度调整
+    const baseAnimationDuration = 1500;
+    const estimatedAnimationDuration = Math.max(100, baseAnimationDuration / currentSpeed);
+    
+    // 播放间隔应该是总间隔减去动画时长，确保帧与帧之间无缝衔接
+    const netWaitTime = Math.max(200, baseInterval - estimatedAnimationDuration); // 最少等待200ms
+    const playbackInterval = Math.max(100, netWaitTime / currentSpeed);
+    
+    console.log(`设置播放间隔: ${playbackInterval}ms (基础间隔: ${baseInterval}ms, 预估动画时长: ${estimatedAnimationDuration}ms, 净等待: ${netWaitTime}ms, 播放速度: ${currentSpeed}x)`);
+    
+    // 立即启动下一次播放的定时器（这是关键改进）
+    playbackTimer = setTimeout(() => {
+      if (isPlaying.value) {
+        playNextFrame(onFrameLoad);
+      }
+    }, playbackInterval);
     
     // 立即更新timeFrame的值，确保状态同步
     timeFrame.value = nextTimeFrame;
@@ -413,22 +527,10 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
       console.log(`播放模式：更新时间轴到帧 ${nextTimeFrame}`);
     }
     
-    // 直接触发数据加载
+    // 最后触发数据加载和动画
     if (onFrameLoad) {
       onFrameLoad(nextTimeFrame);
     }
-    
-    // 设置下一次播放的定时器 - 根据播放速度调整间隔
-    const baseInterval = currentFolder === 'new' ? 1000 : 3000; // new文件夹1秒一帧，old文件夹3秒一帧
-    const currentSpeed = getPlaybackSpeed(); // 获取当前播放速度
-    const playbackInterval = Math.max(100, baseInterval / currentSpeed); // 最小间隔100ms，确保加速效果明显
-    console.log(`设置播放间隔: ${playbackInterval}ms (基础间隔: ${baseInterval}ms, 播放速度: ${currentSpeed}x, 文件夹: ${currentFolder})`);
-    
-    playbackTimer = setTimeout(() => {
-      if (isPlaying.value) { // 只有在仍在播放时才继续
-        playNextFrame(onFrameLoad);
-      }
-    }, playbackInterval);
   }
 
   function cleanup() {
