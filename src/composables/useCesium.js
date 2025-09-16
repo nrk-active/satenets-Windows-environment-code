@@ -1234,7 +1234,7 @@ export function useCesium() {
     // 尝试最直接的方法
     const img = new Image();
     img.onload = function() {
-      console.log('✅ 图片可以直接访问，尺寸:', img.width, 'x', img.height);
+      console.log('图片可以直接访问，尺寸:', img.width, 'x', img.height);
       
       // 创建canvas
       const canvas = document.createElement('canvas');
@@ -1270,7 +1270,7 @@ export function useCesium() {
     };
     
     img.onerror = function() {
-      console.error('❌ 无法访问地球纹理图片');
+      console.error('无法访问地球纹理图片');
       useBackupEarthRendering();
     };
     
@@ -1312,11 +1312,11 @@ export function useCesium() {
       
       const imageLoadPromise = new Promise((resolve, reject) => {
         img.onload = () => {
-          console.log(`✅ 图片加载成功 (尺寸: ${img.width}x${img.height})`);
+          console.log(`图片加载成功 (尺寸: ${img.width}x${img.height})`);
           resolve(img);
         };
         img.onerror = (error) => {
-          console.log(`❌ 图片加载失败:`, error);
+          console.log(`图片加载失败:`, error);
           reject(error);
         };
       });
@@ -1448,7 +1448,7 @@ export function useCesium() {
     }
     
     // 如果所有路径都失败，使用备用方案
-    console.warn('⚠️ 所有纹理路径都失败，使用备用地球渲染方案');
+    console.warn('所有纹理路径都失败，使用备用地球渲染方案');
     useBackupEarthRendering();
   }
   
@@ -1481,7 +1481,7 @@ export function useCesium() {
       });
       
       viewer.scene.globe.material = earthMaterial;
-      console.log('✅ 备用地球材质应用成功');
+      console.log('备用地球材质应用成功');
       
     } catch (error) {
       console.warn('备用材质创建失败:', error);
@@ -2336,7 +2336,7 @@ export function useCesium() {
         }
         
         updatedCount++;
-        console.log(`✅ ${entity.id} 位置已更新为 (${longitude.toFixed(2)}, ${latitude.toFixed(2)})`);
+        console.log(`${entity.id} 位置已更新为 (${longitude.toFixed(2)}, ${latitude.toFixed(2)})`);
       }
       // 处理卫星（有原始笛卡尔坐标）
       else if (entity.originalCartesian) {
@@ -2395,7 +2395,7 @@ export function useCesium() {
               }
               
               updatedCount++;
-              console.log(`✅ ${entity.id} 位置已重新设置为 (${longitude.toFixed(2)}, ${latitude.toFixed(2)})`);
+              console.log(`${entity.id} 位置已重新设置为 (${longitude.toFixed(2)}, ${latitude.toFixed(2)})`);
             }
           }
         } catch (error) {
@@ -2470,9 +2470,9 @@ export function useCesium() {
 
   // 手动触发2D模式位置重计算（用于测试）
   function manuallyFixEntitiesFor2D() {
-    console.log('🔧 手动修复2D模式实体位置');
+    console.log('手动修复2D模式实体位置');
     if (!viewer.current) {
-      console.log('❌ viewer 不可用');
+      console.log('viewer 不可用');
       return;
     }
     
@@ -2517,7 +2517,7 @@ export function useCesium() {
       }
     });
     
-    console.log(`🗑️ 移除了 ${toRecreate.length} 个实体，准备重新创建`);
+    console.log(`移除了 ${toRecreate.length} 个实体，准备重新创建`);
     
     // 重新创建所有实体
     toRecreate.forEach(entityInfo => {

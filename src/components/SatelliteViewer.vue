@@ -864,7 +864,7 @@ function processNetworkData(networkData) {
   const shouldUseInstantMode = frameJumpDistance > FRAME_JUMP_THRESHOLD;
   
   if (shouldUseInstantMode) {
-    console.log(`🚀 帧跳跃距离${frameJumpDistance}超过阈值${FRAME_JUMP_THRESHOLD}，启用瞬间模式避免穿越动画`);
+    console.log(`帧跳跃距离${frameJumpDistance}超过阈值${FRAME_JUMP_THRESHOLD}，启用瞬间模式避免穿越动画`);
     
     // 临时启用瞬间模式
     const wasInstantMode = instantMode.value;
@@ -949,7 +949,7 @@ function rebuildEntityAnimationBindings(networkData) {
         entity.position = callbackProperty;
         
         reboundCount++;
-        console.log(`✅ 重新绑定卫星 ${satelliteNode.id} 到动画系统`);
+        console.log(`重新绑定卫星 ${satelliteNode.id} 到动画系统`);
       }
     }
   });
@@ -1221,7 +1221,7 @@ onMounted(async () => {
     const handleTimelineFrameChange = (event) => {
       const targetFrame = event.detail.frame;
       const forceUpdate = event.detail.forceUpdate === true;
-      console.log(`🚀 左侧时间跳转到帧: ${targetFrame}, 强制更新: ${forceUpdate}`);
+      console.log(`左侧时间跳转到帧: ${targetFrame}, 强制更新: ${forceUpdate}`);
       
       // 即使在播放中也允许跳转
       if (targetFrame !== timeFrame.value || forceUpdate) {

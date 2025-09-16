@@ -645,13 +645,13 @@ function isServiceSelected(service) {
 
 // 批量绘制选中路径
 function drawSelectedPaths() {
-  console.log('🎨 开始绘制选中路径');
-  console.log('📊 当前选中服务数量:', selectedServices.value.length);
-  console.log('📝 选中的服务ID列表:', selectedServices.value);
+  console.log('开始绘制选中路径');
+  console.log('当前选中服务数量:', selectedServices.value.length);
+  console.log('选中的服务ID列表:', selectedServices.value);
   
   const viewer = cesiumViewer?.() || cesiumViewer;
   if (!viewer || !props.networkData) {
-    console.warn('❌ 缺少必要条件:', { viewer: !!viewer, networkData: !!props.networkData });
+    console.warn('缺少必要条件:', { viewer: !!viewer, networkData: !!props.networkData });
     return;
   }
   
@@ -664,17 +664,17 @@ function drawSelectedPaths() {
     ...(props.serviceData.failed_requests || [])
   ];
   
-  console.log('📋 所有业务请求总数:', allRequests.length);
-  console.log('🚫 阻塞业务数量:', props.serviceData.blocked_requests?.length || 0);
+  console.log('所有业务请求总数:', allRequests.length);
+  console.log('阻塞业务数量:', props.serviceData.blocked_requests?.length || 0);
   
   const selected = allRequests.filter(req => selectedServices.value.includes(props.generateServiceId(req)));
-  console.log('✅ 找到匹配的选中业务:', selected.length);
+  console.log('找到匹配的选中业务:', selected.length);
   
   // 特别检查阻塞业务
   const selectedBlocked = selected.filter(req => 
     props.serviceData.blocked_requests?.includes(req)
   );
-  console.log('🟠 选中的阻塞业务:', selectedBlocked.length);
+  console.log('选中的阻塞业务:', selectedBlocked.length);
   
   if (selectedBlocked.length > 0) {
     console.log('🔍 第一个阻塞业务详情:', {
@@ -686,7 +686,7 @@ function drawSelectedPaths() {
   }
   
   selected.forEach((service, index) => {
-    console.log(`🛤️ 绘制第${index + 1}个业务路径:`, props.generateServiceId(service));
+    console.log(`绘制第${index + 1}个业务路径:`, props.generateServiceId(service));
     drawServicePath(viewer, service, props.networkData);
   });
 }
@@ -814,7 +814,7 @@ function clearBusinessHistory() {
       ]
     }, false, true);
     
-    console.log('✅ 图表已重置为初始状态');
+    console.log('图表已重置为初始状态');
   }
 }
 

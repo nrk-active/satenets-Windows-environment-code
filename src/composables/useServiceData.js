@@ -9,7 +9,7 @@ import { parseFolderName } from '../utils/folderParser.js';
 const moduleInitTime = Date.now();
 console.log(`useServiceData 模块初始化时间: ${new Date(moduleInitTime).toLocaleTimeString()}`);
 
-// ⭐ 将缓存变量移到模块级别，避免多次函数调用时重置
+// 将缓存变量移到模块级别，避免多次函数调用时重置
 let moduleDrawnServiceIds = new Set();
 let moduleLastDrawOptions = null;
 let moduleLastViewer = null;
@@ -39,7 +39,7 @@ export function useServiceData() {
     return localStorage.getItem('selectedDataFolder') || 'new';
   }
   
-  // ⭐ 使用模块级别的缓存变量，避免多次函数调用时重置
+  // 使用模块级别的缓存变量，避免多次函数调用时重置
   // 这样确保缓存在不同的函数调用之间保持持久化
   
   // 添加调试函数
@@ -899,7 +899,7 @@ export function useServiceData() {
         redrawCachedServicePaths();
       }, 200);
     } else {
-      console.log('❌ 没有需要重绘的业务路径或viewer不可用', {
+      console.log('没有需要重绘的业务路径或viewer不可用', {
         hasDrawnPaths: moduleDrawnServiceIds.size > 0,
         hasViewer: !!validViewer,
         drawnPathsCount: moduleDrawnServiceIds.size,
@@ -934,7 +934,7 @@ export function useServiceData() {
     // 新增的路径缓存管理功能
     getDrawnServiceIds: () => Array.from(moduleDrawnServiceIds),
     clearDrawnServiceIds: () => {
-      console.log(`🗑️🗑️ 手动清除所有缓存的业务ID (共${moduleDrawnServiceIds.size}个)`);
+      console.log(`手动清除所有缓存的业务ID (共${moduleDrawnServiceIds.size}个)`);
       console.log('清除前缓存内容:', Array.from(moduleDrawnServiceIds));
       console.log('调用栈:', new Error().stack?.split('\n').slice(1,5).join('\n'));
       moduleDrawnServiceIds.clear();
