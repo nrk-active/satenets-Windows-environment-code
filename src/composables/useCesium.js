@@ -2304,6 +2304,7 @@ export function useCesium() {
     console.log('重新计算2D模式下的实体位置');
     const entities = viewer.entities.values;
     let updatedCount = 0;
+    let satelliteCount = 0;
     
     for (let i = 0; i < entities.length; i++) {
       const entity = entities[i];
@@ -2311,6 +2312,20 @@ export function useCesium() {
       // 跳过没有position属性的实体
       if (!entity.position) {
         continue;
+      }
+      
+      // 检查是否是卫星实体
+      const isSatellite = entity.id && (entity.id.startsWith('Sat') || entity.id.includes('satellite'));
+      
+      if (isSatellite) {
+        satelliteCount++;
+        // 对于卫星，检查其position是否为CallbackProperty
+        if (entity.position && typeof entity.position.getValue === 'function') {
+          console.log(`卫星 ${entity.id} 保持动态位置属性 (CallbackProperty)`);
+        } else {
+          console.warn(`卫星 ${entity.id} 没有动态位置属性，可能已被静态化`);
+        }
+        continue; // 跳过卫星，不重新设置其位置
       }
       
       // 处理地面站和ROADM（有原始经纬度数据）
@@ -2340,22 +2355,13 @@ export function useCesium() {
       }
       // 处理卫星（有原始笛卡尔坐标）
       else if (entity.originalCartesian) {
-        const { x, y, z } = entity.originalCartesian;
-        const cartesianPosition = new Cesium.Cartesian3(x, y, z);
-        
-        // 更新CallbackProperty中的位置
-        if (entity.position && typeof entity.position.getValue === 'function') {
-          entity.position = new Cesium.CallbackProperty(function(time, result) {
-            return Cesium.Cartesian3.clone(cartesianPosition, result);
-          }, false);
-        } else {
-          entity.position = cartesianPosition;
-        }
-        updatedCount++;
-        console.log(`更新卫星 ${entity.id} 位置`);
+        // 对于卫星，不要重写动态位置属性，因为它们需要保持动态更新
+        // 卫星位置由动画系统管理，在2D模式下应该继续动态更新
+        console.log(`跳过卫星 ${entity.id} 位置重写，保持动态位置属性`);
       }
       // 如果没有原始坐标但是地面站或ROADM，尝试从当前位置提取
-      else if (entity.id && (entity.id.startsWith('ROADM') || entity.id.includes('station') || entity.id.startsWith('station'))) {
+      else if (entity.id && (entity.id.startsWith('ROADM') || entity.id.includes('station') || entity.id.startsWith('station')) 
+               && !entity.id.startsWith('Sat') && !entity.id.includes('satellite')) {
         try {
           let currentPosition = entity.position;
           
@@ -2405,6 +2411,7 @@ export function useCesium() {
     }
     
     console.log(`已更新 ${updatedCount} 个实体的2D位置`);
+    console.log(`保持 ${satelliteCount} 个卫星的动态位置属性`);
     
     // 强制场景重新渲染
     viewer.scene.requestRender();

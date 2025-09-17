@@ -1,5 +1,4 @@
 <template>
-  <!-- 空模板，或者可以完全删除这个文件 -->
 </template>
 
 <script setup>

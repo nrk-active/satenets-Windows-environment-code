@@ -1,7 +1,7 @@
 <template>
   <div class="object-viewer">
     <div class="header">
-      <span>Object Viewer</span>
+      <span>对象列表</span>
       <span class="close-btn" @click="handleClose">◄</span>
     </div>
     <div class="content">
