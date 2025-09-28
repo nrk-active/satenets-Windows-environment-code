@@ -1,4 +1,8 @@
 // src/composables/useDataLoader.js
+// 卫星网络仿真系统的数据加载与缓存管理
+// 根据用户登录状态自动选择数据源，未登录时从本地文件夹加载仿真数据，已登录时通过 API 请求后端仿真快照数据
+// 加载的数据会结构化处理，并自动统计当前帧的节点数和链路数，便于界面展示和性能分析
+
 import { ref, inject } from 'vue';
 import { processGraphData } from '../utils/dataProcessors.js';
 import { useAuth } from './useAuth.js';

@@ -1,4 +1,8 @@
 // src/composables/useCesium.js
+// 2000多行代码，看不懂啊。
+// 该模块是卫星网络仿真系统三维场景的核心控制器
+// 负责 Cesium 初始化、地球与星空渲染、仿真时间轴、实体和链路管理、场景交互、2D/3D兼容、动画与数据同步、资源清理等功能。
+// 保证仿真动画流畅、数据与场景实时联动、交互体验友好，适用于复杂卫星网络仿真与可视化应用
 import { ref, onMounted, onUnmounted } from 'vue';
 import * as Cesium from "cesium";
 import { CESIUM_CONFIG } from '../constants/index.js';
@@ -1929,60 +1933,761 @@ export function useCesium() {
     console.log(`当前场景中实体总数: ${viewer.entities.values.length}`);
   }
   
-  function addRoadmLinks(frameData) {
-    if (!frameData?.edges) return;
+  function clearGroundLinks() {
+    if (!viewer) return;
     
-    // 确保viewer可用
+    // 优化：直接使用removeById，避免遍历所有实体
+    const entitiesToRemove = viewer.entities.values.filter(entity => 
+      entity.entityType === 'ground-link' || 
+      entity.id?.includes('roadm-roadm-link') || 
+      entity.id?.includes('station-roadm-link') ||
+      entity.id?.includes('other-ground-link')
+    );
+    
+    // 暂停场景更新以提高批量删除性能
+    viewer.scene.requestRenderMode = true;
+    
+    entitiesToRemove.forEach(entity => {
+      viewer.entities.remove(entity);
+    });
+    
+    // 恢复场景更新
+    viewer.scene.requestRenderMode = false;
+    viewer.scene.requestRender();
+  }
+
+
+
+
+  // 创建超级明显的测试点
+  function createSuperVisibleTest() {
     if (!viewer) {
-      console.error('Cesium viewer 未初始化');
+      console.error('Viewer 不可用');
       return;
     }
+    
+    console.log('🚨 创建超级明显的测试实体');
+    
+    // 清除所有测试实体
+    const testIds = ['super-test-point', 'super-test-line'];
+    testIds.forEach(id => {
+      const existing = viewer.entities.getById(id);
+      if (existing) viewer.entities.remove(existing);
+    });
+    
+    // 1. 创建一个巨大的点
+    const testPoint = viewer.entities.add({
+      id: 'super-test-point',
+      name: '超级测试点',
+      position: Cesium.Cartesian3.fromDegrees(0, 0, 1000000), // 赤道上方1000km
+      show: true,
+      point: {
+        pixelSize: 100, // 超大点
+        color: Cesium.Color.RED,
+        outlineColor: Cesium.Color.WHITE,
+        outlineWidth: 10,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY // 永远可见
+      },
+      label: {
+        text: '测试点',
+        font: '48pt Arial',
+        fillColor: Cesium.Color.YELLOW,
+        outlineColor: Cesium.Color.BLACK,
+        outlineWidth: 2,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
+      }
+    });
+    
+    // 2. 创建一个极宽的线
+    const pos1 = Cesium.Cartesian3.fromDegrees(-90, 0, 500000); // 西经90度
+    const pos2 = Cesium.Cartesian3.fromDegrees(90, 0, 500000);  // 东经90度
+    
+    const testLine = viewer.entities.add({
+      id: 'super-test-line',
+      name: '超级测试线',
+      show: true,
+      polyline: {
+        positions: [pos1, pos2],
+        width: 100, // 极宽
+        material: Cesium.Color.MAGENTA,
+        arcType: Cesium.ArcType.NONE, // 直线
+        clampToGround: false,
+        extrudedHeight: 0,
+        followSurface: false
+      }
+    });
+    
+    console.log('✅ 超级测试实体已创建');
+    console.log('红点位置: 赤道上方1000km');
+    console.log('洋红线: 从西经90度到东经90度，500km高度');
+    
+    // 缩放到测试实体
+    viewer.zoomTo([testPoint, testLine]).then(() => {
+      console.log('🎥 已缩放到测试实体');
+    }).catch(err => {
+      console.error('缩放失败:', err);
+      // 手动设置相机位置
+      viewer.camera.setView({
+        destination: Cesium.Cartesian3.fromDegrees(0, 0, 2000000) // 2000km高度俯视
+      });
+    });
+    
+    return { testPoint, testLine };
+  }
 
+  // 最基础的渲染测试
+  function basicRenderTest() {
+    if (!viewer) {
+      console.error('❌ Viewer 不存在');
+      return false;
+    }
+    
+    console.log('🔧 基础渲染测试开始...');
+    
+    // 1. 检查viewer是否正确初始化
+    console.log('Viewer检查:', {
+      viewer存在: !!viewer,
+      canvas存在: !!viewer.canvas,
+      scene存在: !!viewer.scene,
+      camera存在: !!viewer.camera,
+      entities存在: !!viewer.entities,
+      canvas宽度: viewer.canvas?.width || 'N/A',
+      canvas高度: viewer.canvas?.height || 'N/A'
+    });
+    
+    // 2. 检查当前已有的卫星实体（应该是可见的）
+    const satelliteEntities = viewer.entities.values.filter(e => 
+      e.nodeType === 'satellite' || e.id?.includes('satellite')
+    );
+    
+    console.log('卫星实体检查:', {
+      卫星数量: satelliteEntities.length,
+      前3个卫星: satelliteEntities.slice(0, 3).map(e => ({
+        id: e.id,
+        show: e.show,
+        hasPoint: !!e.point
+      }))
+    });
+    
+    // 3. 如果有卫星，检查其中一个的详细状态
+    if (satelliteEntities.length > 0) {
+      const firstSat = satelliteEntities[0];
+      console.log('第一个卫星详情:', {
+        id: firstSat.id,
+        show: firstSat.show,
+        position: firstSat.position ? 'exists' : 'missing',
+        point: firstSat.point ? {
+          pixelSize: firstSat.point.pixelSize,
+          color: firstSat.point.color?.toString() || 'unknown'
+        } : 'missing'
+      });
+      
+      // 尝试缩放到第一个卫星
+      console.log('🎥 尝试缩放到第一个卫星...');
+      viewer.zoomTo(firstSat).then(() => {
+        console.log('✅ 成功缩放到卫星');
+      }).catch(err => {
+        console.error('❌ 缩放失败:', err);
+      });
+    }
+    
+    // 4. 强制创建一个最简单的实体
+    const simpleTestId = 'basic-test-entity';
+    const existing = viewer.entities.getById(simpleTestId);
+    if (existing) viewer.entities.remove(existing);
+    
+    try {
+      const simpleEntity = viewer.entities.add({
+        id: simpleTestId,
+        position: new Cesium.Cartesian3(0, 0, 0), // 地球中心
+        point: {
+          pixelSize: 20,
+          color: Cesium.Color.YELLOW
+        }
+      });
+      
+      console.log('✅ 简单测试实体已创建:', simpleEntity.id);
+    } catch (error) {
+      console.error('❌ 创建简单实体失败:', error);
+    }
+    
+    // 5. 输出当前相机状态
+    console.log('相机状态:', {
+      position: viewer.camera.position,
+      height: viewer.camera.positionCartographic?.height,
+      heading: viewer.camera.heading,
+      pitch: viewer.camera.pitch,
+      roll: viewer.camera.roll
+    });
+    
+    // 6. 强制刷新渲染
+    viewer.scene.requestRender();
+    
+    return true;
+  }
+
+  // 测试polyline渲染
+  function testPolylineRendering() {
+    if (!viewer) {
+      console.error('Viewer 不可用');
+      return;
+    }
+    
+    console.log('🧪 测试polyline渲染...');
+    
+    // 清除之前的测试线
+    const testIds = ['polyline-test', 'ground-polyline-test'];
+    testIds.forEach(id => {
+      const existing = viewer.entities.getById(id);
+      if (existing) viewer.entities.remove(existing);
+    });
+    
+    // 1. 测试高空polyline（从红点到地心）
+    const redDot = viewer.entities.getById('super-test-point');
+    if (redDot) {
+      const startPos = redDot.position.getValue(Cesium.JulianDate.now());
+      const endPos = Cesium.Cartesian3.fromDegrees(0, 0, 0); // 地球表面
+      
+      const highAltitudeLine = viewer.entities.add({
+        id: 'polyline-test',
+        name: '高空测试线',
+        show: true,
+        polyline: {
+          positions: [startPos, endPos],
+          width: 50,
+          material: Cesium.Color.LIME,
+          arcType: Cesium.ArcType.NONE
+        }
+      });
+      
+      console.log('✅ 高空测试线已创建（亮绿色，从红点到地心）');
+    }
+    
+    // 2. 测试地面级polyline（北京到上海）
+    const beijing = Cesium.Cartesian3.fromDegrees(116.4, 39.9, 1000);
+    const shanghai = Cesium.Cartesian3.fromDegrees(121.5, 31.2, 1000);
+    
+    const groundLine = viewer.entities.add({
+      id: 'ground-polyline-test',
+      show: true,
+      polyline: {
+        positions: [beijing, shanghai],
+        width: 100,
+        material: Cesium.Color.YELLOW,
+        arcType: Cesium.ArcType.GEODESIC,
+        clampToGround: false
+      }
+    });
+    
+    console.log('✅ 地面测试线已创建（黄色，北京-上海）');
+    
+    // 缩放到地面测试线
+    viewer.zoomTo(groundLine).then(() => {
+      console.log('🎥 已缩放到地面测试线');
+    });
+    
+    return { highAltitudeLine: redDot ? viewer.entities.getById('polyline-test') : null, groundLine };
+  }
+
+  // 检查现有地面链路的详细信息
+  function inspectExistingGroundLinks() {
+    if (!viewer) {
+      console.error('Viewer 不可用');
+      return;
+    }
+    
+    console.log('🔍 检查现有地面链路...');
+    
+    const groundLinks = viewer.entities.values.filter(e => 
+      e.id && (e.id.includes('roadm-roadm-link') || e.id.includes('station-roadm-link'))
+    );
+    
+    console.log(`发现 ${groundLinks.length} 个地面链路实体`);
+    
+    if (groundLinks.length === 0) {
+      console.warn('没有找到地面链路实体');
+      return null;
+    }
+    
+    // 检查前3个地面链路
+    groundLinks.slice(0, 3).forEach((link, index) => {
+      console.log(`--- 地面链路 ${index + 1}: ${link.id} ---`);
+      console.log('基本信息:', {
+        show: link.show,
+        polyline存在: !!link.polyline
+      });
+      
+      if (link.polyline) {
+        console.log('Polyline详情:', {
+          width: link.polyline.width,
+          material: link.polyline.material?.toString?.() || 'unknown',
+          positions数量: link.polyline.positions?.length || 'unknown',
+          arcType: link.polyline.arcType,
+          clampToGround: link.polyline.clampToGround,
+          extrudedHeight: link.polyline.extrudedHeight
+        });
+        
+        // 检查位置
+        if (link.polyline.positions && link.polyline.positions.length >= 2) {
+          try {
+            const pos1 = link.polyline.positions[0];
+            const pos2 = link.polyline.positions[1];
+            
+            console.log('3D位置:', {
+              start: { x: pos1.x, y: pos1.y, z: pos1.z },
+              end: { x: pos2.x, y: pos2.y, z: pos2.z }
+            });
+            
+            // 转换为地理坐标
+            const geo1 = Cesium.Cartographic.fromCartesian(pos1);
+            const geo2 = Cesium.Cartographic.fromCartesian(pos2);
+            
+            console.log('地理位置:', {
+              start: `${Cesium.Math.toDegrees(geo1.longitude).toFixed(2)}°, ${Cesium.Math.toDegrees(geo1.latitude).toFixed(2)}°, 高度${geo1.height.toFixed(0)}m`,
+              end: `${Cesium.Math.toDegrees(geo2.longitude).toFixed(2)}°, ${Cesium.Math.toDegrees(geo2.latitude).toFixed(2)}°, 高度${geo2.height.toFixed(0)}m`
+            });
+          } catch (error) {
+            console.error('位置解析错误:', error);
+          }
+        }
+      }
+    });
+    
+    // 尝试缩放到第一个地面链路
+    if (groundLinks.length > 0) {
+      const firstLink = groundLinks[0];
+      console.log('🎥 尝试缩放到第一个地面链路...');
+      
+      viewer.zoomTo(firstLink).then(() => {
+        console.log('✅ 成功缩放到地面链路');
+      }).catch(err => {
+        console.error('❌ 缩放失败:', err);
+      });
+    }
+    
+    return groundLinks;
+  }
+
+  // 检查和修复polyline渲染设置
+  function fixPolylineRendering() {
+    if (!viewer) {
+      console.error('Viewer 不可用');
+      return;
+    }
+    
+    console.log('🔧 检查和修复polyline渲染设置...');
+    
+    // 1. 检查场景渲染设置
+    console.log('当前场景设置:', {
+      requestRenderMode: viewer.scene.requestRenderMode,
+      maximumRenderTimeChange: viewer.scene.maximumRenderTimeChange,
+      globe显示: viewer.scene.globe.show,
+      深度测试: viewer.scene.globe.depthTestAgainstTerrain,
+      雾效: viewer.scene.fog.enabled
+    });
+    
+    // 2. 强制设置有利于polyline渲染的设置
+    viewer.scene.requestRenderMode = false; // 强制连续渲染
+    viewer.scene.globe.depthTestAgainstTerrain = false; // 关闭地形深度测试
+    viewer.scene.fog.enabled = false; // 关闭雾效
+    
+    // 3. 创建一个超简单的polyline测试
+    const testId = 'simple-polyline-test';
+    const existing = viewer.entities.getById(testId);
+    if (existing) viewer.entities.remove(existing);
+    
+    // 使用最简单的参数创建polyline
+    const simpleTestLine = viewer.entities.add({
+      id: testId,
+      polyline: {
+        positions: [
+          new Cesium.Cartesian3(6371000, 0, 0), // 赤道上
+          new Cesium.Cartesian3(0, 6371000, 0)  // 90度位置
+        ],
+        width: 100,
+        material: Cesium.Color.WHITE, // 白色，最容易看到
+        show: true
+      }
+    });
+    
+    console.log('✅ 渲染设置已修复，创建了白色测试线');
+    
+    // 4. 强制刷新
+    viewer.scene.requestRender();
+    
+    // 5. 缩放到测试线
+    viewer.zoomTo(simpleTestLine);
+    
+    return simpleTestLine;
+  }
+
+  // 强制修复所有现有地面链路的显示
+  function forceFixGroundLinks() {
+    if (!viewer) {
+      console.error('Viewer 不可用');
+      return;
+    }
+    
+    console.log('🚨 强制修复所有地面链路显示...');
+    
+    const groundLinks = viewer.entities.values.filter(e => 
+      e.id && (e.id.includes('roadm-roadm-link') || e.id.includes('station-roadm-link'))
+    );
+    
+    console.log(`找到 ${groundLinks.length} 个地面链路，开始修复...`);
+    
+    let fixedCount = 0;
+    groundLinks.forEach((entity, index) => {
+      if (entity.polyline) {
+        // 强制设置最明显的样式
+        entity.show = true;
+        entity.polyline.show = true;
+        entity.polyline.width = 50; // 超宽
+        entity.polyline.material = Cesium.Color.CYAN; // 青色
+        entity.polyline.arcType = Cesium.ArcType.NONE; // 直线
+        entity.polyline.clampToGround = false;
+        entity.polyline.extrudedHeight = undefined; // 移除挤出高度
+        entity.polyline.followSurface = false;
+        
+        fixedCount++;
+        
+        // 只输出前5个的修复信息
+        if (index < 5) {
+          console.log(`修复链路 ${index + 1}: ${entity.id}`);
+        }
+      }
+    });
+    
+    console.log(`✅ 已修复 ${fixedCount} 个地面链路样式`);
+    
+    // 强制刷新渲染
+    viewer.scene.requestRender();
+    
+    // 缩放到第一个地面链路
+    if (groundLinks.length > 0) {
+      viewer.zoomTo(groundLinks[0]);
+    }
+    
+    return fixedCount;
+  }
+
+  // 简单的内置测试函数，不依赖全局Cesium
+  function runInternalTest() {
+    if (!viewer) {
+      console.error('Viewer 不可用');
+      return;
+    }
+    
+    console.log('🧪 运行内置测试');
+    
+    // 1. 创建一个超明显的测试链路
+    const testId = 'internal-test-link';
+    const existing = viewer.entities.getById(testId);
+    if (existing) {
+      viewer.entities.remove(existing);
+      console.log('已删除旧的测试链路');
+    }
+    
+    // 使用已知的地理坐标（纽约到洛杉矶）
+    const nyc = Cesium.Cartesian3.fromDegrees(-74.0, 40.7, 100000); // 纽约，100km高度
+    const la = Cesium.Cartesian3.fromDegrees(-118.2, 34.0, 100000); // 洛杉矶，100km高度
+    
+    const testEntity = viewer.entities.add({
+      id: testId,
+      name: '内置测试链路：纽约-洛杉矶',
+      show: true,
+      polyline: {
+        positions: [nyc, la],
+        width: 30, // 非常宽
+        material: Cesium.Color.CYAN.withAlpha(1.0), // 青色，完全不透明
+        arcType: Cesium.ArcType.GEODESIC,
+        clampToGround: false,
+        extrudedHeight: 0,
+        followSurface: false,
+        depthFailMaterial: Cesium.Color.RED
+      },
+      description: '这是一个内置测试链路，从纽约到洛杉矶，用于验证polyline渲染。'
+    });
+    
+    console.log('✅ 内置测试链路已创建:', testEntity.id);
+    
+    // 缩放到测试链路
+    viewer.zoomTo(testEntity).then(() => {
+      console.log('🎥 相机已定位到内置测试链路');
+    }).catch(err => {
+      console.error('缩放失败:', err);
+    });
+    
+    // 输出当前场景统计
+    const totalEntities = viewer.entities.values.length;
+    const polylineEntities = viewer.entities.values.filter(e => e.polyline).length;
+    
+    console.log('场景统计:', {
+      总实体数: totalEntities,
+      polyline实体数: polylineEntities,
+      测试链路可见: testEntity.show
+    });
+    
+    return testEntity;
+  }
+
+  // 深度诊断函数
+  function deepDiagnosis() {
+    if (!viewer) {
+      console.error('❌ Viewer 不可用');
+      return;
+    }
+    
+    console.log('🔍 开始深度诊断...');
+    
+    // 1. 检查viewer基本状态
+    console.log('Viewer状态:', {
+      canvas存在: !!viewer.canvas,
+      scene存在: !!viewer.scene,
+      camera存在: !!viewer.camera,
+      entities存在: !!viewer.entities
+    });
+    
+    // 2. 检查渲染设置
+    console.log('渲染设置:', {
+      globe显示: viewer.scene.globe?.show,
+      skyBox显示: viewer.scene.skyBox?.show,
+      深度测试: viewer.scene.globe?.depthTestAgainstTerrain,
+      雾效: viewer.scene.fog?.enabled,
+      地形提供者: !!viewer.terrainProvider
+    });
+    
+    // 3. 检查相机状态
+    console.log('相机状态:', {
+      position: {
+        x: viewer.camera.position.x,
+        y: viewer.camera.position.y,
+        z: viewer.camera.position.z
+      },
+      高度: viewer.camera.positionCartographic?.height
+    });
+    
+    // 4. 检查实体统计
+    const allEntities = viewer.entities.values;
+    console.log('实体统计:', {
+      总数: allEntities.length,
+      可见数: allEntities.filter(e => e.show).length,
+      polyline数: allEntities.filter(e => e.polyline).length,
+      point数: allEntities.filter(e => e.point).length
+    });
+    
+    // 5. 详细检查前5个polyline实体
+    const polylineEntities = allEntities.filter(e => e.polyline).slice(0, 5);
+    console.log('前5个polyline实体详情:');
+    polylineEntities.forEach((entity, index) => {
+      console.log(`  ${index + 1}. ID: ${entity.id}`);
+      console.log(`     show: ${entity.show}`);
+      console.log(`     positions: ${entity.polyline.positions?.length || '未知'}`);
+      console.log(`     width: ${entity.polyline.width}`);
+      console.log(`     material: ${entity.polyline.material}`);
+    });
+    
+    // 6. 尝试修复常见渲染问题
+    console.log('🔧 尝试修复渲染设置...');
+    
+    // 关闭可能影响显示的设置
+    viewer.scene.globe.depthTestAgainstTerrain = false;
+    viewer.scene.fog.enabled = false;
+    
+    // 强制刷新
+    viewer.scene.requestRender();
+    
+    console.log('✅ 渲染设置已修复');
+    
+    return {
+      totalEntities: allEntities.length,
+      polylineCount: allEntities.filter(e => e.polyline).length,
+      visibleCount: allEntities.filter(e => e.show).length
+    };
+  }
+
+  // 创建基于实际ROADM数据的测试链路
+  function createRealDataTestLink() {
+    if (!viewer) {
+      console.error('Viewer 不可用');
+      return;
+    }
+    
+    console.log('🧪 创建基于实际数据的测试链路');
+    
+    // 查找两个ROADM节点
+    const roadmEntities = viewer.entities.values.filter(entity => 
+      entity.nodeType === 'roadm' && entity.originalLatLon
+    );
+    
+    if (roadmEntities.length < 2) {
+      console.warn('找不到足够的ROADM实体');
+      return;
+    }
+    
+    const roadm1 = roadmEntities[0];
+    const roadm2 = roadmEntities[1];
+    
+    console.log('选择的ROADM:', {
+      roadm1: { id: roadm1.id, latlon: roadm1.originalLatLon },
+      roadm2: { id: roadm2.id, latlon: roadm2.originalLatLon }
+    });
+    
+    // 删除之前的测试链路
+    const existingTest = viewer.entities.getById('real-data-test-link');
+    if (existingTest) {
+      viewer.entities.remove(existingTest);
+    }
+    
+    // 使用ROADM的实际坐标创建链路
+    const pos1 = Cesium.Cartesian3.fromDegrees(
+      roadm1.originalLatLon.longitude,
+      roadm1.originalLatLon.latitude,
+      50000 // 50km高度
+    );
+    const pos2 = Cesium.Cartesian3.fromDegrees(
+      roadm2.originalLatLon.longitude,
+      roadm2.originalLatLon.latitude,
+      50000 // 50km高度
+    );
+    
+    const testEntity = viewer.entities.add({
+      id: 'real-data-test-link',
+      name: `实际数据测试链路：${roadm1.id} - ${roadm2.id}`,
+      show: true,
+      polyline: {
+        positions: [pos1, pos2],
+        width: 30, // 非常宽
+        material: Cesium.Color.LIME.withAlpha(1.0), // 亮绿色
+        arcType: Cesium.ArcType.GEODESIC,
+        clampToGround: false,
+        extrudedHeight: 0,
+        followSurface: false,
+        depthFailMaterial: Cesium.Color.ORANGE
+      },
+      description: `基于实际ROADM位置的测试链路：${roadm1.id} 到 ${roadm2.id}`
+    });
+    
+    console.log('✅ 实际数据测试链路已创建:', testEntity.id);
+    
+    // 自动飞到测试链路
+    viewer.zoomTo(testEntity).then(() => {
+      console.log('🎥 相机已定位到实际数据测试链路');
+    });
+    
+    return testEntity;
+  }
+
+  function addRoadmLinks(frameData) {
+    if (!frameData?.edges || !viewer) {
+      return;
+    }
+    
+    // 暂时禁用场景更新以提高性能
+    viewer.scene.requestRenderMode = true;
+    viewer.scene.maximumRenderTimeChange = Infinity;
+    
+    // 创建节点索引以提高查找性能
+    const nodeMap = new Map();
+    frameData.nodes.forEach(node => {
+      nodeMap.set(node.id, node);
+    });
+    
+    // 过滤出地面链路（非卫星间链路）
     const groundEdges = frameData.edges.filter(edge => {
-      const sourceNode = frameData.nodes.find(n => n.id === edge.source);
-      const targetNode = frameData.nodes.find(n => n.id === edge.target);
+      const sourceNode = nodeMap.get(edge.source);
+      const targetNode = nodeMap.get(edge.target);
+      
       return sourceNode && targetNode && 
-             sourceNode.type !== 'satellite' && targetNode.type !== 'satellite';
+             sourceNode.type !== 'satellite' && 
+             targetNode.type !== 'satellite';
     });
 
     groundEdges.forEach(edge => {
-      const sourceNode = frameData.nodes.find(n => n.id === edge.source);
-      const targetNode = frameData.nodes.find(n => n.id === edge.target);
+      const sourceNode = nodeMap.get(edge.source);
+      const targetNode = nodeMap.get(edge.target);
       
       if (!sourceNode || !targetNode) return;
-      if (sourceNode.type === 'satellite' || targetNode.type === 'satellite') return;
       
-      const sourcePosition = getEntityPosition(sourceNode, viewer);
-      const targetPosition = getEntityPosition(targetNode, viewer);
-      
-      let linkColor, linkId;
-      
-      if (sourceNode.type === 'roadm' && targetNode.type === 'roadm') {
-        linkColor = Cesium.Color.GREEN.withAlpha(0.7);
-        linkId = `roadm-roadm-link-${edge.source}-${edge.target}`;
-      } else if ((sourceNode.type === 'station' && targetNode.type === 'roadm') ||
-                 (sourceNode.type === 'roadm' && targetNode.type === 'station')) {
-        linkColor = Cesium.Color.YELLOW.withAlpha(0.7);
-        linkId = `station-roadm-link-${edge.source}-${edge.target}`;
-      } else {
-        linkColor = Cesium.Color.LIGHTSKYBLUE.withAlpha(0.7);
-        linkId = `other-ground-link-${edge.source}-${edge.target}`;
-      }
-      
-      viewer.entities.add({
-        id: linkId,
-        show: (sourceNode.type === 'roadm' && targetNode.type === 'roadm') ? 
-          showRoadm.value : 
-          (showStation.value && showRoadm.value),
-        polyline: {
-          positions: [sourcePosition, targetPosition],
-          width: 1.5,
-          material: linkColor,
-          arcType: Cesium.ArcType.GEODESIC,
-          clampToGround: true
+      try {
+        const sourcePosition = getEntityPosition(sourceNode, viewer);
+        const targetPosition = getEntityPosition(targetNode, viewer);
+        
+        if (!sourcePosition || !targetPosition) return;
+        
+        let linkColor, linkId;
+        
+        if (sourceNode.type === 'roadm' && targetNode.type === 'roadm') {
+          linkColor = Cesium.Color.fromCssColorString('#00FF7F').withAlpha(0.9);  // 春绿色
+          linkId = `roadm-roadm-link-${edge.source}-${edge.target}`;
+        } else if ((sourceNode.type === 'station' && targetNode.type === 'roadm') ||
+                   (sourceNode.type === 'roadm' && targetNode.type === 'station')) {
+          linkColor = Cesium.Color.fromCssColorString('#FFD700').withAlpha(0.9);  // 优雅金色
+          linkId = `station-roadm-link-${edge.source}-${edge.target}`;
+        } else {
+          linkColor = Cesium.Color.fromCssColorString('#1E90FF').withAlpha(0.9);  // 闪电蓝
+          linkId = `other-ground-link-${edge.source}-${edge.target}`;
         }
-      });
+        
+        // 检查链路是否已存在
+        if (viewer.entities.getById(linkId)) {
+          return;
+        }
+        
+        // 检查显示开关状态
+        const shouldShow = showLinks.value && (
+          ((sourceNode.type === 'station' || targetNode.type === 'station') && showStation.value) ||
+          ((sourceNode.type === 'roadm' || targetNode.type === 'roadm') && showRoadm.value)
+        );
+
+        const linkEntity = viewer.entities.add({
+          id: linkId,
+          name: `地面链路: ${edge.source} → ${edge.target}`,
+          show: shouldShow,
+          polyline: {
+            positions: [sourcePosition, targetPosition],
+            width: new Cesium.CallbackProperty(() => {
+              // 根据相机高度调整线宽，提供LOD效果
+              const height = viewer.camera.positionCartographic.height;
+              if (height > 10000000) return 0.8; // 高海拔时线条更细
+              if (height > 5000000) return 1.0;
+              if (height > 1000000) return 1.2;
+              return 1.5; // 低海拔时线条更粗，更清晰
+            }, false),
+            material: new Cesium.PolylineOutlineMaterialProperty({
+              color: linkColor,
+              outlineWidth: 0.3,
+              outlineColor: Cesium.Color.WHITE.withAlpha(0.2)
+            }),
+            arcType: Cesium.ArcType.NONE,
+            clampToGround: false,
+            depthFailMaterial: linkColor.withAlpha(0.2)
+          },
+          description: `
+            <div>
+              <h3>地面链路</h3>
+              <p><strong>源节点:</strong> ${edge.source} (${sourceNode.type})</p>
+              <p><strong>目标节点:</strong> ${edge.target} (${targetNode.type})</p>
+              <p><strong>链路类型:</strong> ${edge.type || '未知'}</p>
+            </div>
+          `
+        });
+        
+        // 标记实体类型，便于后续识别
+        linkEntity.entityType = 'ground-link';
+        linkEntity.linkType = edge.type;
+        
+      } catch (error) {
+        // 静默处理创建错误
+      }
     });
+    
+    // 恢复场景更新
+    viewer.scene.requestRenderMode = false;
+    viewer.scene.maximumRenderTimeChange = 0.0;
+    viewer.scene.requestRender();
   }  let selectedLinkEntity = null;
 
   // 修改 setupClickHandler 函数
@@ -2671,6 +3376,8 @@ export function useCesium() {
     }, 200);
   }
 
+
+
   return {
     viewer: () => viewer,
     showSatellite,
@@ -2680,6 +3387,7 @@ export function useCesium() {
     initializeCesium,
     createEntities,
     addRoadmLinks,
+    clearGroundLinks,
     highlightSatelliteLinks,
     updateVisibility,
     setupClickHandler,

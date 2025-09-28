@@ -1,4 +1,10 @@
 // src/composables/useAnimation.js
+// 动画播放、暂停、帧切换和过渡效果
+// 时间轴与动画的实时联动和同步
+// 卫星实体的高效位置动画和缓存管理
+// 动画参数自适应和仿真场景兼容
+// 全局动画状态管理和资源清理
+// 适用于三维场景的卫星网络仿真与动态可视化，保证动画流畅、数据同步和交互体验
 import { ref } from 'vue';
 import * as Cesium from "cesium";
 import { ANIMATION_CONFIG, SIMULATION_CONFIG } from '../constants/index.js';
@@ -14,6 +20,7 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
   const { getCurrentDataFolder } = useDataLoader();
 
   // 解析文件夹名称格式：{类型}_{切片间隔}_{总时长}
+  // 自动识别仿真类型、切片间隔、总时长和播放间隔，支持新旧格式，保证动画参数与仿真数据同步
   function parseFolderName(folderName) {
     // 默认配置
     const defaultConfig = {
