@@ -1494,7 +1494,7 @@ export function useCesium() {
     viewer.scene.requestRender();
   }
 
-  // 加载本地矢量国界线数据
+  // 加载本地矢量国界线数据，9月28日修改了边界线表现形式，由青色改为白与黑色
   async function loadLocalCountryBorders() {
     if (!viewer) return;
     
@@ -1503,8 +1503,8 @@ export function useCesium() {
       
       // 加载本地GeoJSON文件
       const dataSource = await Cesium.GeoJsonDataSource.load('/maps/countries.geo.json', {
-        strokeColor: Cesium.Color.CYAN.withAlpha(1.0),  // 改为青色，更明显
-        strokeWidth: 3,  // 增加线宽
+        strokeColor: Cesium.Color.DARKSLATEGRAY.withAlpha(1.0),  // 亮黑色
+        strokeWidth: 15,  // 调细线宽
         fillColor: Cesium.Color.TRANSPARENT,
         clampToGround: true  // 贴地显示
       });
@@ -1519,18 +1519,23 @@ export function useCesium() {
         if (entity.polygon) {
           entity.polygon.material = Cesium.Color.TRANSPARENT;
           entity.polygon.outline = true;
-          entity.polygon.outlineColor = Cesium.Color.CYAN.withAlpha(1.0);
-          entity.polygon.outlineWidth = 3;
+          entity.polygon.outlineColor = Cesium.Color.DIMGRAY.withAlpha(1.0); // 亮黑色
+          entity.polygon.outlineWidth = 15;
           entity.polygon.height = 0;  // 贴地显示
           entity.polygon.extrudedHeight = 0;
         }
         if (entity.polyline) {
-          entity.polyline.material = Cesium.Color.CYAN.withAlpha(1.0);
-          entity.polyline.width = 3;
+          entity.polyline.material = new Cesium.PolylineGlowMaterialProperty({
+            glowPower: 3,  // 荧光强度
+            taperPower: 0.8, // 渐变效果
+            color: Cesium.Color.DIMGRAY  // 亮黑色作为主色
+          });
+          entity.polyline.width = 5;  // 稍微加宽以突出荧光效果
           entity.polyline.clampToGround = true;
         }
       }
-      
+      // 9月28日国界线修改到此结束👆
+
       console.log(`本地国界线数据加载成功，共加载 ${entities.length} 个国家/地区边界`);
       
       // 强制刷新场景以确保国界线显示
@@ -1933,7 +1938,8 @@ export function useCesium() {
     console.log(`当前场景中实体总数: ${viewer.entities.values.length}`);
   }
   
-  // 新增代码片段，地面链路显示
+  // 9月28日新增代码片段，地面链路显示
+  // 主要功能是在预览模式中，用绿线和黄线连接地面链路，做出预览效果。
 
   function clearGroundLinks() {
     if (!viewer) return;
@@ -1998,18 +2004,18 @@ export function useCesium() {
         
         let linkConfig;
         
-        // 简洁的连线类型配置
+        // 简洁的连线类型配置，可以调整预览效果，选择连线材质
         let linkColor, linkId, description;
         
         if (sourceNode.type === 'roadm' && targetNode.type === 'roadm') {
-          // ROADM-ROADM 连线：绿色
-          linkColor = Cesium.Color.fromCssColorString('#00FF7F').withAlpha(0.8);
+          // ROADM-ROADM 连线：偏深的绿色
+          linkColor = Cesium.Color.fromCssColorString('#228B22').withAlpha(0.8);
           linkId = `roadm-roadm-link-${edge.source}-${edge.target}`;
           description = 'ROADM骨干连接';
         } else if ((sourceNode.type === 'station' && targetNode.type === 'roadm') ||
                    (sourceNode.type === 'roadm' && targetNode.type === 'station')) {
-          // 地面站-ROADM 连线：金色
-          linkColor = Cesium.Color.fromCssColorString('#FFD700').withAlpha(0.8);
+          // 地面站-ROADM 连线：偏深的黄色
+          linkColor = Cesium.Color.fromCssColorString('#DAA520').withAlpha(0.8);
           linkId = `station-roadm-link-${edge.source}-${edge.target}`;
           description = '地面接入连接';
         } else {
@@ -2030,12 +2036,8 @@ export function useCesium() {
           ((sourceNode.type === 'roadm' || targetNode.type === 'roadm') && showRoadm.value)
         );
 
-        // 简洁稳定的材质
-        const simpleMaterial = new Cesium.PolylineOutlineMaterialProperty({
-          color: linkColor,
-          outlineWidth: 1,
-          outlineColor: Cesium.Color.WHITE.withAlpha(0.3)
-        });
+        // 纯色材质
+        const simpleMaterial = new Cesium.ColorMaterialProperty(linkColor);
 
         const linkEntity = viewer.entities.add({
           id: linkId,
@@ -2044,26 +2046,18 @@ export function useCesium() {
           polyline: {
             positions: [sourcePosition, targetPosition],
             width: new Cesium.CallbackProperty(() => {
-              // 简单的LOD：根据相机高度调整线宽
+              // 简单的LOD：根据相机高度调整线宽（更细的线条）
               const height = viewer.camera.positionCartographic.height;
-              if (height > 10000000) return 1.0;
-              if (height > 5000000) return 1.5;
-              if (height > 1000000) return 2.0;
-              return 2.5;
+              if (height > 10000000) return 0.8;
+              if (height > 5000000) return 1.2;
+              if (height > 1000000) return 1.6;
+              return 2.0;
             }, false),
             material: simpleMaterial,
             arcType: Cesium.ArcType.NONE,
             clampToGround: false,
             depthFailMaterial: linkColor.withAlpha(0.3)
           },
-          description: `
-            <div style="font-family: 'Microsoft YaHei', sans-serif;">
-              <h3 style="color: ${linkColor.toCssColorString()};">🔗 ${description}</h3>
-              <p><strong>源节点:</strong> ${edge.source} (${sourceNode.type})</p>
-              <p><strong>目标节点:</strong> ${edge.target} (${targetNode.type})</p>
-              <p><strong>连接类型:</strong> ${edge.type || '标准连接'}</p>
-            </div>
-          `
         });
         
         // 标记实体类型，便于后续识别
@@ -2085,49 +2079,7 @@ export function useCesium() {
   let selectedLinkEntity = null;
   let hoveredLinkEntity = null;
 
-  // 简化的鼠标悬停高亮效果
-  function highlightHoveredLink(entity) {
-    if (hoveredLinkEntity === entity) return;
-    
-    // 恢复之前悬停链路的状态
-    if (hoveredLinkEntity && hoveredLinkEntity.polyline) {
-      resetLinkHoverEffect(hoveredLinkEntity);
-    }
-    
-    hoveredLinkEntity = entity;
-    
-    if (entity && entity.polyline && entity.entityType === 'ground-link') {
-      // 保存原始材质
-      if (!entity.originalMaterial) {
-        entity.originalMaterial = entity.polyline.material;
-        entity.originalWidth = entity.polyline.width;
-      }
-      
-      // 简单的高亮：增加线宽
-      const currentWidth = entity.polyline.width.getValue(viewer.clock.currentTime);
-      entity.polyline.width = currentWidth * 1.5;
-      
-      // 更改鼠标样式
-      viewer.canvas.style.cursor = 'pointer';
-    }
-  }
-
-  // 恢复链路悬停效果
-  function resetLinkHoverEffect(entity) {
-    if (entity && entity.polyline && entity.originalMaterial) {
-      entity.polyline.material = entity.originalMaterial;
-      entity.polyline.width = entity.originalWidth;
-      viewer.canvas.style.cursor = 'default';
-    }
-  }
-
-  // 简化的鼠标悬停监听 - 仅在点击时高亮
-  function setupHoverHandler() {
-    // 为了稳定性，移除鼠标移动监听，只保留点击高亮
-    return null;
-  }
-
-  // 新增代码片段结束
+  // 9月28日新增/修改地面链路显示模块代码片段到这里结束
 
   // 修改 setupClickHandler 函数
   function setupClickHandler(onEntityClick) {
@@ -2828,7 +2780,6 @@ export function useCesium() {
     highlightSatelliteLinks,
     updateVisibility,
     setupClickHandler,
-    setupHoverHandler,
     setupTimelineControl,
     setupTimelineStyles,
     debugTimelineElements,
@@ -2840,8 +2791,6 @@ export function useCesium() {
     resetClockRange,
     highlightSelectedLink,
     resetLinkHighlight,
-    highlightHoveredLink,
-    resetLinkHoverEffect,
     cleanup,
     manuallyFixEntitiesFor2D,
     parseFolderName

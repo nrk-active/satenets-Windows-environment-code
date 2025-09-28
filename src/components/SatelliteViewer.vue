@@ -1,3 +1,14 @@
+/*
+ * 卫星网络仿真系统的主视图容器，集成了导航栏、对象列表、三维场景、业务面板、图表面板、实体信息面板等多个子组件。
+ * 导航栏：管理仿真流程、用户登录、数据选择、播放控制等操作。
+ * 对象列表侧边栏：展示卫星、地面站、ROADM、链路等对象，支持选中、显示/隐藏和快速定位
+ * Cesium三维场景：动态展示卫星网络仿真动画，支持实体选择、播放速度调节、时间跳转等交互
+ * 节点跳转与时间跳转：支持用户快速定位到指定节点或仿真时间帧
+ * 业务面板与详情：展示和管理业务数据，支持业务路径高亮和详情查看
+ * 图表面板：可视化展示仿真结果（如延迟、带宽、跳数等指标）
+ * 实体信息面板：展示选中实体的详细属性和业务承载情况
+ */
+
 <template>
   <div class="satellite-viewer-container">
     <!-- 导航栏 -->
@@ -308,6 +319,7 @@ const {
   initializeCesium,
   createEntities,
   addRoadmLinks,
+  clearGroundLinks, // 9月28日新增，对应链路显示功能部分
   highlightSatelliteLinks,
   updateVisibility,
   setupClickHandler,
@@ -572,6 +584,7 @@ watch(selectedProcessId, async (newProcessId, oldProcessId) => {
       if (data?.nodes?.length) {
         // 清除当前实体并重新创建
         if (viewer() && viewer().entities) {
+          clearGroundLinks(); // 先清除地面链路（9月28日新增）
           viewer().entities.removeAll();
         }
         createEntities(data);
