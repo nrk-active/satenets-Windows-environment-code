@@ -54,7 +54,7 @@ export function useServiceData() {
     console.log('Stack trace:', new Error().stack);
   }
 
-  async function loadServiceData(frame) {
+  async function loadServiceData(frame, isFrameJump = false) {
     try {
       const currentFolder = getCurrentDataFolder();
       if (!currentFolder) {
@@ -136,10 +136,22 @@ export function useServiceData() {
       if (moduleDrawnServiceIds.size > 0 && moduleLastViewer && moduleLastNetworkData) {
         console.log('检测到缓存的业务ID，重新绘制路径...');
         logCacheState('loadServiceData中检测到缓存');
+        
+        // 对于时间跳转，立即清除旧路径避免错误显示
+        if (isFrameJump) {
+          const validViewer = getValidViewer(moduleLastViewer);
+          if (validViewer) {
+            clearAllServicePaths(validViewer);
+            console.log('时间跳转检测：立即清除旧路径');
+          } else {
+            console.warn('无法获取有效viewer，跳过路径清除');
+          }
+        }
+        
         // 延迟一小段时间确保网络数据已更新
         setTimeout(() => {
           redrawCachedServicePaths();
-        }, 100);
+        }, isFrameJump ? 100 : 50);
       }
       
       return processedData;
@@ -721,6 +733,36 @@ export function useServiceData() {
       return;
     }
     
+    // 重要优化：检查业务数据是否为空，如果为空则跳过重绘，避免用旧数据绘制
+    const allRequests = [
+      ...(serviceData.value.active_requests || []),
+      ...(serviceData.value.pending_requests || []),
+      ...(serviceData.value.ended_requests || []),
+      ...(serviceData.value.blocked_requests || []),
+      ...(serviceData.value.failed_requests || [])
+    ];
+    
+    if (allRequests.length === 0) {
+      console.log('业务数据为空，跳过重绘等待业务数据更新');
+      // 延迟一段时间后重试
+      setTimeout(() => {
+        const retryAllRequests = [
+          ...(serviceData.value.active_requests || []),
+          ...(serviceData.value.pending_requests || []),
+          ...(serviceData.value.ended_requests || []),
+          ...(serviceData.value.blocked_requests || []),
+          ...(serviceData.value.failed_requests || [])
+        ];
+        if (retryAllRequests.length > 0) {
+          console.log('重试重绘，业务数据已更新');
+          redrawCachedServicePaths();
+        } else {
+          console.log('业务数据仍为空，停止重绘');
+        }
+      }, 500);
+      return;
+    }
+    
     console.log(`开始重新绘制 ${moduleDrawnServiceIds.size} 条缓存的业务路径`);
     console.log('缓存的业务ID:', Array.from(moduleDrawnServiceIds));
     
@@ -738,15 +780,6 @@ export function useServiceData() {
     // 收集所有需要重新绘制的业务
     const servicesToRedraw = [];
     const cachedIds = Array.from(moduleDrawnServiceIds);
-    
-    // 从当前业务数据中查找缓存的业务ID
-    const allRequests = [
-      ...(serviceData.value.active_requests || []),
-      ...(serviceData.value.pending_requests || []),
-      ...(serviceData.value.ended_requests || []),
-      ...(serviceData.value.blocked_requests || []),
-      ...(serviceData.value.failed_requests || [])
-    ];
     
     console.log('当前业务数据统计:', {
       active: serviceData.value.active_requests?.length || 0,
@@ -842,7 +875,7 @@ export function useServiceData() {
   }
 
   // 当网络数据更新时重绘路径
-  function updateNetworkDataAndRedraw(newNetworkData, viewer = null) {
+  function updateNetworkDataAndRedraw(newNetworkData, viewer = null, isFrameJump = false) {
     if (!newNetworkData) {
       console.warn('updateNetworkDataAndRedraw: 新网络数据为空');
       return;
@@ -857,6 +890,7 @@ export function useServiceData() {
     console.log('传入viewer有entities:', !!(viewer?.entities));
     console.log('缓存的viewer状态:', !!moduleLastViewer);
     console.log('缓存的lastNetworkData状态:', !!moduleLastNetworkData);
+    console.log('是否为帧跳转:', isFrameJump);
     
     logCacheState('网络数据更新开始时');
     
@@ -894,10 +928,15 @@ export function useServiceData() {
     // 如果有缓存的业务路径，立即重新绘制
     if (moduleDrawnServiceIds.size > 0 && validViewer) {
       console.log(`基于新网络数据重绘 ${moduleDrawnServiceIds.size} 条业务路径`);
+      
+      // 优化延迟时间：帧跳转时缩短延迟，因为现在有了业务数据检查机制
+      const delayTime = isFrameJump ? 50 : 50;
+      
       // 延迟一小段时间，确保业务数据有时间更新
       setTimeout(() => {
+        console.log(`延迟${delayTime}ms后开始重绘业务路径`);
         redrawCachedServicePaths();
-      }, 200);
+      }, delayTime);
     } else {
       console.log('没有需要重绘的业务路径或viewer不可用', {
         hasDrawnPaths: moduleDrawnServiceIds.size > 0,

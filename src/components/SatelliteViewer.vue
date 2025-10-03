@@ -697,8 +697,38 @@ watch(isLoggedIn, async (newLoginStatus) => {
   }
 }, { immediate: false });
 
-async function loadTimeFrame(frame) {
-  console.log(`强制加载帧: ${frame}`);
+/**
+ * 预加载指定帧的业务数据
+ */
+async function loadBusinessDataForFrame(frameNumber) {
+  try {
+    const folderPath = getCurrentDataFolder();
+    const formattedNumber = String(frameNumber * 10).padStart(2, '0');
+    const filePath = `${folderPath}/network_state_${formattedNumber}.00.json`;
+    
+    console.log(`预加载业务数据: ${filePath}`);
+    
+    const response = await fetch(filePath);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // 预加载数据到缓存
+    if (data.business_services) {
+      console.log(`预加载完成，业务服务数量: ${data.business_services.length}`);
+    }
+    
+    return data;
+  } catch (error) {
+    console.warn(`预加载帧 ${frameNumber} 业务数据失败:`, error);
+    throw error;
+  }
+}
+
+async function loadTimeFrame(frame, isFrameJump = false) {
+  console.log(`强制加载帧: ${frame}, 时间跳转: ${isFrameJump}`);
   
   try {
     timeFrame.value = frame;
@@ -744,6 +774,18 @@ async function loadTimeFrame(frame) {
         
         if (networkData) {
           console.log('本地网络数据加载成功:', networkData);
+          
+          // 重要修复：确保业务数据在网络数据处理之前同步加载
+          let serviceDataResult = null;
+          try {
+            console.log('同步加载业务数据...');
+            serviceDataResult = await loadServiceData(frame, isFrameJump);
+            console.log('本地业务数据加载成功:', serviceDataResult);
+          } catch (serviceError) {
+            console.warn('本地业务数据加载失败:', serviceError);
+          }
+          
+          // 业务数据加载完成后再处理网络数据
           currentGraphData = networkData;
           processNetworkData(networkData);
           
@@ -752,24 +794,14 @@ async function loadTimeFrame(frame) {
             chartPanelRef.value.addDataPoint(frame, networkData);
           }
           
-          // 同时尝试加载业务数据
-          try {
-            const serviceDataResult = await loadServiceData(frame);
-            console.log('本地业务数据加载成功:', serviceDataResult);
-            
-            // 更新ObjectViewer中的文件显示
-            const networkFileName = filename.split('/').pop();
-            const serviceFileName = `service_state_${fileTimeValue}.00.json`;
-            if (objectViewerRef.value) {
+          // 更新ObjectViewer中的文件显示
+          const networkFileName = filename.split('/').pop();
+          const serviceFileName = `service_state_${fileTimeValue}.00.json`;
+          if (objectViewerRef.value) {
+            if (serviceDataResult) {
               objectViewerRef.value.updateLoadedFiles(networkFileName, serviceFileName);
-            }
-          } catch (serviceError) {
-            console.warn('本地业务数据加载失败:', serviceError);
-            
-            // 即使业务数据加载失败，也更新网络文件显示
-            const networkFileName = filename.split('/').pop();
-            if (objectViewerRef.value) {
-              objectViewerRef.value.updateLoadedFiles(networkFileName, '加载失败');
+            } else {
+              objectViewerRef.value.updateLoadedFiles(networkFileName, '业务数据加载失败');
             }
           }
         } else {
@@ -796,7 +828,7 @@ async function loadTimeFrame(frame) {
     
     const [networkData, serviceDataResult] = await Promise.all([
       loadGraphDataFromAPI(currentProcessId, timeStamp),
-      loadServiceData(frame)
+      loadServiceData(frame, isFrameJump)
     ]);
     
     if (!networkData) {
@@ -832,8 +864,8 @@ function processNetworkData(networkData) {
   
   console.log('Cesium viewer可用，当前实体数量:', viewer().entities.values.length);
   
-  // 更新业务数据的网络数据引用，并传递viewer
-  updateNetworkDataAndRedraw(networkData, viewer());
+  // 重要修复：延迟更新业务数据，不在这里立即调用，避免使用旧的业务数据
+  // updateNetworkDataAndRedraw(networkData, viewer()); // 移除立即调用
   
   if (getPreviousFrameData() === null) {
     console.log('这是第一帧数据，清空现有实体并创建新实体');
@@ -860,6 +892,13 @@ function processNetworkData(networkData) {
     if (objectViewerRef.value) {
       objectViewerRef.value.updateData(networkData);
     }
+    
+    // 重要修复：第一帧也需要在最后更新业务数据，确保业务路径与网络数据同步
+    setTimeout(() => {
+      console.log('第一帧数据处理完成，现在更新业务数据和路径');
+      updateNetworkDataAndRedraw(networkData, viewer(), false);
+    }, 100);
+    
     return;
   }
   
@@ -879,6 +918,9 @@ function processNetworkData(networkData) {
   if (shouldUseInstantMode) {
     console.log(`帧跳跃距离${frameJumpDistance}超过阈值${FRAME_JUMP_THRESHOLD}，启用瞬间模式避免穿越动画`);
     
+    // 大跨度跳转时先清除所有业务路径，避免显示错误的路径
+    clearAllServicePaths();
+    
     // 临时启用瞬间模式
     const wasInstantMode = instantMode.value;
     instantMode.value = true;
@@ -895,8 +937,26 @@ function processNetworkData(networkData) {
       if (objectViewerRef.value) {
         objectViewerRef.value.updateData(networkData);
       }
-      // 动画完成后再次更新网络数据以确保路径重绘
-      updateNetworkDataAndRedraw(networkData, viewer());
+      
+      // 重要修复：立即重新加载业务数据以确保时间同步
+      const frameToLoad = timeFrame.value;
+      console.log(`大跨度跳转后重新加载业务数据，当前帧: ${frameToLoad}`);
+      
+      // 使用异步函数确保业务数据完全加载后再处理
+      (async () => {
+        try {
+          console.log('开始同步重新加载业务数据...');
+          await loadServiceData(frameToLoad, true); // 传递时间跳转标识
+          console.log('业务数据重新加载完成，现在更新网络数据和重绘路径');
+          
+          // 业务数据加载完成后立即更新网络数据
+          updateNetworkDataAndRedraw(networkData, viewer(), true); // 传递帧跳转标识
+        } catch (error) {
+          console.error('重新加载业务数据失败:', error);
+          // 即使业务数据加载失败，也要更新网络数据
+          updateNetworkDataAndRedraw(networkData, viewer(), true);
+        }
+      })();
     });
   } else {
     console.log(`帧跳跃距离${frameJumpDistance}在正常范围内，使用常规动画过渡`);
@@ -909,8 +969,8 @@ function processNetworkData(networkData) {
       if (objectViewerRef.value) {
         objectViewerRef.value.updateData(networkData);
       }
-      // 动画完成后再次更新网络数据以确保路径重绘
-      updateNetworkDataAndRedraw(networkData, viewer());
+      // 动画完成后再次更新网络数据以确保路径重绘（非跳转情况）
+      updateNetworkDataAndRedraw(networkData, viewer(), false);
     });
   }
   
@@ -1029,7 +1089,7 @@ function handleEntitySelect(entityId) {
 }
 
 // 处理时间跳转
-function handleTimeJump(frame) {
+async function handleTimeJump(frame) {
   try {
     console.log(`时间跳转到第${frame}帧`);
     
@@ -1056,8 +1116,20 @@ function handleTimeJump(frame) {
       console.warn(`帧数已调整: ${frameNumber} → ${safeFrame} (文件夹: ${currentFolder}, 最大帧数: ${maxFrames})`);
     }
     
+    // 重要修复：时间跳转时先清除业务路径，避免显示错误连接
+    console.log('时间跳转前先清除业务路径');
+    clearAllServicePaths();
+    
+    // 预加载业务数据以确保数据同步
+    try {
+      console.log('预加载业务数据');
+      await loadBusinessDataForFrame(safeFrame);
+    } catch (error) {
+      console.warn('业务数据预加载失败，继续执行:', error);
+    }
+    
     // 强制加载指定帧
-    loadTimeFrame(safeFrame);
+    loadTimeFrame(safeFrame, true); // 标识为时间跳转
   } catch (error) {
     console.error('时间跳转处理失败:', error);
   }
