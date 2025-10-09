@@ -82,7 +82,7 @@ export function useCesium() {
       
       // 直接使用本地图片文件，不通过复杂的Provider
       // 创建一个简单的纹理URL
-      const textureUrl = window.location.origin + '/texture/earth.jpg';
+      const textureUrl = window.location.origin + '/texture/earthL.jpg';
       console.log('尝试加载纹理URL:', textureUrl);
       
       // 使用最简单的方式：UrlTemplateImageryProvider配置为单张图片
