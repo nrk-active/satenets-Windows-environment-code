@@ -87,6 +87,14 @@
         />
       </div>
       
+      <!-- 光照控制面板 10.27修改片段 -->
+      <LightingControl 
+        ref="lightingControlRef"
+        :initial-enabled="true"
+        @toggle-lighting="onToggleLighting"
+      />
+      <!--修改结束-->
+
       <!-- 右侧面板区域 -->
       <div class="right-panel-container" v-if="selectedService || showRightPanel || showDataPanel">
         <!-- 图表面板 -->
@@ -136,6 +144,7 @@ import ServicePanel from './ServicePanel.vue';
 import ServiceDetail from './ServiceDetail.vue';
 import NodeJumpInput from './NodeJumpInput.vue';
 import ChartPanel from './ChartPanel.vue';
+import LightingControl from './LightingControl.vue'; //10.27 新增
 
 import { useCesium } from '../composables/useCesium.js';
 import { useDataLoader } from '../composables/useDataLoader.js';
@@ -163,6 +172,17 @@ function handleLogout() {
   // 登出后跳转到登录页
   router.push('/login');
 }
+
+// 光照控制相关 10.27新增
+const lightingControlRef = ref(null);
+
+// 处理光照切换事件
+function handleToggleLighting(enabled) {
+  if (window.toggleLighting) {
+    window.toggleLighting(enabled);
+  }
+}
+//新增结束
 
 // 处理仿真数据选择
 const showDataPanel = ref(false); // 默认不显示，只有用户选择后才显示
@@ -453,6 +473,16 @@ function handleIncreaseSpeed() {
 function handleDecreaseSpeed() {
   decreaseSpeed();
 }
+
+// 处理光照控制切换事件 10.27新增
+function onToggleLighting(enabled) {
+  console.log(`切换光照状态: ${enabled}`);
+  if (window.toggleLighting) {
+    window.toggleLighting(enabled);
+  } else {
+    console.warn('window.toggleLighting方法未找到');
+  }
+}//新增结束
 
 // 主要业务逻辑
 let currentGraphData = null;
@@ -894,10 +924,11 @@ function processNetworkData(networkData) {
     }
     
     // 重要修复：第一帧也需要在最后更新业务数据，确保业务路径与网络数据同步
-    setTimeout(() => {
-      console.log('第一帧数据处理完成，现在更新业务数据和路径');
-      updateNetworkDataAndRedraw(networkData, viewer(), false);
-    }, 100);
+    // 注释掉自动重绘，避免性能问题 - 只有用户手动绘制业务路径时才重绘
+    // setTimeout(() => {
+    //   console.log('第一帧数据处理完成，现在更新业务数据和路径');
+    //   updateNetworkDataAndRedraw(networkData, viewer(), false);
+    // }, 100);
     
     return;
   }
@@ -969,8 +1000,8 @@ function processNetworkData(networkData) {
       if (objectViewerRef.value) {
         objectViewerRef.value.updateData(networkData);
       }
-      // 动画完成后再次更新网络数据以确保路径重绘（非跳转情况）
-      updateNetworkDataAndRedraw(networkData, viewer(), false);
+      // 注释掉自动重绘，避免每个时间片都卡顿 - 只有用户手动绘制业务路径时才重绘
+      // updateNetworkDataAndRedraw(networkData, viewer(), false);
     });
   }
   
@@ -1118,7 +1149,10 @@ async function handleTimeJump(frame) {
     
     // 重要修复：时间跳转时先清除业务路径，避免显示错误连接
     console.log('时间跳转前先清除业务路径');
-    clearAllServicePaths();
+    const cesiumViewer = viewer();
+    if (cesiumViewer) {
+      clearAllServicePaths(cesiumViewer);
+    }
     
     // 预加载业务数据以确保数据同步
     try {

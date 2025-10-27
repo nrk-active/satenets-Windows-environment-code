@@ -17,6 +17,10 @@ export function useCesium() {
   // 获取数据加载器的功能
   const { getCurrentDataFolder } = useDataLoader();
   
+  // 光照状态 10.27新增
+  const lightingEnabled = ref(true);
+  //新增结束
+
   // 当前时间轴配置（避免重复解析）
   let currentTimelineConfig = { isDefault: true, interval: 60, totalDuration: 360 };
   
@@ -124,11 +128,11 @@ export function useCesium() {
     viewer.scene.sun = new Cesium.Sun();
     viewer.scene.sun.show = true;
     
-    // 确保光照方向跟随太阳位置
+    // 确保光照方向跟随太阳位置，同时尊重lightingEnabled状态
     viewer.scene.postRender.addEventListener(() => {
       if (viewer.scene.sun && viewer.scene.light instanceof Cesium.SunLight) {
-        // 太阳光自动跟随太阳位置，这是最真实的光照
-        viewer.scene.globe.enableLighting = true;
+        // 太阳光自动跟随太阳位置，但根据lightingEnabled状态决定是否启用光照，10.27新增
+        viewer.scene.globe.enableLighting = lightingEnabled.value;
       }
     });
     
@@ -1225,6 +1229,15 @@ export function useCesium() {
     setTimeout(() => {
       loadLocalCountryBorders();
     }, 2000);
+    
+    // 将光照控制方法挂载到window对象，便于其他组件访问 10.27新增
+    window.toggleLighting = function(enabled) {
+      if (viewer && viewer.scene && viewer.scene.globe) {
+        viewer.scene.globe.enableLighting = enabled;
+        lightingEnabled.value = enabled;
+        console.log(`光照效果已${enabled ? '开启' : '关闭'}`);
+      }
+    }; //新增结束
     
     return viewer;
   }
@@ -2773,6 +2786,7 @@ export function useCesium() {
     showStation,
     showRoadm,
     showLinks,
+    lightingEnabled,
     initializeCesium,
     createEntities,
     addRoadmLinks,
@@ -2793,6 +2807,18 @@ export function useCesium() {
     resetLinkHighlight,
     cleanup,
     manuallyFixEntitiesFor2D,
-    parseFolderName
+    parseFolderName,
+    // 切换光照效果
+    toggleLighting: function(enabled) {
+      if (viewer && viewer.scene && viewer.scene.globe) {
+        viewer.scene.globe.enableLighting = enabled;
+        lightingEnabled.value = enabled;
+        console.log(`光照效果已${enabled ? '开启' : '关闭'}`);
+      }
+    },
+    // 获取光照状态
+    getLightingEnabled: function() {
+      return lightingEnabled.value;
+    }
   };
 }
