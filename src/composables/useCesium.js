@@ -28,6 +28,10 @@ export function useCesium() {
   // 经纬线网格状态 12.08新增
   const gridEnabled = ref(true);
   //新增结束
+  
+  // 星空背景状态 12.08新增
+  const skyEnabled = ref(true);
+  //新增结束
 
   // 当前时间轴配置（避免重复解析）
   let currentTimelineConfig = { isDefault: true, interval: 60, totalDuration: 360 };
@@ -218,6 +222,21 @@ export function useCesium() {
     // 禁用地球大气层以获得更清晰的宇宙背景
     viewer.scene.skyAtmosphere.show = false;
     viewer.scene.globe.showGroundAtmosphere = false;
+    
+    // 初始化星空背景 12.08新增
+    viewer.scene.skyBox = new Cesium.SkyBox({
+      sources: {
+        positiveX: 'https://zimiao.oss-cn-beijing.aliyuncs.com/images/tycho2t3_80_px.jpg',
+        negativeX: 'https://zimiao.oss-cn-beijing.aliyuncs.com/images/tycho2t3_80_mx.jpg',
+        positiveY: 'https://zimiao.oss-cn-beijing.aliyuncs.com/images/tycho2t3_80_py.jpg',
+        negativeY: 'https://zimiao.oss-cn-beijing.aliyuncs.com/images/tycho2t3_80_my.jpg',
+        positiveZ: 'https://zimiao.oss-cn-beijing.aliyuncs.com/images/tycho2t3_80_pz.jpg',
+        negativeZ: 'https://zimiao.oss-cn-beijing.aliyuncs.com/images/tycho2t3_80_mz.jpg'
+      }
+    });
+    // 根据初始状态设置星空可见性
+    viewer.scene.skyBox.show = skyEnabled.value;
+    //新增结束
     
     // 基础渲染质量优化
     viewer.scene.globe.maximumScreenSpaceError = 0.5; // 提高地形质量
@@ -2487,6 +2506,15 @@ export function useCesium() {
           recalculateEntityPositionsFor2D(viewer);
           optimize2DMode(viewer);
         }, 100);
+      } else if (sceneMode === Cesium.SceneMode.SCENE3D) {
+        // 3D模式下，恢复星空背景显示 12.08新增
+        setTimeout(() => {
+          if (viewer.scene.skyBox && skyEnabled.value) {
+            viewer.scene.skyBox.show = true;
+            console.log('3D模式下恢复星空背景显示');
+          }
+        }, 100);
+        //新增结束
       }
     });
     
@@ -2647,6 +2675,12 @@ export function useCesium() {
       viewer.scene.globe.enableLighting = false;
       viewer.scene.fog.enabled = false;
       viewer.scene.skyAtmosphere.show = false;
+      
+      // 在2D模式下隐藏星空背景 12.08新增
+      if (viewer.scene.skyBox) {
+        viewer.scene.skyBox.show = false;
+      }
+      //新增结束
       
       // 设置合适的缩放级别下显示标签
       viewer.scene.camera.changed.addEventListener(() => {
@@ -3008,6 +3042,20 @@ export function useCesium() {
     // 获取经纬线网格状态 12.08新增
     getGridEnabled: function() {
       return gridEnabled.value;
+    },
+    // 切换星空背景显示 12.08新增
+    toggleSky: function(enabled) {
+      if (viewer && viewer.scene) {
+        viewer.scene.skyBox.show = enabled;
+        skyEnabled.value = enabled;
+        console.log(`星空背景显示已${enabled ? '开启' : '关闭'}`);
+        // 强制刷新场景
+        viewer.scene.requestRender();
+      }
+    },
+    // 获取星空背景状态 12.08新增
+    getSkyEnabled: function() {
+      return skyEnabled.value;
     }
   };
 }

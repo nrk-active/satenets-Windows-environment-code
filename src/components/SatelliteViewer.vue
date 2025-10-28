@@ -110,6 +110,14 @@
         @toggle-grid="onToggleGrid"
       />
       <!--新增结束-->
+      
+      <!-- 星空背景控制面板 12.08新增 -->
+      <SkyControl 
+        ref="skyControlRef"
+        :initial-enabled="true"
+        @toggle-sky="onToggleSky"
+      />
+      <!--新增结束-->
 
       <!-- 右侧面板区域 -->
       <div class="right-panel-container" v-if="selectedService || showRightPanel || showDataPanel">
@@ -163,6 +171,7 @@ import ChartPanel from './ChartPanel.vue';
 import LightingControl from './LightingControl.vue'; //10.27 新增
 import BorderControl from './BorderControl.vue'; //10.27 新增
 import GridControl from './GridControl.vue'; //12.08 新增
+import SkyControl from './SkyControl.vue'; //12.08 新增
 
 import { useCesium } from '../composables/useCesium.js';
 import { useDataLoader } from '../composables/useDataLoader.js';
@@ -222,6 +231,19 @@ function onToggleGrid(enabled) {
     toggleGrid(enabled);
   } else {
     console.warn('toggleGrid方法未找到');
+  }
+}//新增结束
+
+// 星空背景控制相关 12.08新增
+const skyControlRef = ref(null);
+
+// 处理星空背景切换事件
+function onToggleSky(enabled) {
+  console.log(`切换星空背景状态: ${enabled}`);
+  if (toggleSky) {
+    toggleSky(enabled);
+  } else {
+    console.warn('toggleSky方法未找到');
   }
 }//新增结束
 
@@ -397,7 +419,8 @@ const {
   parseFolderName,
   toggleLighting, // 10.27新增
   toggleBorder, // 10.27新增
-  toggleGrid // 12.08新增
+  toggleGrid, // 12.08新增
+  toggleSky // 12.08新增，对应星空背景功能部分
 } = useCesium();
 
 const { 

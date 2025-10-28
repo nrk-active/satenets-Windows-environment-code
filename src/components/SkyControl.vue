@@ -1,23 +1,19 @@
 <template>
   <div class="tooltip-container">
     <button 
-      class="grid-icon"
-      :class="{ active: gridEnabled }"
-      @click="toggleGrid"
+      class="sky-icon"
+      :class="{ active: skyEnabled }"
+      @click="toggleSky"
       @mouseenter="showTooltip"
       @mouseleave="hideTooltip"
     >
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <!-- 地球圆形轮廓 -->
-        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
-        <!-- 经线 - 增加更多可见的竖直线 -->
-        <line x1="12" y1="2" x2="12" y2="22" stroke="currentColor" stroke-width="1.2" opacity="0.8"/>
-        <path d="M 6 2 Q 6 12 6 22" stroke="currentColor" stroke-width="1.2" fill="none" opacity="0.7"/>
-        <path d="M 18 2 Q 18 12 18 22" stroke="currentColor" stroke-width="1.2" fill="none" opacity="0.7"/>
-        <!-- 纬线 -->
-        <line x1="2" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="1.2" opacity="0.8"/>
-        <line x1="4" y1="7" x2="20" y2="7" stroke="currentColor" stroke-width="1.2" opacity="0.6"/>
-        <line x1="4" y1="17" x2="20" y2="17" stroke="currentColor" stroke-width="1.2" opacity="0.6"/>
+        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="12" cy="12" r="2" fill="currentColor"/>
+        <circle cx="5" cy="5" r="1" fill="currentColor"/>
+        <circle cx="19" cy="5" r="1" fill="currentColor"/>
+        <circle cx="5" cy="19" r="1" fill="currentColor"/>
+        <circle cx="19" cy="19" r="1" fill="currentColor"/>
       </svg>
     </button>
     <div 
@@ -25,34 +21,34 @@
       class="tooltip"
       :class="tooltipPosition"
     >
-      {{ gridEnabled ? '关闭经纬线网格' : '开启经纬线网格' }}
+      {{ skyEnabled ? '关闭星空' : '开启星空' }}
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 
 // 定义props和emits
-const emit = defineEmits(['toggle-grid']);
+const emit = defineEmits(['toggle-sky']);
 
-// 经纬线网格状态
-const gridEnabled = ref(true);
+// 星空状态
+const skyEnabled = ref(true);
 
 // 工具提示状态
 const tooltipVisible = ref(false);
 const tooltipPosition = ref('');
 let tooltipTimeout = null;
 
-// 切换经纬线网格状态
-function toggleGrid() {
-  gridEnabled.value = !gridEnabled.value;
-  emit('toggle-grid', gridEnabled.value);
+// 切换星空状态
+function toggleSky() {
+  skyEnabled.value = !skyEnabled.value;
+  emit('toggle-sky', skyEnabled.value);
 }
 
-// 设置经纬线网格状态
-function setGridState(enabled) {
-  gridEnabled.value = enabled;
+// 设置星空状态
+function setSkyState(enabled) {
+  skyEnabled.value = enabled;
 }
 
 // 显示工具提示（添加延迟）
@@ -61,7 +57,7 @@ function showTooltip() {
     tooltipVisible.value = true;
     // 根据窗口位置设置工具提示位置
     tooltipPosition.value = 'top';
-  }, 50); // 200毫秒延迟 - 更灵敏的显示
+  }, 50); // 50毫秒延迟 - 更灵敏的显示
 }
 
 // 隐藏工具提示
@@ -75,7 +71,7 @@ function hideTooltip() {
 
 // 暴露方法给父组件
 defineExpose({
-  setGridState
+  setSkyState
 });
 </script>
 
@@ -84,12 +80,12 @@ defineExpose({
 .tooltip-container {
   position: fixed;
   bottom: 20px;
-  left: 120px; /* 位置在国界线按钮右侧 */
+  left: 170px; /* 调整位置，使四个按钮均匀排列 */
   z-index: 1000;
 }
 
-/* 网格图标按钮样式 */
-.grid-icon {
+/* 星空图标按钮样式 */
+.sky-icon {
   width: 40px;
   height: 40px;
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -108,34 +104,34 @@ defineExpose({
   position: relative;
 }
 
-.grid-icon svg {
+.sky-icon svg {
   transition: all 0.3s ease;
 }
 
-.grid-icon:hover {
+.sky-icon:hover {
   background: rgba(255, 255, 255, 0.2);
   transform: scale(1.1);
   box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
   border-color: rgba(255, 255, 255, 0.6);
 }
 
-.grid-icon.active {
+.sky-icon.active {
   background: rgba(255, 255, 255, 0.2);
   border-color: rgba(255, 255, 255, 0.8);
-  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.5);
-  animation: gridGlow 2s infinite alternate;
+  box-shadow: 0 4px 16px rgba(100, 149, 237, 0.5);
+  animation: skyGlow 2s infinite alternate;
 }
 
-.grid-icon.active svg {
+.sky-icon.active svg {
   transform: rotate(15deg);
 }
 
-@keyframes gridGlow {
+@keyframes skyGlow {
   from {
-    box-shadow: 0 4px 16px rgba(255, 255, 255, 0.5);
+    box-shadow: 0 4px 16px rgba(100, 149, 237, 0.5);
   }
   to {
-    box-shadow: 0 4px 24px rgba(255, 255, 255, 0.8);
+    box-shadow: 0 4px 24px rgba(100, 149, 237, 0.8);
   }
 }
 
