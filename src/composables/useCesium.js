@@ -20,9 +20,86 @@ export function useCesium() {
   // 光照状态 10.27新增
   const lightingEnabled = ref(true);
   //新增结束
+  
+  // 国界线状态 10.27新增
+  const borderEnabled = ref(true);
+  //新增结束
+  
+  // 经纬线网格状态 12.08新增
+  const gridEnabled = ref(true);
+  //新增结束
 
   // 当前时间轴配置（避免重复解析）
   let currentTimelineConfig = { isDefault: true, interval: 60, totalDuration: 360 };
+  
+  // 创建经纬线网格函数 12.08新增
+  function createGridLines(gridDataSource) {
+    // 清除现有的网格线
+    gridDataSource.entities.removeAll();
+    
+    // 统一设置网格密度（不按距离设置，全一样）
+    // 减少经纬线数量：经度间隔为10度，纬度间隔为10度
+    let lonInterval = 10; // 经度间隔改为10度，减少经线数量
+    let latInterval = 10; // 纬度间隔改为10度，减少纬线数量
+    
+    // 创建经线
+    for (let lon = -180; lon <= 180; lon += lonInterval) {
+      // 确保经度在有效范围内
+      const normalizedLon = Math.max(-180, Math.min(180, lon));
+      
+      // 使用SampledPositionProperty而不是直接创建polyline，避免几何计算错误
+      const positions = [];
+      // 生成从南极到北极的点，避免直接连接两极
+      for (let lat = -90; lat <= 90; lat += 10) { // 增加点间隔到10度
+        positions.push(Cesium.Cartesian3.fromDegrees(normalizedLon, lat, 10)); // 降低高度到10米，更贴近地球表面
+      }
+      
+      gridDataSource.entities.add({
+        polyline: {
+          positions: positions,
+          width: 1,
+          material: Cesium.Color.GRAY.withAlpha(0.5), // 改为灰黑色
+          clampToGround: false
+        }
+      });
+    }
+    
+    // 创建纬线
+    for (let lat = -90; lat <= 90; lat += latInterval) {
+      // 确保纬度在有效范围内，并避免极点
+      const normalizedLat = Math.max(-85, Math.min(85, lat));
+      
+      // 使用SampledPositionProperty而不是直接创建polyline，避免几何计算错误
+      const positions = [];
+      // 生成从西向东的点
+      for (let lon = -180; lon <= 180; lon += 10) { // 增加点间隔到10度
+        positions.push(Cesium.Cartesian3.fromDegrees(lon, normalizedLat, 10)); // 降低高度到10米，更贴近地球表面
+      }
+      
+      gridDataSource.entities.add({
+        polyline: {
+          positions: positions,
+          width: 1,
+          material: Cesium.Color.GRAY.withAlpha(0.5), // 改为灰黑色
+          clampToGround: false
+        }
+      });
+    }
+    
+    console.log(`经纬线网格已生成，经度间隔: ${lonInterval}°, 纬度间隔: ${latInterval}°`);
+  }
+  
+  // 更新网格密度函数 12.08新增 - 修复旋转地球时经纬线消失问题
+  function updateGridDensity(gridDataSource) {
+    if (!gridDataSource) return;
+    
+    // 无论网格当前是否显示，都重新生成网格线
+    // 这样可以确保在旋转地球或缩放时网格不会消失
+    createGridLines(gridDataSource);
+    
+    // 根据当前状态设置可见性
+    gridDataSource.show = gridEnabled.value;
+  }
   
   // 显示状态管理
   const showSatellite = ref(true);
@@ -108,6 +185,30 @@ export function useCesium() {
       console.warn('Cesium: 本地底图配置失败', error);
       useBackupEarthRendering();
     }
+
+    // 初始化经纬线网格 12.08新增 - 使用自定义实体方式
+    let gridEntities = null;
+    try {
+      // 创建经纬线网格数据源
+      gridEntities = new Cesium.CustomDataSource('gridLines');
+      viewer.dataSources.add(gridEntities);
+      
+      // 生成经纬线网格
+      createGridLines(gridEntities);
+      
+      // 根据初始状态设置可见性
+      gridEntities.show = gridEnabled.value;
+      
+      // 移除相机移动事件监听器，避免频繁重新生成网格线导致闪烁
+      // viewer.camera.moveEnd.addEventListener(function() {
+      //   updateGridDensity(gridEntities);
+      // });
+      
+      console.log('Cesium: 经纬线网格初始化完成');
+    } catch (error) {
+      console.warn('Cesium: 经纬线网格初始化失败', error);
+    }
+    // 新增结束
 
     // 启用光照和阴影 - 大幅提高地球亮度
     viewer.scene.globe.enableLighting = true;
@@ -2819,6 +2920,94 @@ export function useCesium() {
     // 获取光照状态
     getLightingEnabled: function() {
       return lightingEnabled.value;
+    },
+    // 切换国界线显示 10.27新增 - 修复国界线按钮不工作问题
+    toggleBorder: function(enabled) {
+      if (viewer && viewer.dataSources) {
+        // 直接标记国界线可见性状态
+        borderEnabled.value = enabled;
+        
+        // 遍历所有数据源，查找并控制国界线
+        let found = false;
+        for (let i = 0; i < viewer.dataSources.length; i++) {
+          const dataSource = viewer.dataSources.get(i);
+          // 标记国界线数据源以便后续查找
+          if (!dataSource._isCountryBorderDataSource && dataSource.entities && dataSource.entities.values.length > 0) {
+            const firstEntity = dataSource.entities.values[0];
+            // 判断是否为GeoJSON加载的国界线数据
+            if ((firstEntity.polygon || firstEntity.polyline) && 
+                ((firstEntity.polygon && firstEntity.polygon.outline) || 
+                 (firstEntity.polyline && firstEntity.polyline.width > 10))) {
+              dataSource._isCountryBorderDataSource = true;
+            }
+          }
+          
+          // 根据标记查找国界线数据源并设置可见性
+          if (dataSource._isCountryBorderDataSource) {
+            dataSource.show = enabled;
+            found = true;
+            console.log(`国界线显示已${enabled ? '开启' : '关闭'}`);
+            break;
+          }
+        }
+        
+        // 如果未找到且开启状态，尝试重新加载国界线数据
+        if (!found && enabled) {
+          console.warn('未找到国界线数据源，尝试重新加载...');
+          loadLocalCountryBorders().then(() => {
+            // 设置新加载的国界线为可见
+            for (let i = 0; i < viewer.dataSources.length; i++) {
+              const dataSource = viewer.dataSources.get(i);
+              if (!dataSource._isCountryBorderDataSource && dataSource.entities && dataSource.entities.values.length > 0) {
+                const firstEntity = dataSource.entities.values[0];
+                if ((firstEntity.polygon || firstEntity.polyline) && 
+                    ((firstEntity.polygon && firstEntity.polygon.outline) || 
+                     (firstEntity.polyline && firstEntity.polyline.width > 10))) {
+                  dataSource._isCountryBorderDataSource = true;
+                  dataSource.show = true;
+                  console.log(`国界线显示已开启`);
+                  break;
+                }
+              }
+            }
+          });
+        }
+        
+        // 强制刷新场景
+        viewer.scene.requestRender();
+      }
+    },
+    // 获取国界线状态 10.27新增
+    getBorderEnabled: function() {
+      return borderEnabled.value;
+    },
+    // 切换经纬线网格显示 12.08新增
+    toggleGrid: function(enabled) {
+      if (viewer && viewer.dataSources) {
+        // 查找网格数据源
+        for (let i = 0; i < viewer.dataSources.length; i++) {
+          const dataSource = viewer.dataSources.get(i);
+          if (dataSource.name === 'gridLines') {
+            // 设置显示状态
+            dataSource.show = enabled;
+            gridEnabled.value = enabled;
+            console.log(`经纬线网格显示已${enabled ? '开启' : '关闭'}`);
+            
+            // 如果开启网格且没有实体，重新生成网格线
+            if (enabled && dataSource.entities.values.length === 0) {
+              createGridLines(dataSource);
+            }
+            
+            // 强制刷新场景
+            viewer.scene.requestRender();
+            break;
+          }
+        }
+      }
+    },
+    // 获取经纬线网格状态 12.08新增
+    getGridEnabled: function() {
+      return gridEnabled.value;
     }
   };
 }

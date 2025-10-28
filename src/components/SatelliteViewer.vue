@@ -94,6 +94,22 @@
         @toggle-lighting="onToggleLighting"
       />
       <!--修改结束-->
+      
+      <!-- 国界线控制面板 10.27新增 -->
+      <BorderControl 
+        ref="borderControlRef"
+        :initial-enabled="true"
+        @toggle-border="onToggleBorder"
+      />
+      <!--新增结束-->
+      
+      <!-- 经纬线网格控制面板 12.08新增 -->
+      <GridControl 
+        ref="gridControlRef"
+        :initial-enabled="true"
+        @toggle-grid="onToggleGrid"
+      />
+      <!--新增结束-->
 
       <!-- 右侧面板区域 -->
       <div class="right-panel-container" v-if="selectedService || showRightPanel || showDataPanel">
@@ -145,6 +161,8 @@ import ServiceDetail from './ServiceDetail.vue';
 import NodeJumpInput from './NodeJumpInput.vue';
 import ChartPanel from './ChartPanel.vue';
 import LightingControl from './LightingControl.vue'; //10.27 新增
+import BorderControl from './BorderControl.vue'; //10.27 新增
+import GridControl from './GridControl.vue'; //12.08 新增
 
 import { useCesium } from '../composables/useCesium.js';
 import { useDataLoader } from '../composables/useDataLoader.js';
@@ -183,6 +201,29 @@ function handleToggleLighting(enabled) {
   }
 }
 //新增结束
+
+// 国界线控制相关 10.27新增
+const borderControlRef = ref(null);
+
+// 处理国界线切换事件
+function onToggleBorder(enabled) {
+  if (window.toggleBorder) {
+    window.toggleBorder(enabled);
+  }
+}
+
+// 经纬线网格控制相关 12.08新增
+const gridControlRef = ref(null);
+
+// 处理经纬线网格切换事件
+function onToggleGrid(enabled) {
+  console.log(`切换经纬线网格状态: ${enabled}`);
+  if (toggleGrid) {
+    toggleGrid(enabled);
+  } else {
+    console.warn('toggleGrid方法未找到');
+  }
+}//新增结束
 
 // 处理仿真数据选择
 const showDataPanel = ref(false); // 默认不显示，只有用户选择后才显示
@@ -353,7 +394,10 @@ const {
   setTimelineAnimation,
   resetClockRange,
   cleanup: cleanupCesium,
-  parseFolderName
+  parseFolderName,
+  toggleLighting, // 10.27新增
+  toggleBorder, // 10.27新增
+  toggleGrid // 12.08新增
 } = useCesium();
 
 const { 
@@ -1633,9 +1677,32 @@ onMounted(async () => {
       console.log('所有缓存已清理');
     };
     
+    // 暴露光照控制方法给window对象 10.27新增
+    window.toggleLighting = (enabled) => {
+      try {
+        toggleLighting(enabled);
+        console.log(`光照状态已切换为: ${enabled}`);
+      } catch (error) {
+        console.error('切换光照状态失败:', error);
+      }
+    };
+    
+    // 暴露国界线控制方法给window对象 10.27新增
+    window.toggleBorder = (enabled) => {
+      try {
+        toggleBorder(enabled);
+        console.log(`国界线显示状态已切换为: ${enabled}`);
+      } catch (error) {
+        console.error('切换国界线显示状态失败:', error);
+      }
+    };
+    
     console.log('缓存调试功能已添加：');
     console.log('- 使用 window.debugCache() 查看缓存状态');
     console.log('- 使用 window.clearAllCache() 清理所有缓存');
+    console.log('显示控制功能已添加：');
+    console.log('- 使用 window.toggleLighting(enabled) 控制光照显示');
+    console.log('- 使用 window.toggleBorder(enabled) 控制国界线显示');
     
     // 临时调试：清除用户选择标记，模拟首次访问
     window.clearUserSelection = () => {
