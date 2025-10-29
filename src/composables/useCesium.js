@@ -25,18 +25,18 @@ export function useCesium() {
   const borderEnabled = ref(true);
   //新增结束
   
-  // 经纬线网格状态 12.08新增
+  // 经纬线网格状态 10.28新增
   const gridEnabled = ref(true);
   //新增结束
   
-  // 星空背景状态 12.08新增
+  // 星空背景状态 10.28新增
   const skyEnabled = ref(true);
   //新增结束
 
   // 当前时间轴配置（避免重复解析）
   let currentTimelineConfig = { isDefault: true, interval: 60, totalDuration: 360 };
   
-  // 创建经纬线网格函数 12.08新增
+  // 创建经纬线网格函数 10.28新增
   function createGridLines(gridDataSource) {
     // 清除现有的网格线
     gridDataSource.entities.removeAll();
@@ -93,7 +93,7 @@ export function useCesium() {
     console.log(`经纬线网格已生成，经度间隔: ${lonInterval}°, 纬度间隔: ${latInterval}°`);
   }
   
-  // 更新网格密度函数 12.08新增 - 修复旋转地球时经纬线消失问题
+  // 更新网格密度函数 10.28新增 - 修复旋转地球时经纬线消失问题
   function updateGridDensity(gridDataSource) {
     if (!gridDataSource) return;
     
@@ -103,7 +103,7 @@ export function useCesium() {
     
     // 根据当前状态设置可见性
     gridDataSource.show = gridEnabled.value;
-  }
+  } //新增结束
   
   // 显示状态管理
   const showSatellite = ref(true);
@@ -167,7 +167,7 @@ export function useCesium() {
       
       // 直接使用本地图片文件，不通过复杂的Provider
       // 创建一个简单的纹理URL
-      const textureUrl = window.location.origin + '/texture/earth.jpg';
+      const textureUrl = window.location.origin + '/texture/earthL.jpg';
       console.log('尝试加载纹理URL:', textureUrl);
       
       // 使用最简单的方式：UrlTemplateImageryProvider配置为单张图片
@@ -190,7 +190,7 @@ export function useCesium() {
       useBackupEarthRendering();
     }
 
-    // 初始化经纬线网格 12.08新增 - 使用自定义实体方式
+    // 初始化经纬线网格 10.28新增 - 使用自定义实体方式
     let gridEntities = null;
     try {
       // 创建经纬线网格数据源
@@ -223,7 +223,7 @@ export function useCesium() {
     viewer.scene.skyAtmosphere.show = false;
     viewer.scene.globe.showGroundAtmosphere = false;
     
-    // 初始化星空背景 12.08新增
+    // 初始化星空背景 10.28新增
     viewer.scene.skyBox = new Cesium.SkyBox({
       sources: {
         positiveX: 'https://zimiao.oss-cn-beijing.aliyuncs.com/images/tycho2t3_80_px.jpg',
@@ -1359,6 +1359,38 @@ export function useCesium() {
       }
     }; //新增结束
     
+    // 将地球纹理切换方法挂载到window对象，便于其他组件访问 新增
+    window.toggleEarthTexture = function(texturePath) {
+      if (viewer && viewer.imageryLayers) {
+        try {
+          // 移除所有现有图层
+          viewer.imageryLayers.removeAll();
+          
+          // 创建新的地球纹理提供者
+          const earthImageryProvider = new Cesium.UrlTemplateImageryProvider({
+            url: window.location.origin + texturePath,
+            rectangle: Cesium.Rectangle.fromDegrees(-180.0, -90.0, 180.0, 90.0),
+            tilingScheme: new Cesium.GeographicTilingScheme({
+              numberOfLevelZeroTilesX: 1,
+              numberOfLevelZeroTilesY: 1
+            }),
+            maximumLevel: 0,
+            credit: 'Natural Earth'
+          });
+          
+          // 添加新图层
+          viewer.imageryLayers.addImageryProvider(earthImageryProvider);
+          
+          console.log(`地球纹理已切换为: ${texturePath}`);
+          
+          // 强制刷新场景
+          viewer.scene.requestRender();
+        } catch (error) {
+          console.error('切换地球纹理失败:', error);
+        }
+      }
+    }; //新增结束
+    
     return viewer;
   }
 
@@ -2214,12 +2246,57 @@ export function useCesium() {
 
   // 9月28日新增/修改地面链路显示模块代码片段到这里结束
 
-  // 修改 setupClickHandler 函数
+  // 修改 setupClickHandler 函数，添加鼠标悬停事件处理
   function setupClickHandler(onEntityClick) {
     if (!viewer || handler) return;
     
     handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
     
+    // 添加悬停实体变量
+    let hoveredEntity = null;
+    
+    // 鼠标移动事件 - 处理悬停效果
+    handler.setInputAction(function(movement) {
+      const pickedObject = viewer.scene.pick(movement.endPosition);
+      
+      // 清除之前的悬停状态
+      if (hoveredEntity) {
+        // 恢复之前悬停实体的原始样式
+        if (hoveredEntity.point) {
+          hoveredEntity.point.color = hoveredEntity._originalColor || Cesium.Color.WHITE;
+          hoveredEntity.point.pixelSize = hoveredEntity._originalPixelSize || 5;
+          hoveredEntity.point.outline = hoveredEntity._originalOutline || false;
+          hoveredEntity.point.outlineColor = hoveredEntity._originalOutlineColor || Cesium.Color.BLACK;
+          hoveredEntity.point.outlineWidth = hoveredEntity._originalOutlineWidth || 1;
+        }
+        hoveredEntity = null;
+      }
+      
+      // 检查当前悬停的实体
+      if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.id)) {
+        const entity = pickedObject.id;
+        
+        // 只处理卫星实体，忽略链路和其他实体
+        if (entity.id && entity.id.startsWith('satellite')) {
+          hoveredEntity = entity;
+          
+          // 保存原始样式
+          if (entity.point) {
+            entity._originalColor = entity.point.color ? entity.point.color.getValue() : Cesium.Color.WHITE;
+            entity._originalPixelSize = entity.point.pixelSize ? entity.point.pixelSize.getValue() : 5;
+            entity._originalOutline = entity.point.outline ? entity.point.outline.getValue() : false;
+            entity._originalOutlineColor = entity.point.outlineColor ? entity.point.outlineColor.getValue() : Cesium.Color.BLACK;
+            entity._originalOutlineWidth = entity.point.outlineWidth ? entity.point.outlineWidth.getValue() : 1;
+            
+            // 设置悬停效果 - 绿色圆圈
+            entity.point.color = Cesium.Color.LIME;
+            entity.point.pixelSize = 8; // 调小尺寸以显示圆圈效果
+          }
+        }
+      }
+    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+    
+    // 鼠标点击事件 - 保持原有逻辑
     handler.setInputAction(function(click) {
       const pickedObject = viewer.scene.pick(click.position);
       
@@ -2458,12 +2535,57 @@ export function useCesium() {
     viewer.scene.requestRender();
   }
 
-  // 修改setupClickHandler函数
+  // 修改setupClickHandler函数，添加鼠标悬停事件处理
   function setupClickHandler(onEntityClick) {
     if (!viewer || handler) return;
     
     handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
     
+    // 添加悬停实体变量
+    let hoveredEntity = null;
+    
+    // 鼠标移动事件 - 处理悬停效果
+    handler.setInputAction(function(movement) {
+      const pickedObject = viewer.scene.pick(movement.endPosition);
+      
+      // 清除之前的悬停状态
+      if (hoveredEntity) {
+        // 恢复之前悬停实体的原始样式
+        if (hoveredEntity.point) {
+          hoveredEntity.point.color = hoveredEntity._originalColor || Cesium.Color.WHITE;
+          hoveredEntity.point.pixelSize = hoveredEntity._originalPixelSize || 5;
+          hoveredEntity.point.outline = hoveredEntity._originalOutline || false;
+          hoveredEntity.point.outlineColor = hoveredEntity._originalOutlineColor || Cesium.Color.BLACK;
+          hoveredEntity.point.outlineWidth = hoveredEntity._originalOutlineWidth || 1;
+        }
+        hoveredEntity = null;
+      }
+      
+      // 检查当前悬停的实体
+      if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.id)) {
+        const entity = pickedObject.id;
+        
+        // 只处理卫星实体，忽略链路和其他实体
+        if (entity.id && entity.id.startsWith('satellite')) {
+          hoveredEntity = entity;
+          
+          // 保存原始样式
+          if (entity.point) {
+            entity._originalColor = entity.point.color ? entity.point.color.getValue() : Cesium.Color.WHITE;
+            entity._originalPixelSize = entity.point.pixelSize ? entity.point.pixelSize.getValue() : 5;
+            entity._originalOutline = entity.point.outline ? entity.point.outline.getValue() : false;
+            entity._originalOutlineColor = entity.point.outlineColor ? entity.point.outlineColor.getValue() : Cesium.Color.BLACK;
+            entity._originalOutlineWidth = entity.point.outlineWidth ? entity.point.outlineWidth.getValue() : 1;
+            
+            // 设置悬停效果 - 绿色圆圈
+            entity.point.color = Cesium.Color.LIME;
+            entity.point.pixelSize = 8; // 调小尺寸以显示圆圈效果
+          }
+        }
+      }
+    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+    
+    // 鼠标点击事件 - 保持原有逻辑
     handler.setInputAction(function(click) {
       const pickedObject = viewer.scene.pick(click.position);
       
@@ -2507,7 +2629,7 @@ export function useCesium() {
           optimize2DMode(viewer);
         }, 100);
       } else if (sceneMode === Cesium.SceneMode.SCENE3D) {
-        // 3D模式下，恢复星空背景显示 12.08新增
+        // 3D模式下，恢复星空背景显示 10.28新增
         setTimeout(() => {
           if (viewer.scene.skyBox && skyEnabled.value) {
             viewer.scene.skyBox.show = true;
@@ -2676,7 +2798,7 @@ export function useCesium() {
       viewer.scene.fog.enabled = false;
       viewer.scene.skyAtmosphere.show = false;
       
-      // 在2D模式下隐藏星空背景 12.08新增
+      // 在2D模式下隐藏星空背景 10.28新增
       if (viewer.scene.skyBox) {
         viewer.scene.skyBox.show = false;
       }
@@ -3015,7 +3137,7 @@ export function useCesium() {
     getBorderEnabled: function() {
       return borderEnabled.value;
     },
-    // 切换经纬线网格显示 12.08新增
+    // 切换经纬线网格显示 10.28新增
     toggleGrid: function(enabled) {
       if (viewer && viewer.dataSources) {
         // 查找网格数据源
@@ -3039,11 +3161,11 @@ export function useCesium() {
         }
       }
     },
-    // 获取经纬线网格状态 12.08新增
+    // 获取经纬线网格状态 10.28新增
     getGridEnabled: function() {
       return gridEnabled.value;
     },
-    // 切换星空背景显示 12.08新增
+    // 切换星空背景显示 10.28新增
     toggleSky: function(enabled) {
       if (viewer && viewer.scene) {
         viewer.scene.skyBox.show = enabled;
@@ -3053,9 +3175,40 @@ export function useCesium() {
         viewer.scene.requestRender();
       }
     },
-    // 获取星空背景状态 12.08新增
+    // 获取星空背景状态 10.28新增
     getSkyEnabled: function() {
       return skyEnabled.value;
+    },
+    // 切换地球纹理显示 新增
+    toggleEarthTexture: function(texturePath) {
+      if (viewer && viewer.imageryLayers) {
+        try {
+          // 移除所有现有图层
+          viewer.imageryLayers.removeAll();
+          
+          // 创建新的地球纹理提供者
+          const earthImageryProvider = new Cesium.UrlTemplateImageryProvider({
+            url: window.location.origin + texturePath,
+            rectangle: Cesium.Rectangle.fromDegrees(-180.0, -90.0, 180.0, 90.0),
+            tilingScheme: new Cesium.GeographicTilingScheme({
+              numberOfLevelZeroTilesX: 1,
+              numberOfLevelZeroTilesY: 1
+            }),
+            maximumLevel: 0,
+            credit: 'Natural Earth'
+          });
+          
+          // 添加新图层
+          viewer.imageryLayers.addImageryProvider(earthImageryProvider);
+          
+          console.log(`地球纹理已切换为: ${texturePath}`);
+          
+          // 强制刷新场景
+          viewer.scene.requestRender();
+        } catch (error) {
+          console.error('切换地球纹理失败:', error);
+        }
+      }
     }
   };
 }
