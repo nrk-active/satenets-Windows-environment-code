@@ -59,9 +59,12 @@
         
         <!-- 自定义选择指示器 -->
         <div 
-          v-if="selectedEntity" 
-          class="custom-selection-indicator"
-          :style="selectionIndicatorStyle"
+          v-for="(entity, index) in selectedEntities" 
+          :key="entity.id"
+          :data-entity-id="entity.id"
+          class="custom-selection-indicator selection-indicator-sync"
+          :style="getSelectionIndicatorStyle(entity.id)"
+          :ref="el => { if (el) indicatorRefs[entity.id] = el }"
         ></div>
         
         <!-- 节点跳转输入框 -->
@@ -103,7 +106,7 @@
       />
       <!--新增结束-->
       
-      <!-- 经纬线网格控制面板 12.08新增 -->
+      <!-- 经纬线网格控制面板 10.28新增 -->
       <GridControl 
         ref="gridControlRef"
         :initial-enabled="true"
@@ -116,6 +119,13 @@
         ref="skyControlRef"
         :initial-enabled="true"
         @toggle-sky="onToggleSky"
+      />
+      <!--新增结束-->
+      
+      <!-- 地球纹理控制面板 新增 -->
+      <EarthTextureControl 
+        ref="earthTextureControlRef"
+        @toggle-earth-texture="onToggleEarthTexture"
       />
       <!--新增结束-->
 
@@ -155,7 +165,7 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, watch, inject, ref, provide, nextTick } from 'vue';
+import { onMounted, onUnmounted, watch, inject, ref, provide, nextTick, computed, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import NavigationBar from './navigation-bar.vue';
 import ObjectViewer from './ObjectViewer.vue';
@@ -170,8 +180,9 @@ import NodeJumpInput from './NodeJumpInput.vue';
 import ChartPanel from './ChartPanel.vue';
 import LightingControl from './LightingControl.vue'; //10.27 新增
 import BorderControl from './BorderControl.vue'; //10.27 新增
-import GridControl from './GridControl.vue'; //12.08 新增
-import SkyControl from './SkyControl.vue'; //12.08 新增
+import GridControl from './GridControl.vue'; //10.28 新增
+import SkyControl from './SkyControl.vue'; //10.28 新增
+import EarthTextureControl from './EarthTextureControl.vue'; //新增
 
 import { useCesium } from '../composables/useCesium.js';
 import { useDataLoader } from '../composables/useDataLoader.js';
@@ -221,7 +232,7 @@ function onToggleBorder(enabled) {
   }
 }
 
-// 经纬线网格控制相关 12.08新增
+// 经纬线网格控制相关 10.28新增
 const gridControlRef = ref(null);
 
 // 处理经纬线网格切换事件
@@ -234,7 +245,7 @@ function onToggleGrid(enabled) {
   }
 }//新增结束
 
-// 星空背景控制相关 12.08新增
+// 星空背景控制相关 10.28新增
 const skyControlRef = ref(null);
 
 // 处理星空背景切换事件
@@ -244,6 +255,19 @@ function onToggleSky(enabled) {
     toggleSky(enabled);
   } else {
     console.warn('toggleSky方法未找到');
+  }
+}//新增结束
+
+// 地球纹理控制相关 新增
+const earthTextureControlRef = ref(null);
+
+// 处理地球纹理切换事件
+function onToggleEarthTexture(textureType) {
+  console.log(`切换地球纹理类型: ${textureType}`);
+  if (window.toggleEarthTexture) {
+    window.toggleEarthTexture(textureType);
+  } else {
+    console.warn('window.toggleEarthTexture方法未找到');
   }
 }//新增结束
 
@@ -266,9 +290,14 @@ const showLeftPanel = ref(true);
 const showRightPanel = ref(false);
 const showBottomPanel = ref(true);
 
-// 选中的实体信息
-const selectedEntity = ref(null);
+// 选中的实体信息 - 改为数组以支持多选
+const selectedEntities = ref([]);
 const selectedEntityRawData = ref(null);
+
+// 为了兼容性，提供selectedEntity计算属性，返回最后一个选中的实体
+const selectedEntity = computed(() => {
+  return selectedEntities.value.length > 0 ? selectedEntities.value[selectedEntities.value.length - 1] : null;
+});
 
 function handleDataSelection(data) {
   selectedSimulationData.value = data;
@@ -293,20 +322,24 @@ function handleChartPanelClose() {
 }
 
 // 自定义选择指示器
-const selectionIndicatorStyle = ref({});
-const selectionIndicatorSize = 20; // 默认20px
+const selectionIndicatorSize = 15; // 进一步减小为15px，使红色圆圈更小
+const indicatorRefs = reactive({}); // 存储选择指示器元素的引用
 
-// 更新选择指示器位置
-function updateSelectionIndicator() {
-  if (!selectedEntity.value || !viewer() || !currentGraphData) {
-    selectionIndicatorStyle.value = { display: 'none' };
-    return;
+// 获取选择指示器样式 - 支持多个实体
+function getSelectionIndicatorStyle(entityId) {
+  if (!entityId || !viewer() || !currentGraphData) {
+    return { display: 'none' };
+  }
+
+  // 查找实体信息
+  const entity = currentGraphData.nodes.find(node => node.id === entityId);
+  if (!entity) {
+    return { display: 'none' };
   }
 
   // 对于链路类型，不显示选择指示器
-  if (selectedEntity.value.type === 'link') {
-    selectionIndicatorStyle.value = { display: 'none' };
-    return;
+  if (entity.type === 'link') {
+    return { display: 'none' };
   }
 
   // 首先尝试从Cesium场景中获取实体的实时位置
@@ -315,7 +348,7 @@ function updateSelectionIndicator() {
   // 查找Cesium场景中对应的实体
   let cesiumEntity = null;
   if (viewer() && viewer().entities) {
-    cesiumEntity = viewer().entities.getById(selectedEntity.value.id);
+    cesiumEntity = viewer().entities.getById(entityId);
   }
   if (cesiumEntity && cesiumEntity.position) {
     try {
@@ -337,12 +370,6 @@ function updateSelectionIndicator() {
   
   // 如果无法从Cesium实体获取位置，回退到数据中的位置
   if (!position) {
-    const entity = currentGraphData.nodes.find(node => node.id === selectedEntity.value.id);
-    if (!entity) {
-      selectionIndicatorStyle.value = { display: 'none' };
-      return;
-    }
-
     // 从数据中构建位置
     if (entity.type === 'satellite') {
       position = new Cesium.Cartesian3(
@@ -350,7 +377,7 @@ function updateSelectionIndicator() {
         parseFloat(entity.position[1]) * 1000,
         parseFloat(entity.position[2]) * 1000
       );
-      console.log(`选择指示器：使用卫星 ${selectedEntity.value.id} 的数据位置（回退）`);
+      console.log(`选择指示器：使用卫星 ${entityId} 的数据位置（回退）`);
     } else {
       position = Cesium.Cartesian3.fromDegrees(
         parseFloat(entity.position[0]),
@@ -372,7 +399,7 @@ function updateSelectionIndicator() {
       
       if (screenPosition.x >= 0 && screenPosition.x <= canvasWidth &&
           screenPosition.y >= 0 && screenPosition.y <= canvasHeight) {
-        selectionIndicatorStyle.value = {
+        return {
           display: 'block',
           left: `${screenPosition.x - selectionIndicatorSize / 2}px`,
           top: `${screenPosition.y - selectionIndicatorSize / 2}px`,
@@ -381,15 +408,89 @@ function updateSelectionIndicator() {
         };
       } else {
         // 实体在屏幕外，隐藏指示器
-        selectionIndicatorStyle.value = { display: 'none' };
+        return { display: 'none' };
       }
     } else {
-      selectionIndicatorStyle.value = { display: 'none' };
+      return { display: 'none' };
     }
   } catch (error) {
     console.warn('无法计算屏幕坐标:', error);
-    selectionIndicatorStyle.value = { display: 'none' };
+    return { display: 'none' };
   }
+}
+
+// 更新选择指示器位置 - 支持多个选择指示器
+function updateSelectionIndicator() {
+  // 遍历所有选中的实体，更新各自的选择指示器
+  selectedEntities.value.forEach(entity => {
+    if (entity && entity.id) {
+      // 为每个选中的实体触发位置更新
+      // 实际样式计算由 getSelectionIndicatorStyle 处理
+      const indicatorElement = document.querySelector(`[data-entity-id="${entity.id}"]`);
+      if (indicatorElement) {
+        const style = getSelectionIndicatorStyle(entity.id);
+        Object.assign(indicatorElement.style, style);
+      }
+    }
+  });
+  
+  // 触发重新渲染以确保所有指示器位置正确
+  if (viewer() && viewer().scene) {
+    viewer().scene.requestRender();
+  }
+}
+
+// 添加一个持续更新选择指示器位置的函数
+function startSelectionIndicatorUpdater() {
+  // 设置CSS变量，确保所有指示器动画同步
+  document.documentElement.style.setProperty('--indicator-delay', '0s');
+  
+  function updateIndicators() {
+    if (selectedEntities.value.length > 0 && viewer() && viewer().scene) {
+      updateSelectionIndicator();
+      
+      // 每次更新位置时也同步动画
+      synchronizeIndicatorAnimations();
+    }
+    requestAnimationFrame(updateIndicators);
+  }
+  
+  // 启动更新循环
+  updateIndicators();
+}
+
+// 同步所有选择指示器的动画
+function synchronizeIndicatorAnimations() {
+  // 重置CSS变量，确保所有指示器动画同步
+  document.documentElement.style.setProperty('--indicator-delay', '0s');
+  
+  // 获取所有选择指示器元素
+  const indicators = Object.values(indicatorRefs);
+  
+  // 如果没有指示器，直接返回
+  if (indicators.length === 0) return;
+  
+  // 记录当前时间，作为动画同步的基准
+  const syncTime = Date.now();
+  
+  // 对每个指示器执行动画重置
+  indicators.forEach(indicator => {
+    if (!indicator) return;
+    
+    // 短暂禁用动画
+    indicator.style.animation = 'none';
+    
+    // 强制重排，确保样式应用
+    void indicator.offsetHeight;
+    
+    // 恢复动画，确保所有指示器同时开始
+    indicator.style.animation = 'blink-sync 1s infinite ease-in-out';
+    
+    // 设置动画开始时间为同步时间
+    indicator.style.animationDelay = '0s';
+  });
+  
+  console.log(`已同步 ${indicators.length} 个选择指示器的动画`);
 }
 
 // 初始化所有composables
@@ -419,8 +520,8 @@ const {
   parseFolderName,
   toggleLighting, // 10.27新增
   toggleBorder, // 10.27新增
-  toggleGrid, // 12.08新增
-  toggleSky // 12.08新增，对应星空背景功能部分
+  toggleGrid, // 10.28新增
+  toggleSky // 10.28新增，对应星空背景功能部分
 } = useCesium();
 
 const { 
@@ -1129,7 +1230,7 @@ function rebuildEntityAnimationBindings(networkData) {
 }
 
 function handleSatelliteClick(entityId) {
-  // 处理实体点击，包括选中效果和高亮链接
+  // 处理实体点击，包括选中效果和高亮链接 - 支持多选模式
   handleEntitySelect(entityId);
 }
 
@@ -1169,9 +1270,27 @@ function handleEntitySelect(entityId) {
           closeServiceDetail();
         }
         
-        selectedEntity.value = entity;
-        selectedEntityRawData.value = currentGraphData;
-        showRightPanel.value = true; // 选择实体时展开右侧面板
+        // 检查该实体是否已经被选中
+        const existingIndex = selectedEntities.value.findIndex(e => e.id === idStr);
+        
+        if (existingIndex !== -1) {
+          // 如果已选中，则取消选中（从数组中移除）
+          selectedEntities.value.splice(existingIndex, 1);
+          console.log(`取消选择实体: ${idStr}`);
+        } else {
+          // 如果未选中，则添加到选中数组
+          selectedEntities.value.push(entity);
+          console.log(`选择实体: ${idStr}`);
+        }
+        
+        // 更新原始数据（用于右侧面板显示，显示最后选中的实体）
+        if (selectedEntities.value.length > 0) {
+          selectedEntityRawData.value = currentGraphData;
+          showRightPanel.value = true; // 选择实体时展开右侧面板
+        } else {
+          selectedEntityRawData.value = null;
+          showRightPanel.value = false;
+        }
         
         if (entity.type === 'satellite') {
           highlightSatelliteLinks(idStr, currentGraphData);
@@ -1179,6 +1298,12 @@ function handleEntitySelect(entityId) {
         
         // 更新选择指示器
         updateSelectionIndicator();
+        
+        // 使用nextTick确保DOM更新后再同步动画
+        nextTick(() => {
+          // 确保所有指示器动画同步
+          synchronizeIndicatorAnimations();
+        });
       }
     }
   } catch (error) {
@@ -1244,9 +1369,8 @@ function handleLeftPanelClose() {
 function handleRightPanelClose() {
   showRightPanel.value = false;
   // 关闭右侧面板时清除选择
-  selectedEntity.value = null;
+  selectedEntities.value = [];
   selectedEntityRawData.value = null;
-  selectionIndicatorStyle.value = { display: 'none' };
 }
 
 function handleBottomPanelClose() {
@@ -1326,9 +1450,8 @@ function handleVisibilityChange(type, checked) {
 function handleSelectService(service, type) {
   // 关闭实体信息面板
   showRightPanel.value = false;
-  selectedEntity.value = null;
+  selectedEntities.value = [];
   selectedEntityRawData.value = null;
-  selectionIndicatorStyle.value = { display: 'none' };
   
   // 选择业务
   selectService(service, type);
@@ -1339,7 +1462,7 @@ function handleCloseServiceDetail() {
   closeServiceDetail();
   
   // 如果有选中的实体，重新打开右侧面板
-  if (selectedEntity.value) {
+  if (selectedEntities.value.length > 0) {
     showRightPanel.value = true;
   }
 }
@@ -1536,6 +1659,9 @@ onMounted(async () => {
     
     console.log('预加载系统已初始化');
     console.log('已启用动画模式，支持流畅的时间轴拖拽');
+    
+    // 启动选择指示器更新器
+    startSelectionIndicatorUpdater();
     
     // 强制显示时间轴控件（注释掉，因为现在要隐藏原生时间轴）
     // setTimeout(() => {
@@ -1830,7 +1956,8 @@ onUnmounted(() => {
 defineExpose({
   highlightEntity,
   toggleLocalSimulation,
-  isPlaying: () => isPlaying.value
+  isPlaying: () => isPlaying.value,
+  earthTextureControlRef
 });
 </script>
 
@@ -1904,24 +2031,45 @@ defineExpose({
 /* 自定义选择指示器样式 */
 .custom-selection-indicator {
   position: absolute;
-  border: 2px solid #00ff00;
-  border-radius: 4px;
-  background: transparent;
+  border-radius: 50%;
+  background: rgba(255, 0, 0, 1);
   pointer-events: none;
   z-index: 1000;
-  box-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
-  animation: pulse 1.5s infinite;
+  box-shadow: 0 0 10px rgba(255, 0, 0, 0.8);
+  /* 使用CSS变量控制动画，确保所有指示器同步 */
+  animation: blink-sync 1s infinite;
+  /* 使用CSS变量控制动画延迟，确保所有指示器同步 */
+  animation-delay: var(--indicator-delay, 0s);
+  /* 确保动画状态一致 */
+  animation-play-state: running;
+  /* 强制使用相同的动画计时函数 */
+  animation-timing-function: ease-in-out;
 }
 
-@keyframes pulse {
+/* 确保所有选择指示器完全同步 */
+.selection-indicator-sync {
+  animation-name: blink-sync !important;
+  animation-duration: 1s !important;
+  animation-delay: var(--indicator-delay, 0s) !important;
+  animation-timing-function: ease-in-out !important;
+  animation-iteration-count: infinite !important;
+  animation-direction: normal !important;
+  animation-fill-mode: none !important;
+  animation-play-state: running !important;
+}
+
+@keyframes blink-sync {
   0% {
-    box-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+    transform: scale(0.5);
+    opacity: 0.8;
   }
   50% {
-    box-shadow: 0 0 12px rgba(0, 255, 0, 0.8);
+    transform: scale(1.2);
+    opacity: 1;
   }
   100% {
-    box-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+    transform: scale(0.5);
+    opacity: 0.8;
   }
 }
 
