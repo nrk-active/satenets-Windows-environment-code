@@ -167,7 +167,7 @@ export function useCesium() {
       
       // 直接使用本地图片文件，不通过复杂的Provider
       // 创建一个简单的纹理URL
-      const textureUrl = window.location.origin + '/texture/earthL.jpg';
+      const textureUrl = window.location.origin + '/texture/earth.jpg';
       console.log('尝试加载纹理URL:', textureUrl);
       
       // 使用最简单的方式：UrlTemplateImageryProvider配置为单张图片
@@ -1445,7 +1445,7 @@ export function useCesium() {
     
     // 尝试加载图片
     img.crossOrigin = 'anonymous';
-    img.src = './texture/earth.jpg';
+    img.src = './texture/earthL.jpg';
   }
   
   // 备用地球渲染方案
