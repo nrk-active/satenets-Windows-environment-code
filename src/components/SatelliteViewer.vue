@@ -1234,6 +1234,18 @@ function handleSatelliteClick(entityId) {
   handleEntitySelect(entityId);
 }
 
+// 为handleSatelliteClick添加清除所有选择的方法
+handleSatelliteClick.clearAllSelections = function() {
+  console.log('点击空白区域，清除所有站点选择');
+  // 清除所有选中的实体
+  selectedEntities.value = [];
+  selectedEntityRawData.value = null;
+  showRightPanel.value = false;
+  
+  // 更新选择指示器
+  updateSelectionIndicator();
+};
+
 function handleEntitySelect(entityId) {
   try {
     console.log('选择了实体:', entityId);

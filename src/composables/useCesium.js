@@ -2585,7 +2585,7 @@ export function useCesium() {
       }
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
     
-    // 鼠标点击事件 - 保持原有逻辑
+    // 鼠标点击事件 - 添加空白区域点击处理
     handler.setInputAction(function(click) {
       const pickedObject = viewer.scene.pick(click.position);
       
@@ -2605,8 +2605,14 @@ export function useCesium() {
           highlightedLinks = [];
         }
       } else {
+        // 点击空白区域，清除所有高亮链路
         highlightedLinks.forEach(e => viewer.entities.remove(e));
         highlightedLinks = [];
+        
+        // 通知父组件点击了空白区域
+        if (typeof onEntityClick === 'function' && onEntityClick.clearAllSelections) {
+          onEntityClick.clearAllSelections();
+        }
       }
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
   }
