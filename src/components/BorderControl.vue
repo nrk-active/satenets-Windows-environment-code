@@ -7,7 +7,7 @@
       @mouseenter="showTooltip"
       @mouseleave="hideTooltip"
     >
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
         <!-- 地图轮廓图标 -->
         <path d="M3 3L21 3L21 21L3 21L3 3Z" stroke="currentColor" stroke-width="2" fill-opacity="0.1"/>
         <path d="M7 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>

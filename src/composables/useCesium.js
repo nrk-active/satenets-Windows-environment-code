@@ -1445,7 +1445,7 @@ export function useCesium() {
     
     // 尝试加载图片
     img.crossOrigin = 'anonymous';
-    img.src = './texture/earthL.jpg';
+    img.src = './texture/earth.jpg';
   }
   
   // 备用地球渲染方案
