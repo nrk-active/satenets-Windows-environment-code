@@ -2276,8 +2276,8 @@ export function useCesium() {
       if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.id)) {
         const entity = pickedObject.id;
         
-        // 只处理卫星实体，忽略链路和其他实体
-        if (entity.id && entity.id.startsWith('satellite')) {
+        // 处理卫星、地面站和ROADM实体
+        if (entity.id && (entity.id.startsWith('satellite') || entity.nodeType === 'station' || entity.nodeType === 'roadm')) {
           hoveredEntity = entity;
           
           // 保存原始样式
@@ -2565,8 +2565,8 @@ export function useCesium() {
       if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.id)) {
         const entity = pickedObject.id;
         
-        // 只处理卫星实体，忽略链路和其他实体
-        if (entity.id && entity.id.startsWith('satellite')) {
+        // 处理卫星、地面站和ROADM实体
+        if (entity.id && (entity.id.startsWith('satellite') || entity.nodeType === 'station' || entity.nodeType === 'roadm')) {
           hoveredEntity = entity;
           
           // 保存原始样式
