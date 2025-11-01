@@ -1,6 +1,5 @@
 <template>
   <div class="node-jump-container" :style="containerStyle">
-    <!-- 节点跳转 -->
     <div class="jump-input-group">
       <label class="jump-label">跳转到节点:</label>
       <input 
@@ -20,7 +19,6 @@
       </button>
     </div>
     
-    <!-- 时间跳转 -->
     <div class="jump-input-group time-jump">
       <label class="jump-label">跳转到时间:</label>
       <input 
@@ -41,7 +39,6 @@
       </button>
     </div>
     
-    <!-- 节点建议列表 -->
     <div v-if="showSuggestions && filteredNodes.length > 0" class="suggestions-dropdown">
       <div 
         v-for="node in filteredNodes.slice(0, 10)" 
@@ -57,7 +54,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, inject } from 'vue';
+import { ref, computed, watch, inject, onMounted, onUnmounted } from 'vue';
 import * as Cesium from 'cesium';
 import { useDataLoader } from '../composables/useDataLoader.js';
 import { parseFolderName } from '../utils/folderParser.js';
@@ -86,7 +83,6 @@ const filteredNodes = computed(() => {
   if (!nodeInput.value.trim() || !props.networkData?.nodes) {
     return [];
   }
-  
   const searchTerm = nodeInput.value.toLowerCase();
   return props.networkData.nodes.filter(node => 
     node.id.toLowerCase().includes(searchTerm)
@@ -169,7 +165,6 @@ function parseTimeToSeconds(timeStr) {
 // 跳转到指定时间
 function jumpToTime() {
   if (!isValidTimeInput.value) {
-    console.warn('请输入有效的时间格式 (HH:MM:SS, MM:SS 或 SS)');
     showErrorFeedback('.time-input');
     return;
   }
@@ -177,42 +172,21 @@ function jumpToTime() {
   const totalSeconds = parseTimeToSeconds(timeInput.value);
   let currentFolder = getCurrentDataFolder();
   
-  // 如果getCurrentDataFolder返回null，尝试从localStorage直接获取
   if (!currentFolder) {
     currentFolder = localStorage.getItem('selectedDataFolder');
-    console.log(`从localStorage获取文件夹: ${currentFolder}`);
   }
   
-  // 如果仍然没有文件夹信息，尝试从ObjectViewer的显示中推断
   if (!currentFolder) {
-    const objectViewerElement = document.querySelector('.current-folder');
-    if (objectViewerElement) {
-      const text = objectViewerElement.textContent;
-      const match = text.match(/当前选择：(.+)/);
-      if (match && match[1] !== '未选择') {
-        currentFolder = match[1];
-        console.log(`从ObjectViewer推断文件夹: ${currentFolder}`);
-      }
-    }
-  }
-  
-  // 如果还是没有，使用默认推断逻辑
-  if (!currentFolder) {
-    // 检查是否有已加载的数据，从中推断可能的文件夹
     const hasData = props.networkData?.nodes?.length > 0;
     if (hasData) {
-      // 根据节点数量推断可能的文件夹类型
       const nodeCount = props.networkData.nodes.length;
       if (nodeCount > 5000) {
-        currentFolder = 'new_10s_3600s'; // 大数据集通常是new文件夹
-        console.log(`根据节点数量(${nodeCount})推断文件夹: ${currentFolder}`);
+        currentFolder = 'new_10s_3600s';
       } else {
-        currentFolder = 'old_60s_360s'; // 小数据集通常是old文件夹
-        console.log(`根据节点数量(${nodeCount})推断文件夹: ${currentFolder}`);
+        currentFolder = 'old_60s_360s';
       }
     } else {
-      console.warn('无法确定当前数据文件夹，使用默认配置');
-      currentFolder = 'old_60s_360s'; // 默认文件夹
+      currentFolder = 'old_60s_360s'; 
     }
   }
   
@@ -222,13 +196,8 @@ function jumpToTime() {
   const totalDuration = config.totalDuration;
   const maxFrames = Math.ceil(config.totalDuration / config.interval);
   
-  console.log(`使用文件夹: ${currentFolder}, 时间间隔: ${timeInterval}秒, 总时长: ${totalDuration}秒, 最大帧数: ${maxFrames}`);
-  
   // 检查输入时间是否超出文件夹总时长
   if (totalSeconds > totalDuration) {
-    console.warn(`输入时间 ${timeInput.value} (${totalSeconds}秒) 超出当前文件夹最大时长 ${totalDuration}秒`);
-    
-    // 计算最大时长的时间格式
     const maxHours = Math.floor(totalDuration / 3600);
     const maxMinutes = Math.floor((totalDuration % 3600) / 60);
     const maxSecs = totalDuration % 60;
@@ -239,20 +208,12 @@ function jumpToTime() {
     return;
   }
   
-  // 修正时间到帧数的转换逻辑
-  // 时间轴显示使用公式：totalSeconds = frame * timeInterval
-  // 所以反向计算：frame = totalSeconds / timeInterval
-  // 处理边界情况：
-  // - 0秒对应帧1（显示为1*60=60秒）
-  // - 60秒对应帧1（显示为1*60=60秒）
-  // - 120秒对应帧2（显示为2*60=120秒）
+  // 计算目标帧数
   let targetFrame;
   if (totalSeconds === 0) {
     targetFrame = 1; // 0秒对应帧1
   } else {
-    // 计算最接近的帧数：找到使得frame * timeInterval最接近totalSeconds的帧
     targetFrame = Math.round(totalSeconds / timeInterval);
-    // 确保至少是帧1
     targetFrame = Math.max(1, targetFrame);
   }
   
@@ -260,16 +221,6 @@ function jumpToTime() {
   const clampedFrame = Math.max(1, Math.min(maxFrames, targetFrame));
   
   try {
-    console.log(`跳转到时间: ${timeInput.value} (${totalSeconds}秒) -> 第${clampedFrame}帧 (时间间隔: ${timeInterval}秒, 最大帧数: ${maxFrames})`);
-    
-    // 添加视觉反馈
-    const jumpBtn = document.querySelector('.time-jump .jump-button');
-    if (jumpBtn) {
-      jumpBtn.classList.add('jumping');
-      setTimeout(() => {
-        jumpBtn.classList.remove('jumping');
-      }, 2000);
-    }
     
     // 发射时间变化事件 - 确保传递数字类型的帧数
     emit('time-changed', Number(clampedFrame));
@@ -279,27 +230,18 @@ function jumpToTime() {
       detail: { frame: Number(clampedFrame), forceUpdate: true }
     });
     window.dispatchEvent(frameChangeEvent);
-    console.log(`已发送timeline-frame-change事件，目标帧: ${clampedFrame}`);
+    
   } catch (error) {
-    console.error('跳转时间时出错:', error);
     showErrorFeedback('.time-input');
   }
   
   // 计算实际跳转后的时间并更新输入框显示
-  // 使用与时间轴显示一致的公式：frame * timeInterval
   const actualSeconds = clampedFrame * timeInterval;
   const actualHours = Math.floor(actualSeconds / 3600);
   const actualMinutes = Math.floor((actualSeconds % 3600) / 60);
   const actualSecsRemainder = actualSeconds % 60;
   const actualTimeStr = `${actualHours.toString().padStart(2, '0')}:${actualMinutes.toString().padStart(2, '0')}:${actualSecsRemainder.toString().padStart(2, '0')}`;
   
-  if (actualSeconds !== totalSeconds) {
-    console.log(`输入时间 ${timeInput.value} (${totalSeconds}秒) 调整为最近的有效时间: ${actualTimeStr} (${actualSeconds}秒, 第${clampedFrame}帧)`);
-  } else {
-    console.log(`时间跳转精确匹配: ${actualTimeStr} (${actualSeconds}秒, 第${clampedFrame}帧)`);
-  }
-  
-  // 更新输入框显示为实际跳转的时间
   setTimeout(() => {
     timeInput.value = actualTimeStr;
   }, 500);
@@ -321,89 +263,56 @@ function selectNode(node) {
 function jumpToNode() {
   try {
     if (!nodeInput.value.trim() || !props.networkData?.nodes) {
-      console.warn('请输入有效的节点ID');
       showErrorFeedback('.node-input');
       return;
     }
     
     const searchId = nodeInput.value.toLowerCase().trim();
+    let targetNode = props.networkData.nodes.find(node => String(node.id).toLowerCase() === searchId);
     
-    // 首先尝试精确匹配
-    let targetNode = props.networkData.nodes.find(node => 
-      String(node.id).toLowerCase() === searchId
-    );
-    
-    // 如果没找到，尝试模糊匹配
     if (!targetNode) {
-      targetNode = props.networkData.nodes.find(node => 
-        String(node.id).toLowerCase().includes(searchId)
-      );
+      targetNode = props.networkData.nodes.find(node => String(node.id).toLowerCase().includes(searchId));
     }
   
     if (!targetNode) {
-      console.warn(`未找到节点: ${nodeInput.value}`);
       showErrorFeedback('.node-input');
       return;
     }
     
-    console.log(`跳转到节点: ${targetNode.id} (${getNodeTypeLabel(targetNode.type)})`);
-    
-    // 设置输入框为匹配到的节点ID
     nodeInput.value = targetNode.id;
     
-    // 计算目标位置
     let targetPosition;
     if (targetNode.type === 'satellite') {
-      // 卫星使用ECEF坐标系（米为单位）
       targetPosition = new Cesium.Cartesian3(
         parseFloat(targetNode.position[0]) * 1000,
         parseFloat(targetNode.position[1]) * 1000,
         parseFloat(targetNode.position[2]) * 1000
       );
     } else {
-      // 地面站和ROADM使用经纬度坐标
       targetPosition = Cesium.Cartesian3.fromDegrees(
         parseFloat(targetNode.position[0]),
         parseFloat(targetNode.position[1]),
-        targetNode.type === 'station' ? 100000 : 50000 // 地面站高度100km，ROADM高度50km
+        targetNode.type === 'station' ? 100000 : 50000 
       );
     }
     
-    // 使用Cesium viewer进行跳转
     if (cesiumViewer && cesiumViewer()) {
       const viewer = cesiumViewer();
       
-      // 添加视觉反馈 - 跳转按钮变色
-      const jumpBtn = document.querySelector('.jump-input-group:first-child .jump-button');
-      if (jumpBtn) {
-        jumpBtn.classList.add('jumping');
-        setTimeout(() => {
-          jumpBtn.classList.remove('jumping');
-        }, 2000);
-      }
-      
-      // 平滑飞行到目标位置
       viewer.camera.flyTo({
         destination: targetPosition,
-        duration: 2.0, // 2秒飞行时间
+        duration: 2.0, 
         complete: () => {
-          console.log(`成功跳转到节点: ${targetNode.id}`);
-          
-          // 发射选中事件 - 确保发送字符串ID
           emit('node-selected', String(targetNode.id));
         }
       });
     } else {
-      console.error('Cesium viewer 不可用');
       showErrorFeedback('.node-input');
     }
     
-    // 隐藏建议列表
     showSuggestions.value = false;
   } catch (error) {
-    console.error('跳转到节点时出错:', error);
     showErrorFeedback('.node-input');
-    // 确保错误被处理，不向上传播
   }
 }
 
@@ -421,26 +330,17 @@ watch(() => props.networkData, () => {
   showSuggestions.value = false;
 });
 
-// 添加全局点击事件监听
-document.addEventListener('click', handleClickOutside);
-
-// 组件卸载时清理事件监听
-import { onUnmounted, onMounted } from 'vue';
-
 // 动态调整位置
 const containerStyle = ref({});
 
-// 动态调整输入框位置
+// 动态调整输入框位置 - 修正回落逻辑
 function adjustPosition() {
   try {
     const objectViewer = document.querySelector('.object-viewer');
-    const collapsedSidebar = document.querySelector('.collapsed-sidebar.left-sidebar');
-    
-    const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
     
     let position = {
-      bottom: '60px',
+      bottom: '20px', // 默认回落位置
       left: '10px',
       width: '320px'
     };
@@ -453,71 +353,44 @@ function adjustPosition() {
       return;
     }
     
-    // 检查左侧面板状态
+    // 1. 计算左侧偏移量 (NodeJumpInput 不应被左侧抽屉遮挡)
     let leftOffset = 10; // 默认距离左边10px
     
     if (objectViewer) {
       const rect = objectViewer.getBoundingClientRect();
       const isVisible = rect.width > 0 && rect.height > 0 && 
-                       getComputedStyle(objectViewer).display !== 'none' &&
-                       getComputedStyle(objectViewer).visibility !== 'hidden';
+                       objectViewer.classList.contains('drawer-open'); // 仅在抽屉打开时计算偏移
       
       if (isVisible && rect.width > 50) {
-        // ObjectViewer 可见且有合理宽度
-        leftOffset = rect.right + 10;
-      }
-    }
-    
-    if (leftOffset === 10 && collapsedSidebar) {
-      // ObjectViewer 不可见，但有收起的侧边栏
-      const rect = collapsedSidebar.getBoundingClientRect();
-      if (rect.width > 0) {
         leftOffset = rect.right + 10;
       }
     }
     
     position.left = `${leftOffset}px`;
     
-    // 只响应 ServicePanel 组件的位置变化
+    // 2. 计算底部偏移量 (根据底部 ServicePanel 的状态回落)
     const servicePanel = document.querySelector('.service-panel');
     
-    let maxBottomHeight = 60; // 默认底部距离
-    
+    // 默认回落到距离底部 70px (NodeJumpInput 的底部位置)
+    let maxBottomHeight = 75; // 👈 修复 1: 提升最小回落高度 (60px 清除底部图标组)
+
     if (servicePanel) {
-      const rect = servicePanel.getBoundingClientRect();
-      const isVisible = rect.height > 0 && 
-                      getComputedStyle(servicePanel).display !== 'none' &&
-                      getComputedStyle(servicePanel).visibility !== 'hidden';
-      
-      if (isVisible && rect.height > 50) {
-        // ServicePanel 可见且有合理高度，计算需要的底部距离
-        const panelHeight = rect.height;
-        const bottomDistance = panelHeight + 10; // 面板高度 + 10px间距
-        maxBottomHeight = bottomDistance;
-      }
-    }
+                const rect = servicePanel.getBoundingClientRect();
+                const isDrawerOpen = servicePanel.classList.contains('drawer-open');
+                
+                if (isDrawerOpen && rect.height > 50) {
+                    // ServicePanel 打开时，时间轴移动到 ServicePanel 顶部之上 5px 处
+                    maxBottomHeight = rect.height + 5; 
+                }
+            }
     
-    // 检查收起的底部面板
-    const collapsedBottomPanel = document.querySelector('.collapsed-bottom-panel');
-    if (collapsedBottomPanel) {
-      const rect = collapsedBottomPanel.getBoundingClientRect();
-      if (rect.height > 0) {
-        const bottomDistance = rect.height + 10;
-        maxBottomHeight = Math.max(maxBottomHeight, bottomDistance);
-      }
-    }
-    
+    // NodeJumpInput 的底部位置应该是：Max(默认回落位置, 底部抽屉打开时的位置)
     position.bottom = `${maxBottomHeight}px`;
     
-    // 防止超出右边界
-    if (leftOffset + 320 > viewportWidth) {
-      position.right = '10px';
-      position.left = 'auto';
-    }
-    
+    // 3. 应用样式并分发事件
     containerStyle.value = position;
     
-    // 分发UI位置变化事件
+    // 分发UI位置变化事件 (供其他组件，如时间轴，参考)
     window.dispatchEvent(new CustomEvent('ui-positions-changed', {
       detail: {
         source: 'nodeJump',
@@ -525,9 +398,8 @@ function adjustPosition() {
       }
     }));
   } catch (error) {
-    console.error('调整位置时出错:', error);
     containerStyle.value = {
-      bottom: '60px',
+      bottom: '20px', // 默认回落位置
       left: '10px',
       width: '320px'
     };
@@ -539,47 +411,26 @@ onMounted(() => {
   document.addEventListener('click', handleClickOutside);
   window.addEventListener('resize', adjustPosition);
   
-  // 监听UI位置变化事件（与仿真时间轴同步）
-  const handleUIPositionsChange = (event) => {
-    if (event.detail.source !== 'nodeJump') {
-      console.log('NodeJump: 响应UI位置变化事件');
-      setTimeout(adjustPosition, 50);
+  // 监听底部面板状态变化事件，确保 NodeJumpInput 立即响应
+  const handlePanelStateChange = (event) => {
+    if (event.detail.type === 'bottom-panel') {
+      setTimeout(adjustPosition, 100); // 短暂延迟确保 ServicePanel 动画开始
     }
   };
-  window.addEventListener('ui-positions-changed', handleUIPositionsChange);
-  
+  window.addEventListener('panel-state-changed', handlePanelStateChange);
+
   // 初始位置调整
   setTimeout(adjustPosition, 300);
   
   // 定期检查位置 - 与仿真时间轴保持相同间隔
   const interval = setInterval(adjustPosition, 2000);
   
-  // DOM变化观察（简化版）
-  const observer = new MutationObserver(() => {
-    setTimeout(adjustPosition, 100);
-  });
-  
-  // 观察可能影响布局的元素 - 只观察ServicePanel
-  const elementsToObserve = [
-    document.querySelector('.object-viewer-container'),
-    document.querySelector('.object-viewer'),
-    document.querySelector('.service-panel')
-  ].filter(Boolean);
-  
-  elementsToObserve.forEach(element => {
-    observer.observe(element, {
-      attributes: true,
-      attributeFilter: ['style', 'class']
-    });
-  });
-  
   // 清理函数
   window.nodeJumpCleanup = () => {
     document.removeEventListener('click', handleClickOutside);
     window.removeEventListener('resize', adjustPosition);
-    window.removeEventListener('ui-positions-changed', handleUIPositionsChange);
+    window.removeEventListener('panel-state-changed', handlePanelStateChange);
     clearInterval(interval);
-    observer.disconnect();
   };
 });
 
@@ -594,20 +445,16 @@ onUnmounted(() => {
 <style scoped>
 .node-jump-container {
   position: fixed;
-  bottom: 60px;
-  left: 10px;
-  z-index: 10000;
-  background: rgba(30, 30, 30, 0.9);
-  border: 1px solid rgba(85, 85, 85, 0.7);
+  z-index: 999; 
+  background: var(--bg-primary); 
+  border: 1px solid var(--color-border);
   border-radius: 6px;
+  box-shadow: 0 4px 12px var(--color-shadow);
   padding: 10px;
-  width: 320px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(8px);
-  transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  transition: bottom 0.3s ease-out, left 0.3s ease-out; /* 添加平滑过渡 */
 }
 
 .jump-input-group {
@@ -616,167 +463,102 @@ onUnmounted(() => {
   gap: 8px;
 }
 
-.time-jump {
-  border-top: 1px solid #444;
-  padding-top: 8px;
-}
-
 .jump-label {
-  color: #fff;
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
-  min-width: 80px;
+  color: var(--color-text);
+  font-size: 13px;
+  flex-shrink: 0;
+  width: 80px;
 }
 
-.node-input, .time-input {
-  flex: 1;
-  min-width: 100px;
-  padding: 5px 8px;
-  border: 1px solid #555;
-  border-radius: 3px;
-  background: rgba(40, 40, 40, 0.8);
-  color: #fff;
-  font-size: 12px;
-  outline: none;
-  transition: border-color 0.2s;
-  text-align: center; /* 确保输入框文本居中 */
-}
-
+.node-input,
 .time-input {
-  font-family: monospace;
-  text-align: center;
-  min-width: 80px;
+  flex-grow: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  color: var(--color-text);
+  font-size: 13px;
+  transition: border-color 0.2s;
 }
 
-.node-input:focus, .time-input:focus {
-  border-color: #4CAF50;
-}
-
-.node-input::placeholder, .time-input::placeholder {
-  color: #999;
-  text-align: center; /* 确保占位符文本也居中 */
+.node-input:focus,
+.time-input:focus {
+  border-color: var(--color-highlight);
+  outline: none;
 }
 
 .jump-button {
-  padding: 5px 10px;
-  background: #4CAF50;
-  color: white;
+  padding: 6px 12px;
   border: none;
-  border-radius: 3px;
-  font-size: 12px;
+  border-radius: 4px;
+  background: var(--color-accent);
+  color: #fff;
   cursor: pointer;
-  transition: background-color 0.2s;
-  white-space: nowrap;
-  min-width: 50px;
+  font-size: 13px;
+  transition: background 0.2s;
 }
 
 .jump-button:hover:not(:disabled) {
-  background: #45a049;
+  background: var(--color-highlight-dark);
 }
 
 .jump-button:disabled {
-  background: #666;
+  background: var(--bg-tertiary);
+  color: var(--color-text-dim);
   cursor: not-allowed;
 }
 
-/* 跳转动画效果 */
-.jump-button.jumping {
-  background: #45a049;
-  animation: pulse 1s infinite;
-}
-
-@keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.7; }
-  100% { opacity: 1; }
-}
-
-/* 错误抖动动画 */
-.error-shake {
-  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
-  border-color: #ff5252 !important;
-}
-
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
-  20%, 40%, 60%, 80% { transform: translateX(3px); }
-}
-
+/* 节点建议下拉列表 */
 .suggestions-dropdown {
   position: absolute;
-  bottom: 100%; /* 改为从容器上方弹出 */
+  bottom: 100%; /* 定位在输入框下方 */
   left: 0;
   right: 0;
-  background: rgba(40, 40, 40, 0.95);
-  border: 1px solid #555;
-  border-radius: 4px;
-  margin-bottom: 5px; /* 改为底部间距 */
+  z-index: 1000;
+  background: var(--bg-primary);
+  border: 1px solid var(--color-border);
+  border-top: none;
   max-height: 200px;
   overflow-y: auto;
-  z-index: 1001;
-  backdrop-filter: blur(5px);
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3); /* 改为向上的阴影 */
+  border-radius: 0 0 6px 6px;
+  box-shadow: 0 4px 12px var(--color-shadow);
 }
 
 .suggestion-item {
-  padding: 8px 12px;
+  padding: 8px 10px;
   cursor: pointer;
-  border-bottom: 1px solid #555;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  transition: background-color 0.2s;
+  transition: background 0.2s;
+  font-size: 13px;
+  color: var(--color-text);
 }
 
 .suggestion-item:hover {
-  background: rgba(76, 175, 80, 0.2);
-}
-
-.suggestion-item:last-child {
-  border-bottom: none;
-}
-
-.node-id {
-  color: #fff;
-  font-size: 12px;
-  font-weight: 500;
+  background: var(--bg-secondary);
 }
 
 .node-type {
-  color: #4CAF50;
-  font-size: 11px;
-  padding: 2px 6px;
-  background: rgba(76, 175, 80, 0.2);
-  border-radius: 3px;
+  color: var(--color-text-dim);
+  font-size: 12px;
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .node-jump-container {
-    width: 280px;
-    padding: 8px;
+/* 错误反馈动画 */
+.error-shake {
+  animation: shake 0.5s;
+  border-color: #e74c3c !important;
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
   }
-  
-  .jump-input-group {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 4px;
+  20%, 60% {
+    transform: translateX(-5px);
   }
-  
-  .jump-label {
-    font-size: 11px;
-  }
-  
-  .node-input, .time-input {
-    font-size: 11px;
-    padding: 4px 6px;
-  }
-  
-  .jump-button {
-    font-size: 11px;
-    padding: 4px 8px;
+  40%, 80% {
+    transform: translateX(5px);
   }
 }
 </style>

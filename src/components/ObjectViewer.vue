@@ -2,20 +2,17 @@
   <div class="object-viewer">
     <div class="header">
       <span>对象列表</span>
-      <span class="close-btn" @click="handleClose">◄</span>
+      <span class="close-btn" @click="handleClose">✖</span>
     </div>
     <div class="content">
-      <!-- 显示当前进程ID -->
       <div v-if="currentProcessId" class="current-process">
         当前进程ID：{{ currentProcessId }}
       </div>
       
-      <!-- 显示当前选择的数据文件夹 -->
       <div v-if="!currentProcessId && hasUserSelectedFolder()" class="current-folder">
         当前选择：{{ getCurrentFolderDisplay() }}
       </div>
       
-      <!-- 显示当前加载的文件信息 -->
       <div v-if="!currentProcessId && hasUserSelectedFolder() && currentLoadedFiles" class="current-files">
         <div class="file-info">网络数据：{{ currentLoadedFiles.network || '未加载' }}</div>
         <div class="file-info">业务数据：{{ currentLoadedFiles.service || '未加载' }}</div>
@@ -349,34 +346,52 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* 核心抽屉样式 - 应用主题变量 */
 .object-viewer {
-  width: 280px;
-  height: 100%;
-  background: #232323;
-  border-right: 1px solid #333;
+  position: fixed; /* 必须是固定定位 */
+  top: var(--nav-height); /* 适应导航栏高度 */
+  left: 0;
+  height: calc(100% - var(--nav-height));
+  width: 300px;
+  z-index: 1001; /* 确保它位于 Cesium 上方 */
+  transform: translateX(-100%);
+  transition: transform 0.3s ease-out;
+  box-shadow: 4px 0 10px var(--color-shadow);
+  
+  /* 使用主题变量 */
+  background: var(--bg-primary);
+  border-right: 1px solid var(--color-border);
+  color: var(--color-text);
+  
   display: flex;
   flex-direction: column;
-  color: #f1f1f1;
 }
+
+/* 抽屉打开状态 */
+.object-viewer.drawer-open {
+  transform: translateX(0);
+}
+
 .header {
   font-weight: bold;
   padding: 10px 16px;
-  background: #181818;
+  background: var(--bg-secondary); /* 修正：使用二级背景色 */
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #333;
-  color: #fff;
+  border-bottom: 1px solid var(--color-border); /* 修正：使用主题边框色 */
+  color: var(--color-text);
   letter-spacing: 1px;
+  flex-shrink: 0;
 }
 .close-btn {
   cursor: pointer;
   font-size: 14px;
-  color: #aaa;
+  color: var(--color-text-dim);
   transition: color 0.2s;
 }
 .close-btn:hover {
-  color: #f39c12;
+  color: var(--color-highlight);
 }
 .content {
   flex: 1;
@@ -384,7 +399,7 @@ onMounted(async () => {
   overflow: auto;
 }
 .category {
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--color-border); /* 修正：使用主题边框色 */
 }
 .category-header {
   padding: 12px 16px;
@@ -394,10 +409,10 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #2a2a2a;
+  background: var(--bg-tertiary); /* 修正：使用三级背景色 */
 }
 .category-header:hover {
-  background: #333;
+  background: var(--bg-secondary); /* 修正：悬停时使用二级背景色 */
 }
 .toggle-icon {
   margin-right: 8px;
@@ -414,11 +429,11 @@ onMounted(async () => {
   transition: background 0.2s;
 }
 .item:hover {
-  background: #333;
+  background: var(--bg-secondary); /* 修正：使用二级背景色 */
 }
 .item.selected {
-  background: #3498db;
-  color: white;
+  background: var(--color-highlight);
+  color: var(--bg-primary); /* 修正：选中时文字颜色变白/黑 */
 }
 .item-icon {
   width: 12px;
@@ -450,8 +465,8 @@ onMounted(async () => {
 
 /* 选中状态下的特殊效果 */
 .item.selected .item-icon {
-  background-color: #fff;
-  box-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+  background-color: var(--bg-primary); /* 修正：选中时图标点变回主背景色 */
+  box-shadow: 0 0 6px var(--bg-primary);
 }
 
 .link-icon {
@@ -472,41 +487,39 @@ onMounted(async () => {
 .empty-message {
   padding: 8px 16px 8px 32px;
   font-style: italic;
-  color: #888;
+  color: var(--color-text-dim);
   font-size: 14px;
 }
 
 .current-process {
   padding: 12px 16px;
-  background: #1a4a7a;
-  color: #fff;
-  font-size: 14px;
+  background: var(--color-highlight); /* 修正：使用高亮色 */
+  color: var(--bg-primary); /* 修正：文字使用主背景色 */
   font-weight: bold;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--color-border);
   margin-bottom: 8px;
 }
 
 .current-folder {
   padding: 12px 16px;
-  background: #1a7a4a;
-  color: #fff;
-  font-size: 14px;
+  background: var(--color-accent); /* 修正：使用强调色 */
+  color: var(--bg-primary); /* 修正：文字使用主背景色 */
   font-weight: bold;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--color-border);
   margin-bottom: 8px;
-  border-left: 4px solid #4CAF50;
+  border-left: 4px solid var(--color-highlight);
 }
 
 .current-files {
   padding: 8px 16px;
-  background: #2d2d2d;
-  border-bottom: 1px solid #333;
+  background: var(--bg-secondary); /* 修正：文件信息背景使用二级背景色 */
+  border-bottom: 1px solid var(--color-border);
   margin-bottom: 8px;
 }
 
 .file-info {
   font-size: 12px;
-  color: #ccc;
+  color: var(--color-text-dim);
   margin: 2px 0;
   padding: 2px 0;
   font-family: monospace;
@@ -514,14 +527,8 @@ onMounted(async () => {
 
 /* 分类头部样式更新 */
 .category-header {
-  padding: 12px 16px;
-  font-size: 15px;
-  font-weight: bold;
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #2a2a2a;
+  /* ... */
+  background: var(--bg-tertiary);
 }
 
 .header-left {
@@ -537,9 +544,9 @@ onMounted(async () => {
 
 .control-btn {
   padding: 4px 8px;
-  border: 1px solid #555;
-  background: #404040;
-  color: #ccc;
+  border: 1px solid var(--color-border); /* 修正：使用主题边框色 */
+  background: var(--bg-secondary); /* 修正：按钮背景使用二级背景 */
+  color: var(--color-text);
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
@@ -552,14 +559,14 @@ onMounted(async () => {
 }
 
 .control-btn:hover {
-  background: #505050;
-  border-color: #777;
+  background: var(--bg-tertiary); /* 修正：悬停时使用三级背景色 */
+  border-color: var(--color-highlight);
 }
 
 .control-btn.active {
-  background: #3498db;
-  border-color: #2980b9;
-  color: white;
+  background: var(--color-highlight);
+  border-color: var(--color-highlight);
+  color: var(--bg-primary); /* 修正：确保文字在高亮时有高对比度 */
 }
 
 .visibility-btn {
