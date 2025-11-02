@@ -24,6 +24,15 @@
           <div class="info-label">状态:</div>
           <div class="info-value">{{ satelliteInfo.is_active ? '活跃' : '非活跃' }}</div>
         </div>
+        <div class="info-section-title">流量信息</div>
+        <div class="info-row">
+          <div class="info-label">下泄量:</div>
+          <div class="info-value">{{ formatNumber(trafficInfo.downlink) }} Gbps</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">流量通量:</div>
+          <div class="info-value">{{ formatNumber(trafficInfo.throughput) }} Gbps</div>
+        </div>
         <div class="info-section-title">位置信息</div>
         <div class="info-row">
           <div class="info-label">X:</div>
@@ -184,7 +193,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
   selectedEntity: Object,
@@ -196,6 +205,44 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['close']);
+
+// 存储流量数据
+const downlinkData = ref(null);
+const throughputData = ref(null);
+
+// 加载流量数据
+const loadTrafficData = async (timestamp) => {
+  try {
+    // 加载 downlink 数据
+    const downlinkResponse = await fetch(`./data/data3/satellite_traffic/satellite_downlink_${timestamp}.json`);
+    if (downlinkResponse.ok) {
+      downlinkData.value = await downlinkResponse.json();
+    } else {
+      console.warn(`无法加载 downlink 数据: ${timestamp}`);
+      downlinkData.value = null;
+    }
+    
+    // 加载 throughput 数据
+    const throughputResponse = await fetch(`./data/data3/satellite_traffic/satellite_throughput_${timestamp}.json`);
+    if (throughputResponse.ok) {
+      throughputData.value = await throughputResponse.json();
+    } else {
+      console.warn(`无法加载 throughput 数据: ${timestamp}`);
+      throughputData.value = null;
+    }
+  } catch (error) {
+    console.error('加载流量数据失败:', error);
+    downlinkData.value = null;
+    throughputData.value = null;
+  }
+};
+
+// 监听 graphData 变化以获取当前时间戳
+watch(() => props.graphData, (newData) => {
+  if (newData && newData.timestamp !== undefined) {
+    loadTrafficData(newData.timestamp);
+  }
+}, { immediate: true });
 
 // 计算当前实体承载的业务
 const carriedServices = computed(() => {
@@ -316,6 +363,23 @@ const connections = computed(() => {
   }
   
   return connList;
+});
+
+// 获取流量信息
+const trafficInfo = computed(() => {
+  if (!props.selectedEntity || entityType.value !== 'satellite') {
+    return {
+      downlink: 0,
+      throughput: 0
+    };
+  }
+  
+  const satelliteId = props.selectedEntity.id;
+  
+  return {
+    downlink: downlinkData.value?.data?.[satelliteId] || 0,
+    throughput: throughputData.value?.data?.[satelliteId] || 0
+  };
 });
 
 // 格式化数字
