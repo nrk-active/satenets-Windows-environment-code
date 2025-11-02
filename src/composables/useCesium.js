@@ -9,6 +9,7 @@ import { CESIUM_CONFIG } from '../constants/index.js';
 import { createSatelliteEntity, createStationEntity, createRoadmEntity, getEntityPosition } from '../utils/cesiumHelpers.js';
 import { useDataLoader } from './useDataLoader.js';
 import { parseFolderName } from '../utils/folderParser.js';
+import { readSatelliteOrbitPoints, convertToCartesian3 } from '../utils/orbitReader.js';
 
 export function useCesium() {
   let viewer = null;
@@ -112,6 +113,10 @@ export function useCesium() {
   const showLinks = ref(true);
   
   let highlightedLinks = [];
+  let currentHighlightedSatellite = null; // 当前高亮的卫星ID
+  
+  // 卫星轨道管理
+  let currentOrbitEntity = null; // 当前显示的轨道实体
 
   function initializeCesium(containerId) {
     // 不再需要Cesium Ion访问令牌，完全使用本地资源
@@ -1347,7 +1352,12 @@ export function useCesium() {
     
     // 延迟加载国界线数据，确保地球纹理先加载完成
     setTimeout(() => {
-      loadLocalCountryBorders();
+      if (viewer && borderEnabled.value) {
+        console.log('开始延迟加载国界线...');
+        loadLocalCountryBorders().catch(error => {
+          console.error('延迟加载国界线失败:', error);
+        });
+      }
     }, 2000);
     
     // 将光照控制方法挂载到window对象，便于其他组件访问 10.27新增
@@ -1674,8 +1684,16 @@ export function useCesium() {
         clampToGround: true  // 贴地显示
       });
       
+      // 立即标记为国界线数据源
+      dataSource._isCountryBorderDataSource = true;
+      
+      // 根据当前状态设置可见性
+      dataSource.show = borderEnabled.value;
+      
       // 添加到viewer
       await viewer.dataSources.add(dataSource);
+      
+      console.log(`国界线数据源已添加，当前显示状态: ${dataSource.show}`);
       
       // 设置显示样式  
       const entities = dataSource.entities.values;
@@ -2317,16 +2335,26 @@ export function useCesium() {
               selectedLinkEntity = null;
             }
             
+            // 检查是否点击了卫星
+            if (entity.id && entity.id.startsWith('satellite')) {
+              // 绘制卫星轨道
+              console.log(`点击卫星: ${entity.id}，准备绘制轨道`);
+              drawSatelliteOrbit(entity.id);
+            }
+            // 点击其他实体(地面站、ROADM等)时，不清除轨道
+            
             // 其他实体处理保持不变
             onEntityClick(entity.id);
           }
         } else {
           highlightedLinks.forEach(e => viewer.entities.remove(e));
           highlightedLinks = [];
+          clearSatelliteOrbit();
         }
       } else {
         highlightedLinks.forEach(e => viewer.entities.remove(e));
         highlightedLinks = [];
+        clearSatelliteOrbit();
       }
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
   }
@@ -2377,6 +2405,9 @@ export function useCesium() {
   function highlightSatelliteLinks(satelliteId, frameData) {
     // 记录当前选中的链路ID，如果有的话
     const selectedLinkId = selectedLinkEntity ? selectedLinkEntity.id : null;
+    
+    // 保存当前高亮的卫星ID
+    currentHighlightedSatellite = satelliteId;
     
     // 清除之前的高亮链路
     highlightedLinks.forEach(entity => viewer.entities.remove(entity));
@@ -2462,6 +2493,236 @@ export function useCesium() {
     });
   }
 
+  // 验证并更新当前高亮的卫星链路
+  function validateHighlightedLinks(frameData) {
+    // 如果没有高亮的卫星,直接返回
+    if (!currentHighlightedSatellite || !frameData) {
+      return;
+    }
+    
+    const { edges } = frameData;
+    if (!edges) {
+      // 如果新帧没有edges数据,清除所有高亮链路
+      if (highlightedLinks.length > 0) {
+        console.log(`⚠️ 帧数据中没有edges,清除卫星 ${currentHighlightedSatellite} 的高亮链路`);
+        highlightedLinks.forEach(entity => viewer.entities.remove(entity));
+        highlightedLinks = [];
+        selectedLinkEntity = null;
+        currentHighlightedSatellite = null;
+      }
+      return;
+    }
+    
+    // 获取当前卫星在新帧中的链路
+    const currentFrameEdges = edges.filter(edge => 
+      edge.source === currentHighlightedSatellite || 
+      edge.target === currentHighlightedSatellite
+    );
+    
+    // 如果当前卫星在新帧中没有链路了,清除高亮
+    if (currentFrameEdges.length === 0) {
+      console.log(`⚠️ 卫星 ${currentHighlightedSatellite} 在新帧中没有链路,清除高亮`);
+      highlightedLinks.forEach(entity => viewer.entities.remove(entity));
+      highlightedLinks = [];
+      selectedLinkEntity = null;
+      currentHighlightedSatellite = null;
+      return;
+    }
+    
+    // 链路存在,无需重新绘制
+    // 因为链路位置使用 CallbackProperty 动态更新,会自动跟随卫星移动
+    // 只需要验证链路ID是否匹配即可
+    const currentFrameEdgeIds = new Set(
+      currentFrameEdges.map(edge => `${edge.source}-${edge.target}`)
+    );
+    
+    // 检查高亮链路中是否有已经不存在的链路,并移除它们
+    const linksToRemove = [];
+    highlightedLinks.forEach(entity => {
+      const linkId = entity.id.toString();
+      if (!currentFrameEdgeIds.has(linkId)) {
+        linksToRemove.push(entity);
+      }
+    });
+    
+    // 移除不再存在的链路
+    if (linksToRemove.length > 0) {
+      console.log(`🗑️ 移除 ${linksToRemove.length} 条不存在的链路`);
+      linksToRemove.forEach(entity => {
+        viewer.entities.remove(entity);
+        const index = highlightedLinks.indexOf(entity);
+        if (index > -1) {
+          highlightedLinks.splice(index, 1);
+        }
+      });
+    }
+    
+    // 如果所有链路都被移除了,清空状态
+    if (highlightedLinks.length === 0) {
+      selectedLinkEntity = null;
+      currentHighlightedSatellite = null;
+    }
+  }
+
+  // 清除卫星轨道
+  function clearSatelliteOrbit() {
+    if (!viewer) return;
+    
+    try {
+      // 清除轨道线实体
+      if (currentOrbitEntity) {
+        viewer.entities.remove(currentOrbitEntity);
+        currentOrbitEntity = null;
+      }
+      
+      console.log('卫星轨道已清除');
+    } catch (error) {
+      console.error('清除卫星轨道时出错', error);
+    }
+  }
+
+  // 绘制卫星轨道
+  async function drawSatelliteOrbit(satelliteId) {
+    if (!viewer) {
+      console.error('Cesium viewer 未初始化');
+      return;
+    }
+    
+    // 清除之前的轨道
+    clearSatelliteOrbit();
+    
+    // 修复：直接从 localStorage 读取文件夹名称，避免 useDataLoader 实例不同步问题
+    let currentFolder = getCurrentDataFolder();
+    
+    // 如果 getCurrentDataFolder 返回空，尝试直接从 localStorage 读取
+    if (!currentFolder) {
+      currentFolder = localStorage.getItem('selectedDataFolder');
+      console.warn('⚠️ getCurrentDataFolder() 返回空值，从 localStorage 直接读取:', currentFolder);
+    }
+    
+    console.log('🛰️ 轨道绘制调试信息:', {
+      satelliteId,
+      currentFolder,
+      fromGetCurrent: getCurrentDataFolder(),
+      fromLocalStorage: localStorage.getItem('selectedDataFolder')
+    });
+    
+    if (!currentFolder) {
+      console.error('❌ 未选择数据文件夹，无法绘制轨道');
+      console.error('提示：请确保已经选择了数据文件夹（如 new_10s_3600s）');
+      alert('未选择数据文件夹！\n请先在界面上选择一个数据文件夹（如 new_10s_3600s），然后再点击卫星查看轨道。');
+      return;
+    }
+    
+    console.log(`✅ 开始绘制卫星 ${satelliteId} 的轨道，使用文件夹: ${currentFolder}`);
+    
+    try {
+      // 读取轨道点
+      const orbitPoints = await readSatelliteOrbitPoints(currentFolder, satelliteId);
+      
+      if (orbitPoints.length < 2) {
+        console.warn('轨道点数量不足，无法绘制轨道');
+        return;
+      }
+      
+      // 将位置转换为Cesium坐标
+      const positions = orbitPoints.map(point => convertToCartesian3(point));
+      
+      console.log(`🎨 准备绘制轨道线，点数: ${positions.length}`);
+      
+      // 详细输出每个点的坐标
+      positions.forEach((pos, index) => {
+        console.log(`  点${index + 1}:`, {
+          x: pos.x,
+          y: pos.y,
+          z: pos.z,
+          magnitude: Cesium.Cartesian3.magnitude(pos)
+        });
+      });
+      
+      // 验证坐标是否有效
+      const validPositions = positions.filter(pos => 
+        pos && pos.x !== undefined && pos.y !== undefined && pos.z !== undefined &&
+        !isNaN(pos.x) && !isNaN(pos.y) && !isNaN(pos.z)
+      );
+      
+      if (validPositions.length < 2) {
+        console.error('❌ 有效坐标点不足2个，无法绘制轨道线');
+        return;
+      }
+      
+      console.log(`✅ 有效坐标点数: ${validPositions.length}`);
+      
+      // 计算相邻点之间的距离，确保点之间有足够的距离
+      for (let i = 1; i < validPositions.length; i++) {
+        const distance = Cesium.Cartesian3.distance(validPositions[i-1], validPositions[i]);
+        console.log(`  点${i}到点${i+1}的距离: ${(distance/1000).toFixed(2)} km`);
+      }
+      
+      // 检查当前场景模式
+      const sceneMode = viewer.scene.mode;
+      const is2DMode = sceneMode === Cesium.SceneMode.SCENE2D || sceneMode === Cesium.SceneMode.COLUMBUS_VIEW;
+      console.log(`当前场景模式: ${sceneMode === Cesium.SceneMode.SCENE3D ? '3D' : sceneMode === Cesium.SceneMode.SCENE2D ? '2D' : 'Columbus'}`);
+      
+      // 在2D模式下，可能需要调整坐标高度
+      let adjustedPositions = validPositions;
+      if (is2DMode) {
+        console.log('⚠️ 检测到2D模式，调整轨道线高度以确保可见性');
+        // 在2D模式下，将轨道线提升到一定高度
+        adjustedPositions = validPositions.map(pos => {
+          const cartographic = Cesium.Cartographic.fromCartesian(pos);
+          return Cesium.Cartesian3.fromRadians(
+            cartographic.longitude,
+            cartographic.latitude,
+            100000 // 100km高度，确保在2D模式下可见
+          );
+        });
+      }
+      
+      // 创建轨道线实体 - 完全使用与地面链路相同的方式
+      const orbitColor = Cesium.Color.YELLOW;
+      const simpleMaterial = new Cesium.ColorMaterialProperty(orbitColor);
+      
+      currentOrbitEntity = viewer.entities.add({
+        id: `orbit-${satelliteId}`,
+        name: `卫星轨道: ${satelliteId}`,
+        show: true,
+        polyline: {
+          positions: adjustedPositions, // 使用调整后的坐标
+          width: new Cesium.CallbackProperty(() => {
+            const height = viewer.camera.positionCartographic.height;
+            if (height > 10000000) return 0.8;
+            if (height > 5000000) return 1.2;
+            if (height > 1000000) return 1.6;
+            return 2.0;
+          }, false),
+          material: simpleMaterial,
+          arcType: Cesium.ArcType.GEODESIC, // 使用大地测量线，自动沿地球弧度绘制
+          clampToGround: false,
+          depthFailMaterial: orbitColor.withAlpha(0.3)
+        },
+        entityType: 'satellite-orbit'
+      });
+      
+      console.log(`✅ 轨道线实体已创建:`, currentOrbitEntity);
+      console.log(`轨道线ID: ${currentOrbitEntity.id}`);
+      console.log(`轨道线可见性:`, currentOrbitEntity.show, currentOrbitEntity.polyline.show);
+      
+      // 模仿地面链路的渲染方式
+      viewer.scene.requestRenderMode = false;
+      viewer.scene.maximumRenderTimeChange = 0.0;
+      viewer.scene.requestRender();
+      
+      console.log(`✅ 轨道线实体已创建:`, currentOrbitEntity);
+      console.log(`轨道线可见性:`, currentOrbitEntity.show, currentOrbitEntity.polyline.show);
+      
+      console.log(`成功绘制卫星 ${satelliteId} 的轨道，包含 ${orbitPoints.length} 个点`);
+      
+    } catch (error) {
+      console.error('绘制卫星轨道时出错', error);
+    }
+  }
+
   function updateVisibility() {
     if (!viewer) return;
     
@@ -2470,6 +2731,11 @@ export function useCesium() {
     viewer.entities.values.forEach(entity => {
       if (!entity.id) return;
       const entityId = entity.id.toString();
+      
+      // 卫星轨道线不受 showLinks 控制，保持显示状态
+      if (entity.entityType === 'satellite-orbit') {
+        return; // 跳过，不修改其显示状态
+      }
       
       // 优先使用保存的节点类型信息
       if (entity.nodeType) {
@@ -2597,17 +2863,27 @@ export function useCesium() {
             // 传递链路ID（与ObjectViewer中相同格式），这样父组件可以正确处理
             onEntityClick(entity.id);
           } else {
+            // 检查是否点击了卫星
+            if (entity.id && entity.id.startsWith('satellite')) {
+              // 绘制卫星轨道
+              console.log(`点击卫星: ${entity.id}，准备绘制轨道`);
+              drawSatelliteOrbit(entity.id);
+            }
+            // 点击其他实体(地面站、ROADM等)时，不清除轨道
+            
             // 其他实体（卫星、地面站等）保持原有逻辑
             onEntityClick(entity.id);
           }
         } else {
           highlightedLinks.forEach(e => viewer.entities.remove(e));
           highlightedLinks = [];
+          clearSatelliteOrbit();
         }
       } else {
-        // 点击空白区域，清除所有高亮链路
+        // 点击空白区域，清除所有高亮链路和轨道
         highlightedLinks.forEach(e => viewer.entities.remove(e));
         highlightedLinks = [];
+        clearSatelliteOrbit();
         
         // 通知父组件点击了空白区域
         if (typeof onEntityClick === 'function' && onEntityClick.clearAllSelections) {
@@ -2836,6 +3112,9 @@ export function useCesium() {
       delete window.cleanupTimelinePosition;
     }
     
+    // 清理卫星轨道
+    clearSatelliteOrbit();
+    
     if (handler) {
       handler.destroy();
       handler = null;
@@ -3055,6 +3334,9 @@ export function useCesium() {
     addRoadmLinks,
     clearGroundLinks,
     highlightSatelliteLinks,
+    validateHighlightedLinks,
+    drawSatelliteOrbit,
+    clearSatelliteOrbit,
     updateVisibility,
     setupClickHandler,
     setupTimelineControl,
@@ -3093,6 +3375,15 @@ export function useCesium() {
         let found = false;
         for (let i = 0; i < viewer.dataSources.length; i++) {
           const dataSource = viewer.dataSources.get(i);
+          
+          // 优先检查已标记的数据源
+          if (dataSource._isCountryBorderDataSource) {
+            dataSource.show = enabled;
+            found = true;
+            console.log(`国界线显示已${enabled ? '开启' : '关闭'}`);
+            break;
+          }
+          
           // 标记国界线数据源以便后续查找
           if (!dataSource._isCountryBorderDataSource && dataSource.entities && dataSource.entities.values.length > 0) {
             const firstEntity = dataSource.entities.values[0];
@@ -3101,38 +3392,22 @@ export function useCesium() {
                 ((firstEntity.polygon && firstEntity.polygon.outline) || 
                  (firstEntity.polyline && firstEntity.polyline.width > 10))) {
               dataSource._isCountryBorderDataSource = true;
+              dataSource.show = enabled;
+              found = true;
+              console.log(`识别到国界线数据源，显示已${enabled ? '开启' : '关闭'}`);
+              break;
             }
-          }
-          
-          // 根据标记查找国界线数据源并设置可见性
-          if (dataSource._isCountryBorderDataSource) {
-            dataSource.show = enabled;
-            found = true;
-            console.log(`国界线显示已${enabled ? '开启' : '关闭'}`);
-            break;
           }
         }
         
         // 如果未找到且开启状态，尝试重新加载国界线数据
         if (!found && enabled) {
           console.warn('未找到国界线数据源，尝试重新加载...');
-          loadLocalCountryBorders().then(() => {
-            // 设置新加载的国界线为可见
-            for (let i = 0; i < viewer.dataSources.length; i++) {
-              const dataSource = viewer.dataSources.get(i);
-              if (!dataSource._isCountryBorderDataSource && dataSource.entities && dataSource.entities.values.length > 0) {
-                const firstEntity = dataSource.entities.values[0];
-                if ((firstEntity.polygon || firstEntity.polyline) && 
-                    ((firstEntity.polygon && firstEntity.polygon.outline) || 
-                     (firstEntity.polyline && firstEntity.polyline.width > 10))) {
-                  dataSource._isCountryBorderDataSource = true;
-                  dataSource.show = true;
-                  console.log(`国界线显示已开启`);
-                  break;
-                }
-              }
-            }
+          loadLocalCountryBorders().catch(error => {
+            console.error('重新加载国界线失败:', error);
           });
+        } else if (!found && !enabled) {
+          console.log('国界线数据源未加载，无需关闭');
         }
         
         // 强制刷新场景

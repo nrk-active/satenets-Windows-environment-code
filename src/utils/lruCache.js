@@ -1,7 +1,7 @@
 // src/utils/lruCache.js
 // LRU (Least Recently Used) 缓存实现
 export class LRUCache {
-  constructor(maxSize = 2) {
+  constructor(maxSize = 50) {  // ✅ 修复: 从2改为50，匹配配置文件
     this.maxSize = maxSize;
     this.cache = new Map();
   }

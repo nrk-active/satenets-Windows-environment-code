@@ -79,17 +79,15 @@ export function createStationEntity(node, show = true) {
   
   // console.log(`创建地面站 ${node.id}: 经度=${longitude}, 纬度=${latitude}`);
   
-  // 转换为笛卡尔坐标（类似卫星处理方式）
+  // 转换为笛卡尔坐标
   const cartesianPosition = Cesium.Cartesian3.fromDegrees(longitude, latitude, 100);
   
   const entity = {
     id: node.id,
     name: node.id,
     show,
-    // 使用CallbackProperty创建动态位置（类似卫星）
-    position: new Cesium.CallbackProperty(function(time, result) {
-      return Cesium.Cartesian3.clone(cartesianPosition, result);
-    }, false),
+    // ✅ 性能优化: 地面站是静态的，直接使用Cartesian3，避免每帧调用CallbackProperty
+    position: cartesianPosition,
     point: {
       pixelSize: 2,
       color: Cesium.Color.LIME,
@@ -125,10 +123,8 @@ export function createRoadmEntity(node, show = true) {
     id: node.id,
     name: node.id,
     show,
-    // 使用CallbackProperty创建动态位置（类似卫星）
-    position: new Cesium.CallbackProperty(function(time, result) {
-      return Cesium.Cartesian3.clone(cartesianPosition, result);
-    }, false),
+    // ✅ 性能优化: ROADM是静态的,直接使用Cartesian3,避免每帧调用CallbackProperty
+    position: cartesianPosition,
     point: {
       pixelSize: 2,
       color: Cesium.Color.ORANGE,

@@ -449,8 +449,8 @@ function startSelectionIndicatorUpdater() {
     if (selectedEntities.value.length > 0 && viewer() && viewer().scene) {
       updateSelectionIndicator();
       
-      // 每次更新位置时也同步动画
-      synchronizeIndicatorAnimations();
+      // 移除每帧调用 synchronizeIndicatorAnimations()
+      // 只在选中实体变化时调用一次即可
     }
     requestAnimationFrame(updateIndicators);
   }
@@ -505,6 +505,7 @@ const {
   addRoadmLinks,
   clearGroundLinks, // 9月28日新增，对应链路显示功能部分
   highlightSatelliteLinks,
+  validateHighlightedLinks,
   updateVisibility,
   setupClickHandler,
   setupTimelineControl,
@@ -1061,6 +1062,9 @@ function processNetworkData(networkData) {
   }
   
   console.log('Cesium viewer可用，当前实体数量:', viewer().entities.values.length);
+  
+  // 验证并更新当前高亮的卫星链路
+  validateHighlightedLinks(networkData);
   
   // 重要修复：延迟更新业务数据，不在这里立即调用，避免使用旧的业务数据
   // updateNetworkDataAndRedraw(networkData, viewer()); // 移除立即调用
