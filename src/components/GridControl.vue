@@ -101,7 +101,7 @@ defineExpose({
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  color: #fff;
+  color: var(--color-text); /* 修复: 确保图标颜色使用主题文本色 */
   outline: none;
   padding: 0;
   overflow: hidden;

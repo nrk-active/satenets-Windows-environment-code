@@ -11,7 +11,6 @@
 
 <template>
   <div class="satellite-viewer-container">
-    <!-- 导航栏 -->
     <NavigationBar 
       @simulation-data-selected="handleDataSelection" 
       :isLoggedIn="isLoggedIn" 
@@ -26,11 +25,42 @@
       :is-local-simulation-running="isPlaying"
     />
     
-    <!-- 主内容区域 -->
     <div class="main-content">
-      <!-- 左侧面板区域 -->
+  
+      <div id="cesiumContainer">
+        <div class="speed-display-panel">
+          <div class="current-speed">{{ playbackSpeed }}x</div>
+        </div>
+        
+        <div 
+          v-for="(entity, index) in selectedEntities" 
+          :key="entity.id"
+          :data-entity-id="entity.id"
+          class="custom-selection-indicator selection-indicator-sync"
+          :style="getSelectionIndicatorStyle(entity.id)"
+          :ref="el => { if (el) indicatorRefs[entity.id] = el }"
+        ></div>
+        
+        <NodeJumpInput 
+          :network-data="currentGraphData"
+          @node-selected="handleEntitySelect"
+          @time-changed="handleTimeJump"
+        />
+        <button class="drawer-toggle-button left-toggle" @click="toggleLeftPanel" :class="{'open-active': showLeftPanel}">
+          {{ showLeftPanel ? '◄' : '►' }}
+        </button>
+        
+        <button class="drawer-toggle-button right-toggle" @click="toggleRightPanel" :class="{'open-active': showRightPanel || selectedService || showDataPanel}">
+          {{ showRightPanel || selectedService || showDataPanel ? '►' : '◄' }}
+        </button>
+        
+        <button class="drawer-toggle-button bottom-toggle" @click="toggleBottomPanel" :class="{'open-active': showBottomPanel}">
+          {{ showBottomPanel ? '▼' : '▲' }}
+        </button>
+      </div>
+
       <ObjectViewer 
-        v-show="showLeftPanel"
+        :class="{'drawer-open': showLeftPanel}"
         ref="objectViewerRef"
         :current-process-id="selectedProcessId"
         :show-satellite="showSatellite"
@@ -45,93 +75,10 @@
         @select-entity="handleEntitySelect"
         @close="handleLeftPanelClose"
       />
-      <LeftCollapsedSidebar 
-        v-show="!showLeftPanel" 
-        @reopen="reopenLeftPanel"
-      />
-      
-      <!-- 中间Cesium容器 -->
-      <div id="cesiumContainer">
-        <!-- 播放速度显示 -->
-        <div class="speed-display-panel">
-          <div class="current-speed">{{ playbackSpeed }}x</div>
-        </div>
-        
-        <!-- 自定义选择指示器 -->
-        <div 
-          v-for="(entity, index) in selectedEntities" 
-          :key="entity.id"
-          :data-entity-id="entity.id"
-          class="custom-selection-indicator selection-indicator-sync"
-          :style="getSelectionIndicatorStyle(entity.id)"
-          :ref="el => { if (el) indicatorRefs[entity.id] = el }"
-        ></div>
-        
-        <!-- 节点跳转输入框 -->
-        <NodeJumpInput 
-          :network-data="currentGraphData"
-          @node-selected="handleEntitySelect"
-          @time-changed="handleTimeJump"
-        />
-        
-        <ServicePanel 
-          v-show="showBottomPanel"
-          :service-data="serviceData"
-          :network-data="currentGraphData"
-          :generate-service-id="generateServiceId"
-          @select-service="handleSelectService"
-          @close="handleBottomPanelClose"
-          @update-service-data="handleServiceDataUpdate"
-        />
-
-        <BottomCollapsedSidebar 
-          v-show="!showBottomPanel"
-          @reopen="reopenBottomPanel"
-        />
-      </div>
-      
-      <!-- 光照控制面板 10.27修改片段 -->
-      <LightingControl 
-        ref="lightingControlRef"
-        :initial-enabled="true"
-        @toggle-lighting="onToggleLighting"
-      />
-      <!--修改结束-->
-      
-      <!-- 国界线控制面板 10.27新增 -->
-      <BorderControl 
-        ref="borderControlRef"
-        :initial-enabled="true"
-        @toggle-border="onToggleBorder"
-      />
-      <!--新增结束-->
-      
-      <!-- 经纬线网格控制面板 10.28新增 -->
-      <GridControl 
-        ref="gridControlRef"
-        :initial-enabled="true"
-        @toggle-grid="onToggleGrid"
-      />
-      <!--新增结束-->
-      
-      <!-- 星空背景控制面板 12.08新增 -->
-      <SkyControl 
-        ref="skyControlRef"
-        :initial-enabled="true"
-        @toggle-sky="onToggleSky"
-      />
-      <!--新增结束-->
-      
-      <!-- 地球纹理控制面板 新增 -->
-      <EarthTextureControl 
-        ref="earthTextureControlRef"
-        @toggle-earth-texture="onToggleEarthTexture"
-      />
-      <!--新增结束-->
-
-      <!-- 右侧面板区域 -->
-      <div class="right-panel-container" v-if="selectedService || showRightPanel || showDataPanel">
-        <!-- 图表面板 -->
+      <div 
+        class="right-drawer-container"
+        :class="{'drawer-open': showRightPanel || selectedService || showDataPanel}"
+      >
         <ChartPanel 
           v-if="showDataPanel"
           ref="chartPanelRef"
@@ -140,13 +87,11 @@
           :time-frame="timeFrame"
           @close="handleChartPanelClose"
         />
-        <!-- 业务详情面板 -->
         <ServiceDetail 
           v-else-if="selectedService"
           :selected-service="selectedService"
           @close="handleCloseServiceDetail"
         />
-        <!-- 实体信息面板 -->
         <EntityInfoPanel 
           v-else-if="showRightPanel"
           :selectedEntity="selectedEntity" 
@@ -155,11 +100,44 @@
           @close="handleRightPanelClose" 
         />
       </div>
+        
+        <ServicePanel 
+          :class="{'drawer-open': showBottomPanel}"
+          :service-data="serviceData"
+          :network-data="currentGraphData"
+          :generate-service-id="generateServiceId"
+          @select-service="handleSelectService"
+          @close="handleBottomPanelClose"
+          @update-service-data="handleServiceDataUpdate"
+        />
       
-      <RightCollapsedSidebar 
-        v-show="!showRightPanel && !selectedService && !showDataPanel" 
-        @reopen="reopenRightPanel"
-      />
+      <div class="bottom-controls-group">
+        <LightingControl 
+          ref="lightingControlRef"
+          :initial-enabled="true"
+          @toggle-lighting="onToggleLighting"
+        />
+        <BorderControl 
+          ref="borderControlRef"
+          :initial-enabled="true"
+          @toggle-border="onToggleBorder"
+        />
+        <GridControl 
+          ref="gridControlRef"
+          :initial-enabled="true"
+          @toggle-grid="onToggleGrid"
+        />
+        <SkyControl 
+          ref="skyControlRef"
+          :initial-enabled="true"
+          @toggle-sky="onToggleSky"
+        />
+        <EarthTextureControl 
+          ref="earthTextureControlRef"
+          @toggle-earth-texture="onToggleEarthTexture"
+        />
+        </div>
+      
     </div>
   </div>
 </template>
@@ -286,13 +264,13 @@ const chartPanelRef = ref(null);
 let lastProcessedFrame = null; // 跟踪上一次处理的帧号，用于检测大跨度跳跃
 
 // 侧边栏状态管理
-const showLeftPanel = ref(true);
+const showLeftPanel = ref(false);
 const showRightPanel = ref(false);
-const showBottomPanel = ref(true);
+const showBottomPanel = ref(false);
 
 // 选中的实体信息 - 改为数组以支持多选
 const selectedEntities = ref([]);
-const selectedEntityRawData = ref(null);
+const RawData = ref(null);
 
 // 为了兼容性，提供selectedEntity计算属性，返回最后一个选中的实体
 const selectedEntity = computed(() => {
@@ -315,11 +293,6 @@ function handleDataSelection(data) {
   }
 }
 
-// 处理图表面板关闭
-function handleChartPanelClose() {
-  showDataPanel.value = false;
-  console.log('图表面板已关闭');
-}
 
 // 自定义选择指示器
 const selectionIndicatorSize = 15; // 进一步减小为15px，使红色圆圈更小
@@ -721,7 +694,7 @@ function handleStopSimulation() {
     clearServiceCache();
     
     // 4. 重置所有数据状态
-    currentGraphData.value = null;
+    currentGraphData = null;
     serviceData.value = null;
     selectedEntity.value = null;
     selectedService.value = null;
@@ -902,12 +875,17 @@ watch(isLoggedIn, async (newLoginStatus) => {
 async function loadBusinessDataForFrame(frameNumber) {
   try {
     const folderPath = getCurrentDataFolder();
-    const formattedNumber = String(frameNumber * 10).padStart(2, '0');
-    const filePath = `${folderPath}/network_state_${formattedNumber}.00.json`;
     
-    console.log(`预加载业务数据: ${filePath}`);
+    // 动态解析文件夹的时间间隔
+    const config = parseFolderName(folderPath);
+    const timeInterval = config.interval;
     
-    const response = await fetch(filePath);
+    const timeSeconds = frameNumber * timeInterval;
+    const filename = `./data/${folderPath}/network_state_${timeSeconds}.00.json`;
+    
+    console.log(`预加载业务数据: ${filename}`);
+    
+    const response = await fetch(filename);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
@@ -993,7 +971,7 @@ async function loadTimeFrame(frame, isFrameJump = false) {
             chartPanelRef.value.addDataPoint(frame, networkData);
           }
           
-          // 更新ObjectViewer中的文件显示
+          // 更新ObjectViewer的文件显示
           const networkFileName = filename.split('/').pop();
           const serviceFileName = `service_state_${fileTimeValue}.00.json`;
           if (objectViewerRef.value) {
@@ -1122,7 +1100,7 @@ function processNetworkData(networkData) {
     console.log(`帧跳跃距离${frameJumpDistance}超过阈值${FRAME_JUMP_THRESHOLD}，启用瞬间模式避免穿越动画`);
     
     // 大跨度跳转时先清除所有业务路径，避免显示错误的路径
-    clearAllServicePaths();
+    clearAllServicePaths(viewer());
     
     // 临时启用瞬间模式
     const wasInstantMode = instantMode.value;
@@ -1377,9 +1355,27 @@ async function handleTimeJump(frame) {
   }
 }
 
-// 侧边栏控制函数
+
+// 侧边栏控制函数（变为开关抽屉）
+
+function toggleLeftPanel() {
+  showLeftPanel.value = !showLeftPanel.value;
+}
+
 function handleLeftPanelClose() {
   showLeftPanel.value = false;
+}
+
+function toggleRightPanel() {
+  // 如果当前右侧有内容显示，则关闭，否则打开
+  if (showRightPanel.value || selectedService.value || showDataPanel.value) {
+    showRightPanel.value = false;
+    selectedService.value = null; // 关闭业务详情
+    showDataPanel.value = false; // 关闭图表
+  } else {
+    // 默认打开  (右侧面板)
+    showRightPanel.value = true;
+  }
 }
 
 function handleRightPanelClose() {
@@ -1387,6 +1383,23 @@ function handleRightPanelClose() {
   // 关闭右侧面板时清除选择
   selectedEntities.value = [];
   selectedEntityRawData.value = null;
+}
+
+// 处理图表面板关闭
+function handleChartPanelClose() {
+  showDataPanel.value = false;
+  // 保留日志
+  console.log('图表面板已关闭'); 
+}
+
+
+// 底部面板开关函数
+function toggleBottomPanel() {
+  showBottomPanel.value = !showBottomPanel.value;
+  // 触发面板状态变化事件
+  window.dispatchEvent(new CustomEvent('panel-state-changed', {
+    detail: { type: 'bottom-panel', action: showBottomPanel.value ? 'open' : 'close' }
+  }));
 }
 
 function handleBottomPanelClose() {
@@ -1464,23 +1477,23 @@ function handleVisibilityChange(type, checked) {
 
 // 包装 selectService 函数，在选择业务时关闭实体信息面板
 function handleSelectService(service, type) {
-  // 关闭实体信息面板
+  // 1. 关闭实体信息面板和图表面板
   showRightPanel.value = false;
-  selectedEntities.value = [];
-  selectedEntityRawData.value = null;
+  showDataPanel.value = false;
   
-  // 选择业务
+  // 2. 确保右侧抽屉打开
+  if (!selectedService.value) { 
+    toggleRightPanel(); // 调用开关函数来打开抽屉
+  }
+  
+  // 3. 选择业务
   selectService(service, type);
 }
 
 // 包装 closeServiceDetail 函数，关闭业务详情时恢复实体信息面板
 function handleCloseServiceDetail() {
-  closeServiceDetail();
-  
-  // 如果有选中的实体，重新打开右侧面板
-  if (selectedEntities.value.length > 0) {
-    showRightPanel.value = true;
-  }
+  // 调用 useServiceData 中的关闭方法
+  closeServiceDetail(); 
 }
 
 // 调整时间轴位置的函数（已禁用，因为现在使用自定义时间轴）
@@ -1978,6 +1991,7 @@ defineExpose({
 </script>
 
 <style scoped>
+/* 使用主题变量 */
 .satellite-viewer-container {
   display: flex;
   flex-direction: column;
@@ -1990,12 +2004,31 @@ defineExpose({
   bottom: 0;
   margin: 0;
   padding: 0;
+  background-color: var(--bg-primary);
+}
+
+/* 播放速度显示 - 修复位置，向下移动 */
+.speed-display-panel {
+  position: absolute; 
+  /* 修正：将位置设置在导航栏高度 + 50px 的位置，确保在右侧开关按钮下方 */
+  top: calc(var(--nav-height) + 50px); 
+  right: 10px; 
+  z-index: 1004; 
+  background-color: rgba(0, 0, 0, 0.6);
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: white;
+  font-size: 14px;
+}
+
+.current-speed {
+  font-weight: bold;
 }
 
 .main-content {
   display: flex;
   flex: 1;
-  height: calc(100vh - 109px); /* 导航栏总高度: 28px + 80px + 1px边框 = 109px */
+  height: calc(100vh - var(--nav-height)); /* 适应新的导航栏高度 */
   overflow: hidden;
   position: relative;
 }
@@ -2009,248 +2042,143 @@ defineExpose({
   overflow: hidden;
 }
 
-/* 播放速度控制面板 */
-.speed-display-panel {
-  position: absolute;
-  top: 15px;
-  left: 15px;
-  z-index: 10000;
-  background: rgba(0, 0, 0, 0.8);
-  border: 1px solid #444;
+/* 抽屉切换按钮 - 类似 satelitem.space 的小按钮 */
+.drawer-toggle-button {
+  position: fixed;
+  width: 30px;
+  height: 30px;
   border-radius: 4px;
-  padding: 8px 12px;
-  backdrop-filter: blur(5px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.current-speed {
-  color: #00ff88;
-  font-family: 'Courier New', monospace;
+  background: var(--bg-secondary);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  z-index: 1002;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px var(--color-shadow);
   font-size: 14px;
-  font-weight: bold;
-  text-align: center;
-  background: rgba(0, 255, 136, 0.1);
-  padding: 4px 8px;
-  border-radius: 2px;
-  border: 1px solid rgba(0, 255, 136, 0.3);
 }
 
-.speed-hint {
-  color: #888;
-  font-family: Arial, sans-serif;
-  font-size: 10px;
-  text-align: center;
-  margin-top: 2px;
-  opacity: 0.8;
+.drawer-toggle-button:hover,
+.drawer-toggle-button.open-active {
+  background: var(--color-highlight);
+  border-color: var(--color-highlight);
+  color: var(--bg-primary);
+  box-shadow: 0 4px 12px var(--color-highlight);
 }
 
-/* 自定义选择指示器样式 */
-.custom-selection-indicator {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 0, 0, 1);
-  pointer-events: none;
-  z-index: 1000;
-  box-shadow: 0 0 10px rgba(255, 0, 0, 0.8);
-  /* 使用CSS变量控制动画，确保所有指示器同步 */
-  animation: blink-sync 1s infinite;
-  /* 使用CSS变量控制动画延迟，确保所有指示器同步 */
-  animation-delay: var(--indicator-delay, 0s);
-  /* 确保动画状态一致 */
-  animation-play-state: running;
-  /* 强制使用相同的动画计时函数 */
-  animation-timing-function: ease-in-out;
+.left-toggle {
+  top: calc(var(--nav-height) + 10px);
+  left: 10px;
 }
 
-/* 确保所有选择指示器完全同步 */
-.selection-indicator-sync {
-  animation-name: blink-sync !important;
-  animation-duration: 1s !important;
-  animation-delay: var(--indicator-delay, 0s) !important;
-  animation-timing-function: ease-in-out !important;
-  animation-iteration-count: infinite !important;
-  animation-direction: normal !important;
-  animation-fill-mode: none !important;
-  animation-play-state: running !important;
+.right-toggle {
+  top: calc(var(--nav-height) + 10px);
+  right: 10px;
 }
 
-@keyframes blink-sync {
-  0% {
-    transform: scale(0.5);
-    opacity: 0.8;
-  }
-  50% {
-    transform: scale(1.2);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(0.5);
-    opacity: 0.8;
-  }
+.bottom-toggle {
+  bottom: 45px;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
-/* 右侧面板容器 */
-.right-panel-container {
-  position: relative;
+/* 左侧对象列表 (Drawer) */
+.object-viewer {
+  position: fixed;
+  top: var(--nav-height);
+  left: 0;
+  height: calc(100% - var(--nav-height));
+  width: 300px;
+  z-index: 1001;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease-out;
+  box-shadow: 4px 0 10px var(--color-shadow);
+  background: var(--bg-primary);
+}
+
+.object-viewer.drawer-open {
+  transform: translateX(0);
+}
+
+/* 右侧面板组 (Drawer Container) */
+.right-drawer-container {
+  position: fixed;
+  top: var(--nav-height);
+  right: 0;
+  height: calc(100% - var(--nav-height));
+  width: 350px; /* 略微增加宽度以更好地显示图表 */
+  z-index: 1003;
+  transform: translateX(100%);
+  transition: transform 0.3s ease-out;
+  box-shadow: -4px 0 10px var(--color-shadow);
+}
+
+.drawer-open {
+  transform: translateX(0);
+}
+
+/* 确保右侧抽屉内的内容填满容器 */
+.right-drawer-container > * {
+  width: 100%;
   height: 100%;
-  min-width: 300px;
-  max-width: 350px;
-  background: transparent;
 }
 
-/* Cesium时间轴控件样式调整 - 使用更高的优先级 */
-:deep(.cesium-timeline-main) {
-  display: block !important;
-  visibility: visible !important;
-  position: absolute !important;
-  bottom: 30px !important;
-  left: 10px !important;
-  right: 5px !important;
-  z-index: 10000 !important;
-  height: 27px !important;
-  background: rgba(42, 42, 42, 0.9) !important;
-  border: 1px solid #666 !important;
-  border-radius: 3px !important;
+/* 底部业务面板 (Drawer) */
+.service-panel {
+  position: fixed; /* 使用 fixed 定位确保在视口中 */
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 300px; /* 打开时的高度 */
+  z-index: 10011; /* 👈 关键修复：确保高于时间轴 (10010) */
+  /* 默认状态：向下移动自身高度，实现下沉效果 */
+  transform: translateY(100%); 
+  transition: transform 0.3s ease-out; /* 添加过渡效果 */
+  /* ... (其他样式保持不变) ... */
 }
 
-/* 确保时间轴在业务面板上方 */
-:deep(.cesium-viewer-toolbar) {
-  z-index: 10001 !important;
+/* 抽屉打开状态 */
+.service-panel.drawer-open {
+  transform: translateY(0); /* 打开状态：恢复到原始位置 */
 }
 
-/* 添加更多时间轴相关选择器 - 全部使用高优先级 */
-:deep(.cesium-timeline-container) {
-  display: block !important;
-  visibility: visible !important;
-  position: absolute !important;
-  bottom: 30px !important;
-  left: 10px !important;
-  right: 5px !important;
-  z-index: 10000 !important;
-  height: 27px !important;
+.bottom-controls-group {
+  position: fixed;
+  bottom: 5px; /* 👈 修复 1: 紧贴页面最底部，只留 5px 间隙 */
+  left: 20px; 
+  right: auto; 
+  z-index: 10020;
+  display: flex;
+  
+  /* 关键修改：横向排列 */
+  flex-direction: row; 
+  
+  /* 确保按钮从左侧开始排列 */
+  align-items: center; 
+  justify-content: flex-start; 
+  gap: 10px;
 }
 
-:deep(.cesium-timeline-trackContainer) {
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  position: relative !important;
-  width: 100% !important;
-  height: 100% !important;
-  background: rgba(60, 60, 60, 0.8) !important;
-  border: none !important;
+/* 覆盖 LightingControl 组件内部的定位 (保持不变，以支持横向排列) */
+.bottom-controls-group > :deep(.tooltip-container) {
+  position: static;
+  margin: 0;
 }
 
-:deep(.cesium-timeline-track) {
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  position: relative !important;
-  width: 100% !important;
-  height: 20px !important;
-  background: linear-gradient(to right, #444, #666) !important;
-  border: 1px solid #888 !important;
-  border-radius: 2px !important;
-  margin: 3px 0 !important;
+.bottom-controls-group > :deep(.tooltip-container) .sun-icon,
+.bottom-controls-group > :deep(.tooltip-container) .border-icon,
+.bottom-controls-group > :deep(.tooltip-container) .grid-icon,
+.bottom-controls-group > :deep(.tooltip-container) .sky-icon,
+.bottom-controls-group > :deep(.tooltip-container) .earth-icon {
+  position: static;
 }
 
-:deep(.cesium-timeline-bar) {
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  position: relative !important;
-  width: 100% !important;
-  height: 20px !important;
-  background: linear-gradient(to right, #444, #666) !important;
-  border: 1px solid #888 !important;
-  border-radius: 2px !important;
-  margin: 3px 0 !important;
-}
+/* NodeJumpInput 样式 - 确保其 Z-index 足够高 */
+.node-jump-container {
+    z-index: 1001; /* 确保它在Cesium场景的上方 */
 
-:deep(.cesium-timeline-needle) {
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  position: absolute !important;
-  width: 2px !important;
-  height: 100% !important;
-  background: #00ff00 !important;
-  z-index: 10001 !important;
-  pointer-events: auto !important;
-}
-
-:deep(.cesium-timeline-ruler) {
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  position: relative !important;
-  width: 100% !important;
-  height: 15px !important;
-  background: rgba(80, 80, 80, 0.9) !important;
-  border-top: 1px solid #999 !important;
-  font-size: 10px !important;
-  color: #ccc !important;
-  z-index: 1 !important; /* 覆盖默认的-200 */
-  white-space: nowrap !important;
-}
-
-/* 强制覆盖Cesium默认样式 */
-:deep(.cesium-timeline-main) {
-  background: rgba(42, 42, 42, 0.9) !important;
-  border: 1px solid #666 !important;
-  height: 27px !important;
-}
-
-:deep(.cesium-timeline-trackContainer) {
-  background: rgba(50, 50, 50, 0.8) !important;
-  border-top: solid 1px #888 !important;
-}
-
-:deep(.cesium-timeline-tracks) {
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-}
-
-:deep(.cesium-timeline-bar) {
-  height: 1.7em !important;
-  background: linear-gradient(
-    to bottom,
-    rgba(116, 117, 119, 0.9) 0%,
-    rgba(58, 68, 82, 0.9) 11%,
-    rgba(46, 50, 56, 0.9) 46%,
-    rgba(53, 53, 53, 0.9) 81%,
-    rgba(53, 53, 53, 0.9) 100%) !important;
-  cursor: pointer !important;
-}
-
-:deep(.cesium-timeline-needle) {
-  background: #f00 !important; /* Cesium默认是红色 */
-  width: 1px !important;
-  top: 1.7em !important;
-  bottom: 0 !important;
-}
-
-:deep(.cesium-timeline-ticLabel) {
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  color: #ccc !important;
-  font-size: 80% !important;
-  white-space: nowrap !important;
-  position: absolute !important;
-}
-
-/* 强制显示所有时间轴相关元素 - 最高优先级 */
-:deep([class*="cesium-timeline"]) {
-  display: block !important;
-  visibility: visible !important;
-  z-index: 10000 !important;
-}
-
-/* 额外的时间轴样式确保 */
-:deep(.cesium-timeline-main *) {
-  display: block !important;
-  visibility: visible !important;
 }
 </style>

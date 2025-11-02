@@ -19,6 +19,10 @@
             <input type="checkbox" v-model="selectedData.hopCounts">
             <span>平均跳数</span>
           </label>
+          <label class="checkbox-item">
+            <input type="checkbox" v-model="selectedData.linkLength">
+            <span>链路长度</span>
+          </label>
           <!-- <label class="checkbox-item">
             <input type="checkbox" v-model="selectedData.spicesCounts">
             <span>经过的切片数</span>
@@ -48,6 +52,7 @@ const selectedData = reactive({
   averageLatency: true,
   bandwidthUtil: true,
   hopCounts: true,
+  linkLength: true,
   spicesCounts: true,
   intraplaneCounts: true,
   interplaneCounts: true

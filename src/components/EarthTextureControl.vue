@@ -109,7 +109,7 @@ defineExpose({
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  color: #fff;
+  color: var(--color-text);
   outline: none;
   padding: 0;
   overflow: hidden;

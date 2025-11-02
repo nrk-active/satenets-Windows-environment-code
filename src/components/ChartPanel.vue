@@ -23,6 +23,24 @@
           <h4>平均跳数</h4>
           <div ref="hopChart" class="chart"></div>
         </div>
+        
+        <!-- 链路长度图表 - 业务数量 -->
+        <div v-if="selectedData.linkLength" class="chart-item">
+          <h4>链路业务数量</h4>
+          <div ref="linkLengthServiceCountChart" class="chart"></div>
+        </div>
+        
+        <!-- 链路长度图表 - 最大距离 -->
+        <div v-if="selectedData.linkLength" class="chart-item">
+          <h4>链路最大距离</h4>
+          <div ref="linkLengthMaxDistanceChart" class="chart"></div>
+        </div>
+        
+        <!-- 链路长度图表 - 最小距离 -->
+        <div v-if="selectedData.linkLength" class="chart-item">
+          <h4>链路最小距离</h4>
+          <div ref="linkLengthMinDistanceChart" class="chart"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -53,11 +71,17 @@ const emit = defineEmits(['close']);
 const latencyChart = ref(null);
 const bandwidthChart = ref(null);
 const hopChart = ref(null);
+const linkLengthServiceCountChart = ref(null);
+const linkLengthMaxDistanceChart = ref(null);
+const linkLengthMinDistanceChart = ref(null);
 
 // ECharts实例
 let latencyChartInstance = null;
 let bandwidthChartInstance = null;
 let hopChartInstance = null;
+let linkLengthServiceCountChartInstance = null;
+let linkLengthMaxDistanceChartInstance = null;
+let linkLengthMinDistanceChartInstance = null;
 
 // 存储历史数据（最多保留10个切片）
 const historyData = ref({
@@ -71,7 +95,36 @@ const historyData = ref({
     grl: [],         // 地面站-ROADM链路
     backbone: []     // 骨干网
   },
-  hop: [] // 平均跳数数据
+  hop: [], // 平均跳数数据
+  linkLength: {  // 链路长度数据（按大洲分类，三个指标）
+    serviceCount: {  // 业务数量
+      Africa: [],
+      'South America': [],
+      Oceania: [],
+      'Southeast Asia': [],
+      Europe: [],
+      'North America': [],
+      'Middle East': []
+    },
+    maxDistance: {  // 最大距离
+      Africa: [],
+      'South America': [],
+      Oceania: [],
+      'Southeast Asia': [],
+      Europe: [],
+      'North America': [],
+      'Middle East': []
+    },
+    minDistance: {  // 最小距离
+      Africa: [],
+      'South America': [],
+      Oceania: [],
+      'Southeast Asia': [],
+      Europe: [],
+      'North America': [],
+      'Middle East': []
+    }
+  }
 });
 
 // 解析文件夹名称格式：{类型}_{切片间隔}_{总时长}
@@ -106,6 +159,47 @@ const parseFolderName = (folderName) => {
   }
   
   return defaultConfig;
+};
+
+// 加载链路长度数据
+const loadLinkLengthData = async (frame) => {
+  try {
+    // 从 data/data3/link_length 文件夹加载数据
+    const orbitNumber = String(frame).padStart(6, '0');
+    const filename = `./data/data3/link_length/isl_inter_stats_orbit_${orbitNumber}.json`;
+    
+    console.log('ChartPanel: 加载链路长度数据', filename);
+    
+    const response = await fetch(filename);
+    if (!response.ok) {
+      console.warn(`ChartPanel: 无法加载链路长度数据: ${response.status}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    console.log('ChartPanel: 链路长度数据加载成功', data);
+    
+    // 提取各大洲的三个指标：业务数量、最大距离、最小距离
+    const areaStats = data.area_interorbit_statistics || {};
+    const linkLengthData = {
+      serviceCount: {},
+      maxDistance: {},
+      minDistance: {}
+    };
+    
+    Object.keys(areaStats).forEach(area => {
+      const stats = areaStats[area];
+      linkLengthData.serviceCount[area] = stats.service_count || 0;
+      linkLengthData.maxDistance[area] = stats.max_distance || 0;
+      linkLengthData.minDistance[area] = stats.min_distance || 0;
+    });
+    
+    console.log('ChartPanel: 处理后的链路长度数据', linkLengthData);
+    return linkLengthData;
+  } catch (error) {
+    console.error('ChartPanel: 加载链路长度数据失败', error);
+    return null;
+  }
 };
 
 // 从网络数据计算仿真指标
@@ -240,7 +334,7 @@ const calculateMetricsFromData = (networkData) => {
 };
 
 // 添加新的数据点
-const addDataPoint = (frame, networkData) => {
+const addDataPoint = async (frame, networkData) => {
   try {
     console.log('ChartPanel: addDataPoint调用', { frame, hasData: !!networkData });
     
@@ -267,6 +361,9 @@ const addDataPoint = (frame, networkData) => {
   
   const metrics = calculateMetricsFromData(networkData);
   
+  // 加载链路长度数据
+  const linkLengthData = await loadLinkLengthData(frameNumber);
+  
   // 检查是否已存在相同时间戳的数据
   const existingIndex = historyData.value.timestamps.indexOf(timestamp);
   if (existingIndex !== -1) {
@@ -282,7 +379,16 @@ const addDataPoint = (frame, networkData) => {
       historyData.value.bandwidthUtil.backbone[existingIndex] = metrics.bandwidthUtil.backbone;
     }
     historyData.value.hop[existingIndex] = metrics.hop;
-    console.log('ChartPanel: 更新现有数据点', { timestamp, metrics });
+    // 更新链路长度数据（三个指标）
+    if (linkLengthData) {
+      const areas = ['Africa', 'South America', 'Oceania', 'Southeast Asia', 'Europe', 'North America', 'Middle East'];
+      areas.forEach(area => {
+        historyData.value.linkLength.serviceCount[area][existingIndex] = linkLengthData.serviceCount[area] || 0;
+        historyData.value.linkLength.maxDistance[area][existingIndex] = linkLengthData.maxDistance[area] || 0;
+        historyData.value.linkLength.minDistance[area][existingIndex] = linkLengthData.minDistance[area] || 0;
+      });
+    }
+    console.log('ChartPanel: 更新现有数据点', { timestamp, metrics, linkLengthData });
   } else {
     // 添加新数据
     historyData.value.timestamps.push(timestamp);
@@ -297,7 +403,23 @@ const addDataPoint = (frame, networkData) => {
       historyData.value.bandwidthUtil.backbone.push(metrics.bandwidthUtil.backbone);
     }
     historyData.value.hop.push(metrics.hop);
-    console.log('ChartPanel: 添加新数据点', { timestamp, metrics });
+    // 添加链路长度数据（三个指标）
+    const areas = ['Africa', 'South America', 'Oceania', 'Southeast Asia', 'Europe', 'North America', 'Middle East'];
+    if (linkLengthData) {
+      areas.forEach(area => {
+        historyData.value.linkLength.serviceCount[area].push(linkLengthData.serviceCount[area] || 0);
+        historyData.value.linkLength.maxDistance[area].push(linkLengthData.maxDistance[area] || 0);
+        historyData.value.linkLength.minDistance[area].push(linkLengthData.minDistance[area] || 0);
+      });
+    } else {
+      // 如果没有数据，添加0
+      areas.forEach(area => {
+        historyData.value.linkLength.serviceCount[area].push(0);
+        historyData.value.linkLength.maxDistance[area].push(0);
+        historyData.value.linkLength.minDistance[area].push(0);
+      });
+    }
+    console.log('ChartPanel: 添加新数据点', { timestamp, metrics, linkLengthData });
     
     // 按时间戳排序所有数据
     const combined = historyData.value.timestamps.map((ts, index) => ({
@@ -311,7 +433,36 @@ const addDataPoint = (frame, networkData) => {
         grl: historyData.value.bandwidthUtil.grl[index],
         backbone: historyData.value.bandwidthUtil.backbone[index]
       },
-      hop: historyData.value.hop[index]
+      hop: historyData.value.hop[index],
+      linkLength: {
+        serviceCount: {
+          Africa: historyData.value.linkLength.serviceCount.Africa[index],
+          'South America': historyData.value.linkLength.serviceCount['South America'][index],
+          Oceania: historyData.value.linkLength.serviceCount.Oceania[index],
+          'Southeast Asia': historyData.value.linkLength.serviceCount['Southeast Asia'][index],
+          Europe: historyData.value.linkLength.serviceCount.Europe[index],
+          'North America': historyData.value.linkLength.serviceCount['North America'][index],
+          'Middle East': historyData.value.linkLength.serviceCount['Middle East'][index]
+        },
+        maxDistance: {
+          Africa: historyData.value.linkLength.maxDistance.Africa[index],
+          'South America': historyData.value.linkLength.maxDistance['South America'][index],
+          Oceania: historyData.value.linkLength.maxDistance.Oceania[index],
+          'Southeast Asia': historyData.value.linkLength.maxDistance['Southeast Asia'][index],
+          Europe: historyData.value.linkLength.maxDistance.Europe[index],
+          'North America': historyData.value.linkLength.maxDistance['North America'][index],
+          'Middle East': historyData.value.linkLength.maxDistance['Middle East'][index]
+        },
+        minDistance: {
+          Africa: historyData.value.linkLength.minDistance.Africa[index],
+          'South America': historyData.value.linkLength.minDistance['South America'][index],
+          Oceania: historyData.value.linkLength.minDistance.Oceania[index],
+          'Southeast Asia': historyData.value.linkLength.minDistance['Southeast Asia'][index],
+          Europe: historyData.value.linkLength.minDistance.Europe[index],
+          'North America': historyData.value.linkLength.minDistance['North America'][index],
+          'Middle East': historyData.value.linkLength.minDistance['Middle East'][index]
+        }
+      }
     }));
     
     // 按时间戳升序排序
@@ -327,6 +478,30 @@ const addDataPoint = (frame, networkData) => {
     historyData.value.bandwidthUtil.grl = combined.map(item => item.bandwidthUtil.grl);
     historyData.value.bandwidthUtil.backbone = combined.map(item => item.bandwidthUtil.backbone);
     historyData.value.hop = combined.map(item => item.hop);
+    // 重新分配链路长度数据（三个指标）
+    historyData.value.linkLength.serviceCount.Africa = combined.map(item => item.linkLength.serviceCount.Africa);
+    historyData.value.linkLength.serviceCount['South America'] = combined.map(item => item.linkLength.serviceCount['South America']);
+    historyData.value.linkLength.serviceCount.Oceania = combined.map(item => item.linkLength.serviceCount.Oceania);
+    historyData.value.linkLength.serviceCount['Southeast Asia'] = combined.map(item => item.linkLength.serviceCount['Southeast Asia']);
+    historyData.value.linkLength.serviceCount.Europe = combined.map(item => item.linkLength.serviceCount.Europe);
+    historyData.value.linkLength.serviceCount['North America'] = combined.map(item => item.linkLength.serviceCount['North America']);
+    historyData.value.linkLength.serviceCount['Middle East'] = combined.map(item => item.linkLength.serviceCount['Middle East']);
+    
+    historyData.value.linkLength.maxDistance.Africa = combined.map(item => item.linkLength.maxDistance.Africa);
+    historyData.value.linkLength.maxDistance['South America'] = combined.map(item => item.linkLength.maxDistance['South America']);
+    historyData.value.linkLength.maxDistance.Oceania = combined.map(item => item.linkLength.maxDistance.Oceania);
+    historyData.value.linkLength.maxDistance['Southeast Asia'] = combined.map(item => item.linkLength.maxDistance['Southeast Asia']);
+    historyData.value.linkLength.maxDistance.Europe = combined.map(item => item.linkLength.maxDistance.Europe);
+    historyData.value.linkLength.maxDistance['North America'] = combined.map(item => item.linkLength.maxDistance['North America']);
+    historyData.value.linkLength.maxDistance['Middle East'] = combined.map(item => item.linkLength.maxDistance['Middle East']);
+    
+    historyData.value.linkLength.minDistance.Africa = combined.map(item => item.linkLength.minDistance.Africa);
+    historyData.value.linkLength.minDistance['South America'] = combined.map(item => item.linkLength.minDistance['South America']);
+    historyData.value.linkLength.minDistance.Oceania = combined.map(item => item.linkLength.minDistance.Oceania);
+    historyData.value.linkLength.minDistance['Southeast Asia'] = combined.map(item => item.linkLength.minDistance['Southeast Asia']);
+    historyData.value.linkLength.minDistance.Europe = combined.map(item => item.linkLength.minDistance.Europe);
+    historyData.value.linkLength.minDistance['North America'] = combined.map(item => item.linkLength.minDistance['North America']);
+    historyData.value.linkLength.minDistance['Middle East'] = combined.map(item => item.linkLength.minDistance['Middle East']);
   }
 
   // 保持最多10个数据点（保留最新的）
@@ -341,6 +516,13 @@ const addDataPoint = (frame, networkData) => {
     historyData.value.bandwidthUtil.grl = historyData.value.bandwidthUtil.grl.slice(-maxPoints);
     historyData.value.bandwidthUtil.backbone = historyData.value.bandwidthUtil.backbone.slice(-maxPoints);
     historyData.value.hop = historyData.value.hop.slice(-maxPoints);
+    // 截取链路长度数据（三个指标）
+    const areas = ['Africa', 'South America', 'Oceania', 'Southeast Asia', 'Europe', 'North America', 'Middle East'];
+    areas.forEach(area => {
+      historyData.value.linkLength.serviceCount[area] = historyData.value.linkLength.serviceCount[area].slice(-maxPoints);
+      historyData.value.linkLength.maxDistance[area] = historyData.value.linkLength.maxDistance[area].slice(-maxPoints);
+      historyData.value.linkLength.minDistance[area] = historyData.value.linkLength.minDistance[area].slice(-maxPoints);
+    });
     console.log('ChartPanel: 截取最新10个数据点');
   }
 
@@ -414,6 +596,51 @@ const createChartOption = (type) => {
         areaStyle: { color: color + '20' }
       };
       break;
+    case 'linkLength_serviceCount':
+      // 业务数量图表（按大洲分类）
+      color = ['#ff6b35', '#00ff88', '#4a9eff', '#ff4757', '#3742fa', '#ffa502', '#26de81'];
+      unit = '';
+      yAxisMax = null;
+      seriesConfig = [
+        { name: '非洲', data: historyData.value.linkLength.serviceCount.Africa, type: 'line', smooth: true, lineStyle: { color: color[0], width: 2 }, itemStyle: { color: color[0] } },
+        { name: '南美洲', data: historyData.value.linkLength.serviceCount['South America'], type: 'line', smooth: true, lineStyle: { color: color[1], width: 2 }, itemStyle: { color: color[1] } },
+        { name: '大洋洲', data: historyData.value.linkLength.serviceCount.Oceania, type: 'line', smooth: true, lineStyle: { color: color[2], width: 2 }, itemStyle: { color: color[2] } },
+        { name: '东南亚', data: historyData.value.linkLength.serviceCount['Southeast Asia'], type: 'line', smooth: true, lineStyle: { color: color[3], width: 2 }, itemStyle: { color: color[3] } },
+        { name: '欧洲', data: historyData.value.linkLength.serviceCount.Europe, type: 'line', smooth: true, lineStyle: { color: color[4], width: 2 }, itemStyle: { color: color[4] } },
+        { name: '北美洲', data: historyData.value.linkLength.serviceCount['North America'], type: 'line', smooth: true, lineStyle: { color: color[5], width: 2 }, itemStyle: { color: color[5] } },
+        { name: '中东', data: historyData.value.linkLength.serviceCount['Middle East'], type: 'line', smooth: true, lineStyle: { color: color[6], width: 2 }, itemStyle: { color: color[6] } }
+      ];
+      break;
+    case 'linkLength_maxDistance':
+      // 最大距离图表（按大洲分类）
+      color = ['#ff6b35', '#00ff88', '#4a9eff', '#ff4757', '#3742fa', '#ffa502', '#26de81'];
+      unit = 'km';
+      yAxisMax = null;
+      seriesConfig = [
+        { name: '非洲', data: historyData.value.linkLength.maxDistance.Africa, type: 'line', smooth: true, lineStyle: { color: color[0], width: 2 }, itemStyle: { color: color[0] } },
+        { name: '南美洲', data: historyData.value.linkLength.maxDistance['South America'], type: 'line', smooth: true, lineStyle: { color: color[1], width: 2 }, itemStyle: { color: color[1] } },
+        { name: '大洋洲', data: historyData.value.linkLength.maxDistance.Oceania, type: 'line', smooth: true, lineStyle: { color: color[2], width: 2 }, itemStyle: { color: color[2] } },
+        { name: '东南亚', data: historyData.value.linkLength.maxDistance['Southeast Asia'], type: 'line', smooth: true, lineStyle: { color: color[3], width: 2 }, itemStyle: { color: color[3] } },
+        { name: '欧洲', data: historyData.value.linkLength.maxDistance.Europe, type: 'line', smooth: true, lineStyle: { color: color[4], width: 2 }, itemStyle: { color: color[4] } },
+        { name: '北美洲', data: historyData.value.linkLength.maxDistance['North America'], type: 'line', smooth: true, lineStyle: { color: color[5], width: 2 }, itemStyle: { color: color[5] } },
+        { name: '中东', data: historyData.value.linkLength.maxDistance['Middle East'], type: 'line', smooth: true, lineStyle: { color: color[6], width: 2 }, itemStyle: { color: color[6] } }
+      ];
+      break;
+    case 'linkLength_minDistance':
+      // 最小距离图表（按大洲分类）
+      color = ['#ff6b35', '#00ff88', '#4a9eff', '#ff4757', '#3742fa', '#ffa502', '#26de81'];
+      unit = 'km';
+      yAxisMax = null;
+      seriesConfig = [
+        { name: '非洲', data: historyData.value.linkLength.minDistance.Africa, type: 'line', smooth: true, lineStyle: { color: color[0], width: 2 }, itemStyle: { color: color[0] } },
+        { name: '南美洲', data: historyData.value.linkLength.minDistance['South America'], type: 'line', smooth: true, lineStyle: { color: color[1], width: 2 }, itemStyle: { color: color[1] } },
+        { name: '大洋洲', data: historyData.value.linkLength.minDistance.Oceania, type: 'line', smooth: true, lineStyle: { color: color[2], width: 2 }, itemStyle: { color: color[2] } },
+        { name: '东南亚', data: historyData.value.linkLength.minDistance['Southeast Asia'], type: 'line', smooth: true, lineStyle: { color: color[3], width: 2 }, itemStyle: { color: color[3] } },
+        { name: '欧洲', data: historyData.value.linkLength.minDistance.Europe, type: 'line', smooth: true, lineStyle: { color: color[4], width: 2 }, itemStyle: { color: color[4] } },
+        { name: '北美洲', data: historyData.value.linkLength.minDistance['North America'], type: 'line', smooth: true, lineStyle: { color: color[5], width: 2 }, itemStyle: { color: color[5] } },
+        { name: '中东', data: historyData.value.linkLength.minDistance['Middle East'], type: 'line', smooth: true, lineStyle: { color: color[6], width: 2 }, itemStyle: { color: color[6] } }
+      ];
+      break;
     default:
       return {};
   }
@@ -424,6 +651,13 @@ const createChartOption = (type) => {
       data: ['总利用率', '星间同轨', '星间异轨', '星地链路', 'GRL链路', '骨干网'],
       textStyle: { color: '#cccccc', fontSize: 10 },
       top: 5
+    } : (type === 'linkLength_serviceCount' || type === 'linkLength_maxDistance' || type === 'linkLength_minDistance') ? {
+      data: ['非洲', '南美洲', '大洋洲', '东南亚', '欧洲', '北美洲', '中东'],
+      textStyle: { color: '#cccccc', fontSize: 10 },
+      top: 5,
+      itemGap: 8,  // 图例项之间的间距
+      itemWidth: 20,  // 图例标记的宽度
+      itemHeight: 10  // 图例标记的高度
     } : null,
     tooltip: {
       trigger: 'axis',
@@ -524,7 +758,7 @@ const createChartOption = (type) => {
       left: '10%',
       right: '5%',
       bottom: '15%',
-      top: '15%',  /* 增加顶部间距避免标题重叠 */
+      top: (type === 'linkLength_serviceCount' || type === 'linkLength_maxDistance' || type === 'linkLength_minDistance') ? '25%' : '15%',  /* 链路长度图表增加更多顶部间距避免与图例重叠 */
       containLabel: true
     }
   };
@@ -539,6 +773,12 @@ function getSeriesName(type) {
       return '带宽利用率';
     case 'hop':
       return '平均跳数';
+    case 'linkLength_serviceCount':
+      return '业务数量';
+    case 'linkLength_maxDistance':
+      return '最大距离';
+    case 'linkLength_minDistance':
+      return '最小距离';
     default:
       return '';
   }
@@ -557,6 +797,18 @@ function updateCharts() {
     
     if (props.selectedData.hopCounts && hopChartInstance) {
       hopChartInstance.setOption(createChartOption('hop'));
+    }
+    
+    if (props.selectedData.linkLength) {
+      if (linkLengthServiceCountChartInstance) {
+        linkLengthServiceCountChartInstance.setOption(createChartOption('linkLength_serviceCount'));
+      }
+      if (linkLengthMaxDistanceChartInstance) {
+        linkLengthMaxDistanceChartInstance.setOption(createChartOption('linkLength_maxDistance'));
+      }
+      if (linkLengthMinDistanceChartInstance) {
+        linkLengthMinDistanceChartInstance.setOption(createChartOption('linkLength_minDistance'));
+      }
     }
   });
 }
@@ -582,6 +834,22 @@ function initCharts() {
       hopChartInstance.setOption(createChartOption('hop'));
     }
     
+    // 初始化链路长度图表（三个）
+    if (props.selectedData.linkLength) {
+      if (linkLengthServiceCountChart.value) {
+        linkLengthServiceCountChartInstance = echarts.init(linkLengthServiceCountChart.value);
+        linkLengthServiceCountChartInstance.setOption(createChartOption('linkLength_serviceCount'));
+      }
+      if (linkLengthMaxDistanceChart.value) {
+        linkLengthMaxDistanceChartInstance = echarts.init(linkLengthMaxDistanceChart.value);
+        linkLengthMaxDistanceChartInstance.setOption(createChartOption('linkLength_maxDistance'));
+      }
+      if (linkLengthMinDistanceChart.value) {
+        linkLengthMinDistanceChartInstance = echarts.init(linkLengthMinDistanceChart.value);
+        linkLengthMinDistanceChartInstance.setOption(createChartOption('linkLength_minDistance'));
+      }
+    }
+    
     // 如果有当前帧数据，立即添加到图表中
     if (props.currentFrameData) {
       addDataPoint(props.timeFrame, props.currentFrameData);
@@ -605,6 +873,21 @@ function destroyCharts() {
     hopChartInstance.dispose();
     hopChartInstance = null;
   }
+  
+  if (linkLengthServiceCountChartInstance) {
+    linkLengthServiceCountChartInstance.dispose();
+    linkLengthServiceCountChartInstance = null;
+  }
+  
+  if (linkLengthMaxDistanceChartInstance) {
+    linkLengthMaxDistanceChartInstance.dispose();
+    linkLengthMaxDistanceChartInstance = null;
+  }
+  
+  if (linkLengthMinDistanceChartInstance) {
+    linkLengthMinDistanceChartInstance.dispose();
+    linkLengthMinDistanceChartInstance = null;
+  }
 }
 
 // 响应式调整图表大小
@@ -619,6 +902,18 @@ function resizeCharts() {
   
   if (hopChartInstance) {
     hopChartInstance.resize();
+  }
+  
+  if (linkLengthServiceCountChartInstance) {
+    linkLengthServiceCountChartInstance.resize();
+  }
+  
+  if (linkLengthMaxDistanceChartInstance) {
+    linkLengthMaxDistanceChartInstance.resize();
+  }
+  
+  if (linkLengthMinDistanceChartInstance) {
+    linkLengthMinDistanceChartInstance.resize();
   }
 }
 
