@@ -44,6 +44,10 @@ export function createSatelliteEntity(node, show = true) {
     parseFloat(node.position[2]) * 1000
   );
   
+  // 为每个卫星生成随机的初始相位偏移和闪烁速度
+  const randomPhase = Math.random() * Math.PI * 2;
+  const randomSpeed = 0.8 + Math.random() * 0.4; // 随机速度在0.8到1.2之间
+  
   const entity = {
     id: node.id,
     name: node.id,
@@ -55,8 +59,15 @@ export function createSatelliteEntity(node, show = true) {
     }, false),
     point: {
       pixelSize: 2,
-      color: Cesium.Color.RED,
-      outlineWidth: 1,
+      // 使用CallbackProperty创建随机闪烁效果
+      color: new Cesium.CallbackProperty(function(time) {
+        // 计算闪烁周期，加入随机相位和速度
+        const timeValue = Cesium.JulianDate.secondsDifference(time, Cesium.JulianDate.now());
+        // 确保透明度在0.65到1.0之间，使闪烁效果稍微明显一点
+        const alpha = 0.65 + 0.35 * (0.5 + 0.5 * Math.sin(timeValue * Math.PI * randomSpeed + randomPhase));
+        return Cesium.Color.ORANGE.withAlpha(alpha);
+      }, false),
+      outlineWidth: 0,
       // outlineColor: Cesium.Color.WHITE,
       heightReference: Cesium.HeightReference.NONE
       // 移除 disableDepthTestDistance 以启用深度测试
@@ -82,6 +93,10 @@ export function createStationEntity(node, show = true) {
   // 转换为笛卡尔坐标
   const cartesianPosition = Cesium.Cartesian3.fromDegrees(longitude, latitude, 100);
   
+  // 为每个地面站生成随机的初始相位偏移和闪烁速度
+  const randomPhase = Math.random() * Math.PI * 2;
+  const randomSpeed = 0.6 + Math.random() * 0.6; // 随机速度在0.6到1.2之间
+  
   const entity = {
     id: node.id,
     name: node.id,
@@ -90,8 +105,15 @@ export function createStationEntity(node, show = true) {
     position: cartesianPosition,
     point: {
       pixelSize: 2,
-      color: Cesium.Color.LIME,
-      outlineWidth: 1,
+      // 使用CallbackProperty创建随机闪烁效果
+      color: new Cesium.CallbackProperty(function(time) {
+        // 计算闪烁周期，加入随机相位和速度
+        const timeValue = Cesium.JulianDate.secondsDifference(time, Cesium.JulianDate.now());
+        // 确保透明度在0.7到1.0之间，使闪烁效果稍微明显一点
+        const alpha = 0.7 + 0.3 * (0.5 + 0.5 * Math.sin(timeValue * Math.PI * randomSpeed + randomPhase));
+        return Cesium.Color.RED.withAlpha(alpha);
+      }, false),
+      outlineWidth: 0,
       // 改为NONE，避免2D模式下的贴地问题
       heightReference: Cesium.HeightReference.NONE
       // 移除 disableDepthTestDistance，恢复正常的深度测试遮挡
@@ -119,6 +141,10 @@ export function createRoadmEntity(node, show = true) {
   // 转换为笛卡尔坐标（类似卫星处理方式）
   const cartesianPosition = Cesium.Cartesian3.fromDegrees(longitude, latitude, 100);
   
+  // 为每个ROADM生成随机的初始相位偏移和闪烁速度
+  const randomPhase = Math.random() * Math.PI * 2;
+  const randomSpeed = 0.7 + Math.random() * 0.5; // 随机速度在0.7到1.2之间
+  
   const entity = {
     id: node.id,
     name: node.id,
@@ -127,8 +153,15 @@ export function createRoadmEntity(node, show = true) {
     position: cartesianPosition,
     point: {
       pixelSize: 2,
-      color: Cesium.Color.ORANGE,
-      outlineWidth: 1,
+      // 使用CallbackProperty创建随机闪烁效果
+      color: new Cesium.CallbackProperty(function(time) {
+        // 计算闪烁周期，加入随机相位和速度
+        const timeValue = Cesium.JulianDate.secondsDifference(time, Cesium.JulianDate.now());
+        // 确保透明度在0.68到1.0之间，使闪烁效果稍微明显一点
+        const alpha = 0.68 + 0.32 * (0.5 + 0.5 * Math.sin(timeValue * Math.PI * randomSpeed + randomPhase));
+        return Cesium.Color.GREENYELLOW.withAlpha(alpha);
+      }, false),
+      outlineWidth: 0,
       // 改为NONE，避免2D模式下的贴地问题
       heightReference: Cesium.HeightReference.NONE
       // 移除 disableDepthTestDistance，恢复正常的深度测试遮挡
