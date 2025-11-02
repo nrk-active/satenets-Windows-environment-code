@@ -1,63 +1,84 @@
 <template>
-  <div class="node-jump-container" :style="containerStyle">
-    <!-- 节点跳转 -->
-    <div class="jump-input-group">
-      <label class="jump-label">跳转到节点:</label>
-      <input 
-        v-model="nodeInput"
-        type="text"
-        class="node-input"
-        placeholder="输入节点ID"
-        @keyup.enter="jumpToNode"
-        @input="filterNodes"
-      />
-      <button 
-        class="jump-button"
-        @click="jumpToNode"
-        :disabled="!nodeInput.trim()"
-      >
-        跳转
-      </button>
-    </div>
+  <div class="node-jump-wrapper" :style="containerStyle">
+    <!--11.1新增 放大镜图标按钮 -->
+    <button 
+      class="magnifier-button"
+      @click="togglePanel"
+      :title="isPanelVisible ? '收起搜索面板' : '展开搜索面板'"
+    >
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+    </button>
     
-    <!-- 时间跳转 -->
-    <div class="jump-input-group time-jump">
-      <label class="jump-label">跳转到时间:</label>
-      <input 
-        v-model="timeInput"
-        type="text"
-        class="time-input"
-        placeholder="HH:MM:SS"
-        @keyup.enter="jumpToTime"
-        @input="validateTimeInput"
-        maxlength="8"
-      />
-      <button 
-        class="jump-button"
-        @click="jumpToTime"
-        :disabled="!isValidTimeInput"
-      >
-        跳转
-      </button>
-    </div>
-    
-    <!-- 节点建议列表 -->
-    <div v-if="showSuggestions && filteredNodes.length > 0" class="suggestions-dropdown">
-      <div 
-        v-for="node in filteredNodes.slice(0, 10)" 
-        :key="node.id"
-        class="suggestion-item"
-        @click="selectNode(node)"
-      >
-        <span class="node-id">{{ node.id }}</span>
-        <span class="node-type">{{ getNodeTypeLabel(node.type) }}</span>
+    <!-- 输入框面板，点击放大镜图标时显示/隐藏 -->
+    <div v-if="isPanelVisible" class="node-jump-container">
+      <!-- 节点跳转 -->
+      <div class="jump-input-group">
+        <label class="jump-label">跳转到节点:</label>
+        <div class="input-button-row">
+          <input 
+            v-model="nodeInput"
+            type="text"
+            class="node-input"
+            placeholder="输入节点ID"
+            @keyup.enter="jumpToNode"
+            @input="filterNodes"
+            autofocus
+          />
+          <button 
+            class="jump-button"
+            @click="jumpToNode"
+            :disabled="!nodeInput.trim()"
+          >
+            跳转
+          </button>
+        </div>
+      </div>
+      
+      <!-- 时间跳转 -->
+      <div class="jump-input-group time-jump">
+        <label class="jump-label">跳转到时间:</label>
+        <div class="input-button-row">
+          <input 
+            v-model="timeInput"
+            type="text"
+            class="time-input"
+            placeholder="HH:MM:SS"
+            @keyup.enter="jumpToTime"
+            @input="validateTimeInput"
+            maxlength="8"
+          />
+          <button 
+            class="jump-button"
+            @click="jumpToTime"
+            :disabled="!isValidTimeInput"
+          >
+            跳转
+          </button>
+        </div>
+      </div>
+      
+      <!-- 节点建议列表 -->
+      <div v-if="showSuggestions && filteredNodes.length > 0" class="suggestions-dropdown">
+        <div 
+          v-for="node in filteredNodes.slice(0, 10)" 
+          :key="node.id"
+          class="suggestion-item"
+          @click="selectNode(node)"
+        >
+          <span class="node-id">{{ node.id }}</span>
+          <span class="node-type">{{ getNodeTypeLabel(node.type) }}</span>
+        </div>
       </div>
     </div>
   </div>
 </template>
+<!--11.1新增结束 节点建议列表 -->
 
 <script setup>
-import { ref, computed, watch, inject } from 'vue';
+import { ref, computed, watch, inject, nextTick } from 'vue';
 import * as Cesium from 'cesium';
 import { useDataLoader } from '../composables/useDataLoader.js';
 import { parseFolderName } from '../utils/folderParser.js';
@@ -80,6 +101,28 @@ const { getCurrentDataFolder } = useDataLoader();
 const nodeInput = ref('');
 const timeInput = ref('');
 const showSuggestions = ref(false);
+//11.1新增 开始
+const isPanelVisible = ref(false); // 控制面板显示/隐藏
+
+// 切换面板显示状态
+function togglePanel() {
+  isPanelVisible.value = !isPanelVisible.value;
+  
+  // 如果显示面板，清空输入并聚焦到节点输入框
+  if (isPanelVisible.value) {
+    nodeInput.value = '';
+    timeInput.value = '';
+    showSuggestions.value = false;
+    
+    nextTick(() => {
+      const inputElement = document.querySelector('.node-input');
+      if (inputElement) {
+        inputElement.focus();
+      }
+    });
+  }
+}
+//11.1新增结束
 
 // 过滤后的节点列表
 const filteredNodes = computed(() => {
@@ -407,12 +450,18 @@ function jumpToNode() {
   }
 }
 
-// 点击外部隐藏建议列表
+//11.1新增 
+// 点击外部隐藏建议列表和面板
 function handleClickOutside(event) {
-  if (!event.target.closest('.node-jump-container')) {
+  const jumpWrapper = event.target.closest('.node-jump-wrapper');
+  const magnifierButton = event.target.closest('.magnifier-button');
+  
+  // 如果点击的不是面板内的元素且不是放大镜图标，隐藏面板
+  if (!jumpWrapper || magnifierButton) {
     showSuggestions.value = false;
   }
 }
+//11.1新增 结束
 
 // 监听网络数据变化，清空输入
 watch(() => props.networkData, () => {
@@ -430,106 +479,32 @@ import { onUnmounted, onMounted } from 'vue';
 // 动态调整位置
 const containerStyle = ref({});
 
-// 动态调整输入框位置
+// 动态调整输入框位置 - 修改为固定在右侧中部偏上
 function adjustPosition() {
   try {
-    const objectViewer = document.querySelector('.object-viewer');
-    const collapsedSidebar = document.querySelector('.collapsed-sidebar.left-sidebar');
-    
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
     
+    //11.1 固定在右侧中部偏上位置
     let position = {
-      bottom: '60px',
-      left: '10px',
-      width: '320px'
+      top: '18%', // 设置为视口高度的15%，位于中部偏上
+      right: '20px'
     };
+    //11.1 新增结束
     
     // 移动端适配
     if (viewportWidth <= 768) {
-      position.width = '280px';
-      position.bottom = '120px';
-      containerStyle.value = position;
-      return;
-    }
-    
-    // 检查左侧面板状态
-    let leftOffset = 10; // 默认距离左边10px
-    
-    if (objectViewer) {
-      const rect = objectViewer.getBoundingClientRect();
-      const isVisible = rect.width > 0 && rect.height > 0 && 
-                       getComputedStyle(objectViewer).display !== 'none' &&
-                       getComputedStyle(objectViewer).visibility !== 'hidden';
-      
-      if (isVisible && rect.width > 50) {
-        // ObjectViewer 可见且有合理宽度
-        leftOffset = rect.right + 10;
-      }
-    }
-    
-    if (leftOffset === 10 && collapsedSidebar) {
-      // ObjectViewer 不可见，但有收起的侧边栏
-      const rect = collapsedSidebar.getBoundingClientRect();
-      if (rect.width > 0) {
-        leftOffset = rect.right + 10;
-      }
-    }
-    
-    position.left = `${leftOffset}px`;
-    
-    // 只响应 ServicePanel 组件的位置变化
-    const servicePanel = document.querySelector('.service-panel');
-    
-    let maxBottomHeight = 60; // 默认底部距离
-    
-    if (servicePanel) {
-      const rect = servicePanel.getBoundingClientRect();
-      const isVisible = rect.height > 0 && 
-                      getComputedStyle(servicePanel).display !== 'none' &&
-                      getComputedStyle(servicePanel).visibility !== 'hidden';
-      
-      if (isVisible && rect.height > 50) {
-        // ServicePanel 可见且有合理高度，计算需要的底部距离
-        const panelHeight = rect.height;
-        const bottomDistance = panelHeight + 10; // 面板高度 + 10px间距
-        maxBottomHeight = bottomDistance;
-      }
-    }
-    
-    // 检查收起的底部面板
-    const collapsedBottomPanel = document.querySelector('.collapsed-bottom-panel');
-    if (collapsedBottomPanel) {
-      const rect = collapsedBottomPanel.getBoundingClientRect();
-      if (rect.height > 0) {
-        const bottomDistance = rect.height + 10;
-        maxBottomHeight = Math.max(maxBottomHeight, bottomDistance);
-      }
-    }
-    
-    position.bottom = `${maxBottomHeight}px`;
-    
-    // 防止超出右边界
-    if (leftOffset + 320 > viewportWidth) {
       position.right = '10px';
-      position.left = 'auto';
+      position.top = '25%'; // 移动端稍微下调一点
     }
     
     containerStyle.value = position;
     
-    // 分发UI位置变化事件
-    window.dispatchEvent(new CustomEvent('ui-positions-changed', {
-      detail: {
-        source: 'nodeJump',
-        bottomHeight: maxBottomHeight
-      }
-    }));
   } catch (error) {
     console.error('调整位置时出错:', error);
     containerStyle.value = {
-      bottom: '60px',
-      left: '10px',
-      width: '320px'
+      top: '30%',
+      right: '20px'
     };
   }
 }
@@ -592,28 +567,110 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.node-jump-container {
+/*11.1新增*/
+/* 容器样式 */
+.node-jump-wrapper {
   position: fixed;
-  bottom: 60px;
-  left: 10px;
   z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+/* 放大镜按钮样式 */
+.magnifier-button {
+  background: rgba(30, 30, 30, 0.9);
+  border: 1px solid rgba(85, 85, 85, 0.7);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.magnifier-button:hover {
+  background: rgba(45, 45, 45, 0.9);
+  transform: scale(1.05);
+}
+
+.magnifier-button:active {
+  transform: scale(0.95);
+}
+
+/* 输入框面板样式 */
+.node-jump-container {
   background: rgba(30, 30, 30, 0.9);
   border: 1px solid rgba(85, 85, 85, 0.7);
   border-radius: 6px;
   padding: 10px;
-  width: 320px;
+  width: 180px; /* 宽度从280px进一步减小到220px */
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(8px);
   transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-bottom: 10px;
+  animation: slideUp 0.3s ease-out;
 }
+
+/* 面板滑入动画 */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 移动端适配调整 */
+@media (max-width: 768px) {
+  .node-jump-container {
+    width: 220px; /* 移动端进一步减小宽度 */
+  }
+  
+  .jump-input-group {
+    flex-wrap: nowrap;
+  }
+  
+  .jump-label {
+    min-width: 60px;
+    font-size: 11px;
+    margin-left: 15px; /* 移动端适当调整后移距离 */
+  }
+  
+  .input-button-row {
+    justify-content: center;
+  }
+  
+  .node-input, .time-input {
+    min-width: 50px; /* 进一步减小移动端输入框最小宽度 */
+    max-width: 90px; /* 添加移动端最大宽度限制 */
+    font-size: 10px;
+    padding: 3px 4px; /* 减小内边距 */
+    flex: 0.7; /* 应用相同的flex增长因子 */
+  }
+  
+  .jump-button {
+    min-width: 35px;
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+}
+/*11.1新增结束*/
 
 .jump-input-group {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .time-jump {
@@ -626,18 +683,27 @@ onUnmounted(() => {
   font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
-  min-width: 80px;
+  margin-left: 20px; /* 后移文字，与输入框左端对齐 */
+}
+
+.input-button-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
 }
 
 .node-input, .time-input {
-  flex: 1;
-  min-width: 100px;
-  padding: 5px 8px;
+  flex: 0.7; /* 减小flex增长因子使输入框变窄 */
+  min-width: 50px; /* 进一步减小输入框最小宽度 */
+  max-width: 100px; /* 减小最大宽度使输入框进一步变窄 */
+  padding: 5px 4px; /* 减小内边距 */
   border: 1px solid #555;
   border-radius: 3px;
   background: rgba(40, 40, 40, 0.8);
   color: #fff;
-  font-size: 12px;
+  font-size: 12px; /* 适当减小字体大小 */
   outline: none;
   transition: border-color 0.2s;
   text-align: center; /* 确保输入框文本居中 */
@@ -646,7 +712,6 @@ onUnmounted(() => {
 .time-input {
   font-family: monospace;
   text-align: center;
-  min-width: 80px;
 }
 
 .node-input:focus, .time-input:focus {
