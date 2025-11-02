@@ -2,26 +2,21 @@
   <div class="tooltip-container">
     <button 
       class="sun-icon"
-      :class="{'active': isDarkTheme}"
+      :class="{ active: lightingEnabled }"
       @click="toggleLighting"
       @mouseenter="showTooltip"
       @mouseleave="hideTooltip"
     >
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-        <template v-if="isDarkTheme">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </template>
-        <template v-else>
-          <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/>
-          <line x1="12" y1="1" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <line x1="12" y1="21" x2="12" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <line x1="1" y1="12" x2="3" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <line x1="21" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </template>
+        <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/>
+        <line x1="12" y1="1" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="12" y1="21" x2="12" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="1" y1="12" x2="3" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="21" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
       </svg>
     </button>
     <div 
@@ -29,34 +24,46 @@
       class="tooltip"
       :class="tooltipPosition"
     >
-      {{ isDarkTheme ? '切换至浅色模式' : '切换至深色模式' }}
+      {{ lightingEnabled ? '关闭光照' : '开启光照' }}
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, inject } from 'vue';
+import { ref, onMounted } from 'vue';
 
-const isDarkTheme = inject('isDarkTheme', ref(true));
-const toggleThemeFunc = inject('toggleTheme', () => {});
-
+// 定义props和emits
 const emit = defineEmits(['toggle-lighting']);
 
+// 光照状态
+const lightingEnabled = ref(true);
+
+// 工具提示状态
 const tooltipVisible = ref(false);
-const tooltipPosition = ref('top'); // 默认顶部显示
+const tooltipPosition = ref('');
 let tooltipTimeout = null;
 
+// 切换光照状态
 function toggleLighting() {
-  toggleThemeFunc();
-  emit('toggle-lighting', !isDarkTheme.value); 
+  lightingEnabled.value = !lightingEnabled.value;
+  emit('toggle-lighting', lightingEnabled.value);
 }
 
+// 设置光照状态
+function setLightingState(enabled) {
+  lightingEnabled.value = enabled;
+}
+
+// 显示工具提示（添加延迟）
 function showTooltip() {
   tooltipTimeout = setTimeout(() => {
     tooltipVisible.value = true;
-  }, 50);
+    // 根据窗口位置设置工具提示位置
+    tooltipPosition.value = 'top';
+  }, 50); // 200毫秒延迟 - 更灵敏的显示
 }
 
+// 隐藏工具提示
 function hideTooltip() {
   if (tooltipTimeout) {
     clearTimeout(tooltipTimeout);
@@ -66,77 +73,79 @@ function hideTooltip() {
 }
 
 // 暴露方法给父组件
-defineExpose({});
+defineExpose({
+  setLightingState
+});
 </script>
 
 <style scoped>
-/* 容器样式：必须是 static，让父容器 (bottom-controls-group) 控制定位 */
+/* 容器样式 */
 .tooltip-container {
-  position: static;
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
   z-index: 1000;
 }
 
-/* 太阳/月亮图标按钮样式 */
+/* 太阳图标按钮样式 */
 .sun-icon {
   width: 40px;
   height: 40px;
-  border: 1px solid var(--color-border);
-  background: var(--bg-tertiary);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px var(--color-shadow);
-  color: var(--color-text);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  color: #fff;
   outline: none;
   padding: 0;
   overflow: hidden;
   position: relative;
 }
 
+.sun-icon svg {
+  transition: all 0.3s ease;
+}
+
 .sun-icon:hover {
-  background: var(--bg-secondary);
+  background: rgba(255, 255, 255, 0.2);
   transform: scale(1.1);
-  box-shadow: 0 4px 12px var(--color-shadow);
-  border-color: var(--color-text);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.6);
 }
 
 .sun-icon.active {
-  /* 深色主题时 (isDarkTheme=true, 显示月亮) */
-  background: var(--bg-secondary);
-  border-color: var(--color-text);
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.8);
   box-shadow: 0 4px 16px rgba(255, 255, 255, 0.5);
   animation: sunGlow 2s infinite alternate;
 }
 
-.sun-icon:not(.active) {
-  /* 浅色主题时 (isDarkTheme=false, 显示太阳) */
-  background: var(--bg-secondary);
-  border-color: var(--color-highlight); /* 使用高亮色边框 */
-  box-shadow: 0 4px 16px var(--color-highlight);
-  animation: lightGlow 2s infinite alternate;
+.sun-icon.active svg {
+  transform: rotate(15deg);
 }
 
 @keyframes sunGlow {
-  from { box-shadow: 0 4px 16px rgba(255, 255, 255, 0.5); }
-  to { box-shadow: 0 4px 24px rgba(255, 255, 255, 0.8); }
+  from {
+    box-shadow: 0 4px 16px rgba(255, 255, 255, 0.5);
+  }
+  to {
+    box-shadow: 0 4px 24px rgba(255, 255, 255, 0.8);
+  }
 }
 
-@keyframes lightGlow {
-  from { box-shadow: 0 4px 16px var(--color-highlight); }
-  to { box-shadow: 0 4px 24px var(--color-highlight); }
-}
-
-/* 自定义工具提示样式 (使用主题变量) */
+/* 自定义工具提示样式 */
 .tooltip {
   position: absolute;
   bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
-  background-color: var(--tooltip-bg);
-  color: var(--color-text);
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 12px;
@@ -157,12 +166,18 @@ defineExpose({});
   transform: translateX(-50%);
   border-width: 4px;
   border-style: solid;
-  border-color: var(--tooltip-bg) transparent transparent transparent;
+  border-color: rgba(0, 0, 0, 0.8) transparent transparent transparent;
 }
 
 /* 工具提示淡入动画 */
 @keyframes tooltipFadeIn {
-  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
-  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 </style>

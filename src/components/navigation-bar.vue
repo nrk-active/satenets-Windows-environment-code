@@ -1,98 +1,76 @@
 <template>
+  <!-- 新增顶部细导航栏 -->
   <div class="top-thin-navbar">
-    
-    <div class="nav-left-group">
-      <div
-        class="thin-nav-item dropdown"
-        @click="toggleSceneDropdown"
-      >
-        场景
-        <div class="dropdown-menu" v-if="showSceneDropdown">
-          <div class="dropdown-item">
-            <div>新建场景</div>
+    <div
+      class="thin-nav-item dropdown"
+      @click="toggleSceneDropdown"
+    >
+      场景
+      <div class="dropdown-menu" v-if="showSceneDropdown">
+        <!-- <div class="dropdown-item" :class="{ active: currentView === 'sat' }">
+          <div @click.stop="switchToSatView(); showSceneDropdown = false">
+              三维场景展示
           </div>
-          <div class="dropdown-item">
-            <div @click="openActionMenu">读取场景</div>
+        </div>
+        <div class="dropdown-item" :class="{ active: currentView === 'topography' }">
+          <div @click.stop="switchToTopographyView(); showSceneDropdown = false">
+              天地一体化展示
           </div>
-          <div class="dropdown-item">
-            <div>保存</div>
+        </div> -->
+        <div class="dropdown-item">
+          <div>
+              新建场景
           </div>
-          <div class="dropdown-item">
-            <div>另存为</div>
+        </div>
+        <div class="dropdown-item">
+          <div @click="openActionMenu">
+              读取场景
+          </div>
+        </div>
+        <div class="dropdown-item">
+          <div>
+              保存
+          </div>
+        </div>
+        <div class="dropdown-item">
+          <div>
+              另存为
           </div>
         </div>
       </div>
-      <div
-        class="thin-nav-item dropdown"
-        @click.stop="showModelDropdown = !showModelDropdown; showSceneDropdown = false; showSettingDropdown = false"
-      >
-        模型
-        <div class="dropdown-menu" v-if="showModelDropdown">
-          <div class="dropdown-item" @click="selectModel('backend')">backend</div>
-          <div class="dropdown-item" @click="selectModel('NS3')">NS3</div>
-        </div>
-      </div>
-      <div
-        class="thin-nav-item dropdown"
-        @click.stop="showSettingDropdown = !showSettingDropdown; showSceneDropdown = false; showModelDropdown = false"
-      >
-        设置
-        <div class="dropdown-menu" v-if="showSettingDropdown">
-          <div class="dropdown-item" @click="openConstellationSetting">星座设置</div>
-          <div class="dropdown-item" @click="showBusinessDesignDialog">业务设置</div>
-          <div class="dropdown-item" @click="openSimulationSetting">仿真设置</div>
-          <div class="dropdown-item" @click="openTerminalSetting">终端设置</div>
-          <div class="dropdown-item" @click="openTopologyDialog">拓扑设置</div>
-          <div class="dropdown-item" @click="">地面站设置</div>
-          <div class="dropdown-item" @click="openTrafficMatrix">流量矩阵设置</div>
-          <div class="dropdown-item" @click="openSettingDialog">界面设置</div>
-        </div>
-      </div>
-      <div class="thin-nav-item">计算分析</div>
-      <div class="thin-nav-item">信息显示</div>
-      <div class="thin-nav-item">窗口</div>
     </div>
-    
-    <div class="thin-nav-controls">
-      <button 
-        class="control-button nav-sim-button"
-        @click="handleStartSimulationClick" 
-        :class="{ 'control-disabled': isSimulationDisabled }"
-        :title="getSimulationButtonText()"
-      >
-        {{ isSimulationDisabled ? '运行中' : '开始' }}
-      </button>
-      <button 
-        class="control-button" 
-        @click="handlePauseSimulation"
-        title="暂停仿真"
-      >
-        暂停
-      </button>
-      <button 
-        class="control-button" 
-        @click="increaseSpeed"
-        title="加速"
-      >
-        + 速度
-      </button>
-      <button 
-        class="control-button" 
-        @click="decreaseSpeed"
-        title="减速"
-      >
-        - 速度
-      </button>
-      <button 
-        class="control-button nav-stop-button"
-        @click="handleStopSimulation"
-        title="停止仿真并清除数据"
-      >
-        停止
-      </button>
-      <div class="thin-nav-item thin-nav-item-button" @click="showSimulationResultDialog">结果</div>
+    <!-- 模型下拉菜单 -->
+    <div
+      class="thin-nav-item dropdown"
+      @click.stop="showModelDropdown = !showModelDropdown; showSceneDropdown = false; showSettingDropdown = false"
+    >
+      模型
+      <div class="dropdown-menu" v-if="showModelDropdown">
+        <div class="dropdown-item" @click="selectModel('backend')">backend</div>
+        <div class="dropdown-item" @click="selectModel('NS3')">NS3</div>
+      </div>
     </div>
-    
+    <!-- 设置按钮，点击弹出设置弹窗 -->
+    <div
+      class="thin-nav-item dropdown"
+      @click.stop="showSettingDropdown = !showSettingDropdown; showSceneDropdown = false; showModelDropdown = false"
+    >
+      设置
+      <div class="dropdown-menu" v-if="showSettingDropdown">
+        <div class="dropdown-item" @click="openConstellationSetting">星座设置</div>
+        <div class="dropdown-item" @click="showBusinessDesignDialog">业务设置</div>
+        <div class="dropdown-item" @click="openSimulationSetting">仿真设置</div>
+        <div class="dropdown-item" @click="openTerminalSetting">终端设置</div>
+        <div class="dropdown-item" @click="openTopologyDialog">拓扑设置</div>
+        <div class="dropdown-item" @click="">地面站设置</div>
+        <div class="dropdown-item" @click="openTrafficMatrix">流量矩阵设置</div>
+        <div class="dropdown-item" @click="openSettingDialog">界面设置</div>
+      </div>
+    </div>
+    <div class="thin-nav-item">计算分析</div>
+    <div class="thin-nav-item">信息显示</div>
+    <div class="thin-nav-item">窗口</div>
+    <!-- 顶部右侧 登录/注册 或 用户名/退出 -->
     <div class="thin-nav-auth">
       <template v-if="!isLoggedIn">
         <button class="thin-nav-signin" @click="openLoginDialog">登录</button>
@@ -106,13 +84,93 @@
     <login ref="loginRef" @login-success="handleLoginSuccess" />
     <setting ref="settingRef" />
   </div>
+  <div class="navigation-bar">
+    <div class="nav-left-group">
+      <!-- 左侧按钮 -->
+      <div class="nav-item-left" 
+        @click="openActionMenu"
+        :class="{ 'nav-disabled': isSimulationDisabled }"
+        >
+          Open
+      </div>
+      <div class="nav-item-left" @click="saveActionMenu">
+          Save
+      </div>
+      <div class="nav-item-left" @click="saveAsActionMenu">
+          Save As
+       </div>
+
+        <!-- 仿真相关菜单 -->
+      <div class="nav-item-left"
+        @click="handleStartSimulationClick" 
+        :class="{ 'nav-disabled': isSimulationDisabled }"
+        >
+          {{ getSimulationButtonText() }}
+      </div>
+      <div class="nav-item-left" @click="handlePauseSimulation">
+          暂停仿真
+      </div>
+      <!-- <div class="nav-item-left" @click="handleStopSimulation">
+          停止
+      </div> -->
+      <div class="nav-item-left" @click="increaseSpeed">
+          加速
+      </div>
+    
+      <div class="nav-item-left" @click="decreaseSpeed">
+        减速
+      </div>
+       <div class="nav-item-right" @click="showSimulationResultDialog">
+        仿真结果展示
+      </div>
+   
+    </div>
+    <!-- <div class="nav-center-group">
+      <div class="progress-bar-nav">
+        <div class="progress-time">
+          <span class="progress-label"><b>仿真时间</b></span>
+          <input class="time-input" :value="simulationTime.start" readonly />
+          <span style="margin: 0 4px;">→</span>
+          <input class="time-input" :value="simulationTime.end" readonly />
+        </div>
+        <div class="progress-bar-row">
+          <span class="progress-label"><b>进度条</b></span>
+          <div class="progress-bar-outer">
+            <div class="progress-bar-inner" :style="{ width: (simulationProgress * 100) + '%' }"></div>
+          </div>
+        </div>
+      </div>
+    </div> -->
+    <div class="nav-right-group">
+      <!-- 右侧按钮 -->
+      <!-- <div class="nav-item-right" @click="showBusinessDesignDialog">
+        业务设置
+      </div> -->
+      <!-- <div class="nav-item-right" @click="showSimulationResultDialog">
+        仿真结果展示
+      </div> -->
+      <!-- <div class="nav-item-right" :class="{ active: currentView === 'sat' }">
+        <div id="satButton" @click="switchToSatView">
+            三维场景展示
+        </div>
+      </div> -->
+      <!-- <div class="nav-item-right" :class="{ active: currentView === 'topography' }">
+        <div id="topographyButton" @click="switchToTopographyView">
+            天地一体化展示
+        </div>
+      </div> -->
+    </div>
+  </div>
   
+  <!-- 新建想定对话框 -->
   <ScenarioDialog v-if="showDialog" @close="showDialog = false" />
+  <!-- 仿真结果对话框 -->
   <SimulationResultDialog 
     v-if="showSimResultDialog" 
     @close="showSimResultDialog = false"
     @data-selected="handleDataSelected"
   />
+  <!-- 业务设计对话框 -->
   <BusinessDesignDialog 
     v-if="showBusinessDialog" 
     @close="showBusinessDialog = false"
@@ -128,12 +186,14 @@
   <TrafficMatrix ref="trafficMatrixRef" />
   <ConstellationSetting ref="constellationSettingRef" />
   
+  <!-- 进程选择弹窗 -->
   <ProcessSelectionDialog 
     v-if="showProcessDialog"
     @close="closeProcessDialog"
     @process-selected="handleProcessSelected"
   />
   
+  <!-- 文件夹选择弹窗 -->
   <FolderSelectionDialog 
     v-if="showFolderDialog"
     @close="closeFolderDialog"
@@ -142,21 +202,22 @@
   
 </template>
 
-
+<!-- 只修改script部分，其他部分保持不变 -->
 <script setup>
+// 导入部分保持不变
 import { ref, onMounted, onUnmounted, inject, computed } from 'vue';
 import ScenarioDialog from './ScenarioDialog.vue';
 import SimulationResultDialog from './SimulationResultDialog.vue';
-import BusinessDesignDialog from './Service_setting.vue'; 
+import BusinessDesignDialog from './Service_setting.vue'; //'./BusinessDesignDialog.vue';
 import Login from './login.vue'
 import Setting from './setting.vue'
 import TopologySettingDialog from './TopologySettingDialog.vue'
 import SimulationSetting from './simulation_setting.vue'
 import TerminalSetting from './terminal_setting.vue'
-import TrafficMatrix from './traffic_matrix.vue' 
+import TrafficMatrix from './traffic_matrix.vue' // 确认路径和文件名一致
 import ConstellationSetting from './constellation_setting.vue'
-import ProcessSelectionDialog from './ProcessSelectionDialog.vue'
-import FolderSelectionDialog from './FolderSelectionDialog.vue'
+import ProcessSelectionDialog from './ProcessSelectionDialog.vue' // 新增
+import FolderSelectionDialog from './FolderSelectionDialog.vue' // 新增文件夹选择对话框
 
 // 接收从父组件传递的登录状态和用户名
 const props = defineProps({
@@ -201,7 +262,7 @@ const selectedProcessId = ref(null);
 
 // 文件夹选择弹窗状态
 const showFolderDialog = ref(false);
-const selectedDataFolder = ref(null);
+const selectedDataFolder = ref(null); // 初始不设置默认值，等待用户选择
 
 // 仿真进度和时间
 const simulationProgress = inject('simulationProgress', ref(0));
@@ -212,8 +273,7 @@ function toggleSceneDropdown(event) {
   showSettingDropdown.value = false;
   event && event.stopPropagation();
 }
-
-// 添加开始仿真方法 (逻辑保持不变)
+// 添加开始仿真方法
 async function startSimulation() {
   try {
     isSimulating.value = true;
@@ -270,7 +330,7 @@ async function startSimulation() {
 // 处理仿真控制 - 统一入口
 function handleStartSimulation() {
   if (props.isLoggedIn) {
-    // 登录状态下使用 API 仿真
+    // 登录状态下使用API仿真
     startSimulation();
   } else {
     // 未登录状态下使用本地数据仿真
@@ -289,10 +349,11 @@ function handlePauseSimulation() {
   }
 }
 
-// 处理停止仿真 - 清除所有仿真相关缓存 (逻辑保持不变)
+// 处理停止仿真 - 清除所有仿真相关缓存
 function handleStopSimulation() {
   console.log('=== 停止仿真并清除缓存 ===');
   
+  // 显示确认对话框
   const confirmed = confirm('确定要停止仿真吗？这将清除所有仿真数据和缓存，需要重新开始。');
   
   if (!confirmed) {
@@ -300,26 +361,34 @@ function handleStopSimulation() {
   }
   
   try {
+    // 1. 清除本地组件状态
     isSimulating.value = false;
     selectedProcessId.value = null;
     selectedDataFolder.value = null;
     
+    // 2. 清除全局状态
     if (globalSelectedProcessId && globalSelectedProcessId.value !== undefined) {
       globalSelectedProcessId.value = null;
     }
     
+    // 3. 清除 localStorage 中的仿真相关数据
     const keysToRemove = [
+      // 进程相关
       'selectedProcessId',
       'selectedProcessInfo',
+      // 数据文件夹相关
       'selectedDataFolder',
       'hasUserSelectedFolder',
+      // 仿真状态相关
       'simulationProgress',
       'simulationTime',
       'currentTimeFrame',
+      // 缓存数据
       'networkDataCache',
       'serviceDataCache',
       'entityCache',
       'animationCache',
+      // 用户选择状态
       'selectedEntityId',
       'selectedSimulationData',
       'chartPanelData',
@@ -334,8 +403,10 @@ function handleStopSimulation() {
       console.log(`已清除 localStorage: ${key}`);
     });
     
+    // 4. 发送停止事件给父组件
     emit('stop-simulation');
     
+    // 5. 发送全局事件通知其他组件清除缓存
     const stopEvent = new CustomEvent('simulation-stopped', {
       detail: { 
         message: '仿真已停止，所有缓存已清除',
@@ -344,11 +415,13 @@ function handleStopSimulation() {
     });
     window.dispatchEvent(stopEvent);
     
+    // 6. 清除任何正在运行的定时器或动画
     const clearAnimationEvent = new CustomEvent('clear-all-animations', {
       detail: { message: '清除所有动画和定时器' }
     });
     window.dispatchEvent(clearAnimationEvent);
     
+    // 7. 重置仿真进度和时间（如果有的话）
     if (simulationProgress && simulationProgress.value !== undefined) {
       simulationProgress.value = 0;
     }
@@ -392,13 +465,20 @@ function handleStartSimulationClick() {
 }
 
 
+
 // 当前激活的下拉菜单
 const activeDropdown = ref(null);
 // 控制对话框显示
 const showDialog = ref(false);
 
 // 切换下拉菜单的显示状态
-// const toggleDropdown = (menu) => { /* ... */ };
+// const toggleDropdown = (menu) => {
+//   if (activeDropdown.value === menu) {
+//     activeDropdown.value = null;
+//   } else {
+//     activeDropdown.value = menu;
+//   }
+// };
 
 // 显示新建想定对话框
 const showNewScenarioDialog = () => {
@@ -443,8 +523,8 @@ const showBusinessDesignDialog = () => {
 const showTopologyDialog = ref(false);
 const simulationSettingRef = ref(null)
 const terminalSettingRef = ref(null)
-const trafficMatrixRef = ref(null) 
-const constellationSettingRef = ref(null) 
+const trafficMatrixRef = ref(null) // 新增
+const constellationSettingRef = ref(null) // 星座设置引用
 
 function openSimulationSetting() {
   simulationSettingRef.value && simulationSettingRef.value.open()
@@ -452,12 +532,12 @@ function openSimulationSetting() {
 function openTerminalSetting() {
   terminalSettingRef.value && terminalSettingRef.value.open()
 };
-function openTrafficMatrix() {
+function openTrafficMatrix() { // 新增
   trafficMatrixRef.value && trafficMatrixRef.value.open()
 }
-function openConstellationSetting() {
+function openConstellationSetting() { // 星座设置
   constellationSettingRef.value && constellationSettingRef.value.open()
-  showSettingDropdown.value = false 
+  showSettingDropdown.value = false // 关闭设置下拉菜单
 }
 // 显示拓扑设置对话框
 const openTopologyDialog = () => {
@@ -487,7 +567,7 @@ const currentView = ref('sat'); // 默认是三维场景视图
 
 // 添加视图切换事件处理器
 const switchToSatView = () => {
-  if (currentView.value === 'sat') return; 
+  if (currentView.value === 'sat') return; // 如果已经是卫星视图则不处理
   
   currentView.value = 'sat';
   // 清理天地一体化视图
@@ -504,7 +584,7 @@ const switchToSatView = () => {
 };
 
 const switchToTopographyView = () => {
-  if (currentView.value === 'topography') return; 
+  if (currentView.value === 'topography') return; // 如果已经是天地一体化视图则不处理
   console.log('切换到天地一体化', currentView.value);
   currentView.value = 'topography';
   // 清理三维场景
@@ -524,6 +604,7 @@ const showModelDropdown = ref(false)
 const showSettingDropdown = ref(false)
 const showSceneDropdown = ref(false)
 function selectModel(model) {
+  // 这里可以根据需要处理选中逻辑
   console.log('选择模型:', model)
   showModelDropdown.value = false
   showSettingDropdown.value = false
@@ -600,6 +681,7 @@ function handleFolderSelected(folderInfo) {
   selectedDataFolder.value = folderInfo.name;
   
   // 通知useDataLoader更新文件夹设置
+  // 我们需要从composable中导入setDataFolder函数
   localStorage.setItem('selectedDataFolder', folderInfo.name);
   localStorage.setItem('hasUserSelectedFolder', 'true'); // 标记用户已主动选择
   
@@ -658,6 +740,7 @@ function saveActionMenu() {
     return;
   }
   console.log('保存操作，当前进程ID:', selectedProcessId.value);
+  // 这里可以实现保存逻辑
 }
 
 function saveAsActionMenu() {
@@ -666,9 +749,13 @@ function saveAsActionMenu() {
     return;
   }
   console.log('另存为操作，当前进程ID:', selectedProcessId.value);
+  // 这里可以实现另存为逻辑
 }
 
 // 使用从父组件传递的登录状态，不再需要本地状态
+// const isLoggedIn = ref(false)
+// const username = ref('')
+
 function handleLoginSuccess(user) {
   // 通知父组件登录成功
   emit('login-success', user);
@@ -686,153 +773,305 @@ function logout() {
 </script>
 
 <style scoped>
-/* 简化导航栏样式，使用主题变量 */
 .top-thin-navbar {
   width: 100%;
-  height: var(--nav-height); 
-  background: var(--bg-primary);
+  height: 28px;
+  background: #232323;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid var(--color-border);
-  font-size: 14px;
-  
-  /* *** 关键修复 1: 改为固定定位和高 z-index *** */
-  position: fixed; 
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 10000; /* 确保在 Cesium 上方 */
-  
-  padding: 0 10px;
-  box-sizing: border-box;
-  
-  /* *** 关键修复 2: 使用 space-between 强制左中右分离 *** */
-  justify-content: space-between; 
+  border-bottom: 1px solid #333;
+  font-size: 13px;
+  z-index: 10;
+  position: relative;
 }
-
-/* 1. 左侧菜单组 */
-.nav-left-group {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0; /* 保证不被压缩 */
-  margin-right: 20px;
-}
-
 .thin-nav-item {
-  color: var(--color-text);
-  padding: 0 12px;
+  color: #eee;
+  padding: 0 18px;
   height: 100%;
   display: flex;
   align-items: center;
   cursor: pointer;
   transition: background 0.2s, color 0.2s;
-  white-space: nowrap;
 }
 .thin-nav-item:hover {
-  background: var(--bg-secondary);
-  color: var(--color-highlight);
+  background: #333;
+  color: #ffd700;
 }
 
-/* 2. 中间仿真控制组 */
-.thin-nav-controls {
+.nav-spacer {
+  flex: 1;  /* 添加这个样式让空间占位器占据所有剩余空间 */
+}
+
+.header-buttons {
+  padding: 0 15px;
+  height: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-  
-  /* *** 关键修复 3a: 占据中间所有剩余空间 *** */
-  flex-grow: 1; 
-  /* *** 关键修复 3b: 在占据的空间内居中内容 *** */
-  justify-content: center; 
-
-  /* 移除所有 auto margin，依赖 flex-grow 和 justify-content */
-  margin-left: 0;
-  margin-right: 0;
+  cursor: pointer;
+  font-size: 14px;
+  white-space: nowrap;
+  position: relative  /* 添加右侧边距 */
 }
 
-/* 3. 右侧登录/注册/用户组 */
-.thin-nav-auth {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0; 
-  /* 移除冲突的 auto margin，依赖 space-between */
-}
-
-.thin-nav-item-button {
-  padding: 0 12px;
-}
-
-.control-button {
-  padding: 6px 12px;
-  border: 1px solid var(--color-border);
-  background: var(--bg-tertiary); 
-  color: var(--color-text);
+.simulation-btn {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 8px 16px;  /* 稍微增加按钮大小 */
   border-radius: 4px;
   cursor: pointer;
-  font-size: 13px;
-  transition: all 0.2s;
+  font-size: 14px;
+  height: 36px;  /* 固定按钮高度 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.control-button:hover {
-  background: var(--bg-secondary);
-}
-
-.control-button.nav-sim-button {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: var(--bg-primary);
-}
-
-.control-button.nav-sim-button:hover {
-  background: var(--color-accent);
-  opacity: 0.8;
-}
-
-.control-button.nav-stop-button {
-  background: #e74c3c;
-  border-color: #e74c3c;
-  color: var(--bg-primary);
-}
-
-.control-button.nav-stop-button:hover {
-  background: #c0392b;
-}
-
-.control-button.control-disabled {
-  background: var(--bg-tertiary);
-  border-color: var(--color-border);
-  color: var(--color-text-dim);
+.simulation-btn:disabled {
+  background-color: #cccccc;
   cursor: not-allowed;
-  opacity: 0.8;
 }
 
-.control-button.control-disabled:hover {
-  background: var(--bg-tertiary);
+.simulation-btn:hover:not(:disabled) {
+  background-color: #45a049;
 }
 
-/* 下拉菜单样式使用主题变量 */
+.navigation-bar {
+  position: relative; 
+  /* justify-content: center; */
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 80px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #fffbfb;
+  justify-content: space-between; /* 关键：三栏分布两端和中间 */
+}
+
+.nav-left-group {
+  width: 7%;
+  display: flex;
+  align-items: center;
+  /* flex: 0 1 auto; 关键：宽度自适应内容 */
+  min-width: 0;
+}
+
+.nav-center-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.nav-right-group {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.nav-left-group,
+.nav-right-group {
+  color: #fff; /* 新增：让字体变亮 */
+  display: flex;
+  height: 100%;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  
+}
+
+.nav-item-left {
+  width: 10%;
+  padding: 0 10px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 14px;
+  white-space: nowrap;
+  justify-content: center;
+  color: #fff; /* 确保正常状态下显示白色 */
+}
+.nav-item-left:hover {
+  background-color: #333;
+}
+.nav-item-left.active {
+  background-color: #444;
+}
+
+.nav-item-left.active:hover {
+  background-color: #555;
+}
+
+.nav-item-left.nav-disabled {
+  color: #666;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.nav-item-left.nav-disabled:hover {
+  background-color: transparent;
+}
+.nav-item-right {
+  width: 14%;
+  /* padding: 0 10px; */
+  height: 100%;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 14px;
+  white-space: nowrap;
+  justify-content: center;
+}
+.nav-item-right:hover {
+  background-color: #333;
+}
+.nav-item-right.active {
+  background-color: #444;
+}
+
+.nav-item-:right:hover {
+  background-color: #555;
+}
+
+.progress-bar-nav {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: #232323;
+  color: #fff;
+  border: none;
+  border-radius: 0 4px 4px 0;
+  padding: 6px 14px 6px 14px;
+  margin-left: 0;
+  min-width: 220px;
+  max-width: 300px;
+  height: 56px;
+  box-sizing: border-box;
+  font-size: 12px;
+  margin-top: 0;
+  margin-bottom: 0;
+  box-shadow: none;
+}
+
+.progress-time,
+.progress-bar-row{
+  display: flex;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.progress-label {
+  min-width: 48px;
+  font-size: 12px;
+  color: #fff;
+  font-weight: bold;
+}
+
+.time-input {
+  background-color: #181818;
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 6px;
+  width: 60px;
+  text-align: center;
+  margin: 0 2px;
+  height: 20px;
+  font-size: 12px;
+  padding: 0 4px;
+}
+
+.progress-bar-row {
+  margin-bottom: 2px;
+}
+
+.progress-bar-outer {
+  flex: 1;
+  height: 10px;
+  background-color: #444;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-left: 8px;
+  border: 1px solid #222;
+  min-width: 80px;
+  max-width: 140px;
+}
+
+.progress-bar-inner {
+  height: 100%;
+  background: linear-gradient(90deg, #f39c12, #ffd700);
+  transition: width 0.3s;
+}
+
+ul {
+  list-style: disc inside;
+  padding: 0;
+  margin: 0;
+}
+li {
+  margin: 12px 0;
+  font-size: 15px;
+  color: #e0e0e0;
+  letter-spacing: 1px;
+}
+
 .dropdown {
   position: relative;
 }
 .dropdown-menu {
   position: absolute;
   top: 100%;
-  left: 0; 
-  background: var(--bg-primary);
-  border: 1px solid var(--color-border);
-  min-width: 120px;
-  z-index: 10005; /* 确保下拉菜单高于导航栏本身 */
-  box-shadow: 0 2px 8px var(--color-shadow);
-  padding: 5px 0;
+  left: 0;
+  background: #232323;
+  border: 1px solid #333;
+  min-width: 100px;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.dropdown-item {
+  color: #eee;
+  padding: 8px 18px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s;
 }
 .dropdown-item:hover {
-  background: var(--color-highlight);
-  color: var(--bg-primary);
+  background: #333;
+  color: #ffd700;
+}
+
+.thin-nav-auth {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 登录/注册按钮：绿色风格 */
+.thin-nav-signin,
+.thin-nav-signup {
+  border: none;
+  background: #27ae60;
+  color: #fff;
+  padding: 3px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  height: 24px;
+  line-height: 24px;
+  font-weight: 500;
+}
+
+.thin-nav-signin:hover,
+.thin-nav-signup:hover {
+  background: #219150;
+  color: #fff;
 }
 
 .thin-nav-username {
-  color: var(--color-text);
+  color: #fff;
   font-size: 14px;
   margin-right: 8px;
 }
@@ -851,14 +1090,5 @@ function logout() {
 }
 .thin-nav-signout:hover {
   background: #c0392b;
-}
-
-/* 移除不再需要的厚导航栏样式 */
-.navigation-bar,
-.nav-center-group,
-.nav-right-group,
-.nav-item-left,
-.nav-item-right {
-  display: none;
 }
 </style>

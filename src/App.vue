@@ -1,5 +1,5 @@
 <template>
-  <div id="app" :class="{'theme-dark': isDarkTheme, 'theme-light': !isDarkTheme}">
+  <div id="app">
     <!-- 路由出口 -->
     <router-view />
   </div>
@@ -15,15 +15,6 @@ const isGuestMode = ref(false);
 
 // 当前选择的进程ID
 const selectedProcessId = ref(null);
-
-// 新增主题状态管理
-const isDarkTheme = ref(true); // 默认启用深色模式
-
-function toggleTheme() {
-  isDarkTheme.value = !isDarkTheme.value;
-  localStorage.setItem('theme', isDarkTheme.value ? 'dark' : 'light');
-  console.log(`主题已切换到: ${isDarkTheme.value ? '深色' : '浅色'}`);
-}
 
 // 用户凭据缓存
 const userCredentials = ref({
@@ -95,10 +86,6 @@ function handleLogout() {
 
 // 从本地存储恢复登录状态
 function restoreLoginState() {
-  const savedTheme = localStorage.getItem('theme');
-  if (savedTheme === 'light') {
-    isDarkTheme.value = false;
-  }
   const savedCredentials = localStorage.getItem('userCredentials');
   const savedIsLoggedIn = localStorage.getItem('isLoggedIn');
   const savedUsername = localStorage.getItem('username');
@@ -123,17 +110,6 @@ function restoreLoginState() {
   }
 }
 
-// 提供全局主题状态和切换函数
-provide('isDarkTheme', isDarkTheme);
-provide('toggleTheme', toggleTheme);
-
-// 提供登录状态给子组件
-provide('isLoggedIn', isLoggedIn);
-provide('username', username);
-provide('isGuestMode', isGuestMode);
-provide('userCredentials', userCredentials);
-provide('selectedProcessId', selectedProcessId);
-
 // 暴露方法给路由组件使用
 provide('authMethods', {
   handleLoginSuccess,
@@ -147,36 +123,6 @@ onMounted(() => {
 });
 </script>
 <style>
-
-/* 根样式变量 - 深色主题 (默认) */
-:root {
-    --bg-primary: #1a1a1a;
-    --bg-secondary: #232323;
-    --bg-tertiary: #2a2a2a;
-    --color-text: #f1f1f1;
-    --color-text-dim: #aaa;
-    --color-border: #333;
-    --color-highlight: #f39c12;
-    --color-accent: #4CAF50;
-    --color-shadow: rgba(0, 0, 0, 0.4);
-    --tooltip-bg: rgba(0, 0, 0, 0.8);
-    --nav-height: 50px; /* 简化导航栏高度 */
-}
-
-/* 浅色主题 */
-#app.theme-light {
-    --bg-primary: #ffffff;
-    --bg-secondary: #f5f7fa;
-    --bg-tertiary: #eeeeee;
-    --color-text: #222222;
-    --color-text-dim: #555555;
-    --color-border: #cccccc;
-    --color-highlight: #3498db;
-    --color-accent: #2ecc71;
-    --color-shadow: rgba(0, 0, 0, 0.15);
-    --tooltip-bg: rgba(255, 255, 255, 0.9);
-}
-
 #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -185,7 +131,6 @@ onMounted(() => {
   padding: 0;
   height: 100vh;
   overflow: hidden;
-  background-color: var(--bg-primary); /* 使用主题变量 */
 }
 
 /* 隐藏Cesium原生时间轴和动画控件 */

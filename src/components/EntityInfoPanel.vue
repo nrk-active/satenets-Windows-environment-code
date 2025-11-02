@@ -6,6 +6,7 @@
     </div>
     
     <div class="content">
+      <!-- 卫星信息 -->
       <div v-if="entityType === 'satellite'" class="entity-details">
         <div class="info-row">
           <div class="info-label">ID:</div>
@@ -57,6 +58,7 @@
         </div>
       </div>
       
+      <!-- 地面站信息 -->
       <div v-else-if="entityType === 'station'" class="entity-details">
         <div class="info-row">
           <div class="info-label">ID:</div>
@@ -83,6 +85,7 @@
         </div>
       </div>
       
+      <!-- ROADM信息 -->
       <div v-else-if="entityType === 'roadm'" class="entity-details">
         <div class="info-row">
           <div class="info-label">ID:</div>
@@ -109,6 +112,7 @@
         </div>
       </div>
       
+      <!-- 链路信息 -->
       <div v-else-if="entityType === 'link'" class="entity-details">
         <div class="info-row">
           <div class="info-label">ID:</div>
@@ -137,6 +141,7 @@
         </div>
       </div>
       
+      <!-- 未知实体类型 -->
       <div v-else class="entity-details">
         <div class="info-row">
           <div class="info-label">ID:</div>
@@ -148,6 +153,7 @@
         </div>
       </div>
 
+      <!-- 承载业务信息 -->
       <div class="service-section">
         <div class="info-section-title">承载业务</div>
         <div class="services-list" v-if="carriedServices.length > 0">
@@ -385,12 +391,11 @@ function formatNumber(num) {
 
 <style scoped>
 .entity-info-panel {
-  /* 使用主题变量 */
-  background: var(--bg-primary);
-  border-left: 1px solid var(--color-border);
+  background: #232323;
+  border-left: 1px solid #333;
   height: 100%;
-  width: 350px; /* 调整为抽屉宽度 */
-  color: var(--color-text);
+  width: 300px;
+  color: #f1f1f1;
   display: flex;
   flex-direction: column;
 }
@@ -398,24 +403,24 @@ function formatNumber(num) {
 .header {
   font-weight: bold;
   padding: 10px 16px;
-  background: var(--bg-secondary);
+  background: #181818;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--color-border);
-  color: var(--color-text);
+  border-bottom: 1px solid #333;
+  color: #fff;
   letter-spacing: 1px;
 }
 
 .close-btn {
   cursor: pointer;
   font-size: 14px;
-  color: var(--color-text-dim);
+  color: #aaa;
   transition: color 0.2s;
 }
 
 .close-btn:hover {
-  color: var(--color-highlight);
+  color: #f39c12;
 }
 
 .content {
@@ -438,7 +443,7 @@ function formatNumber(num) {
 .info-label {
   width: 100px;
   font-weight: bold;
-  color: var(--color-text-dim);
+  color: #aaa;
 }
 
 .info-value {
@@ -450,8 +455,8 @@ function formatNumber(num) {
   margin-top: 16px;
   margin-bottom: 8px;
   font-weight: bold;
-  color: var(--color-highlight);
-  border-bottom: 1px solid var(--color-border);
+  color: #ffd700;
+  border-bottom: 1px solid #444;
   padding-bottom: 4px;
 }
 
@@ -464,23 +469,19 @@ function formatNumber(num) {
 
 .connection-item {
   padding: 4px 8px;
-  background: var(--bg-tertiary);
+  background: #2a2a2a;
   border-radius: 4px;
   font-size: 12px;
-  color: var(--color-text);
 }
 
 .empty-panel {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 350px;
-  background: var(--bg-primary);
-  border-left: 1px solid var(--color-border);
 }
 
 .empty-message {
-  color: var(--color-text-dim);
+  color: #888;
   font-style: italic;
 }
 
@@ -496,13 +497,13 @@ function formatNumber(num) {
 }
 
 .service-item {
-  background: var(--bg-tertiary);
+  background: #2a2a2a;
   border-radius: 6px;
   padding: 10px;
 }
 
 .service-header {
-  color: var(--color-highlight);
+  color: #f39c12;
   font-weight: bold;
   margin-bottom: 8px;
 }
@@ -520,22 +521,22 @@ function formatNumber(num) {
 }
 
 .service-label {
-  color: var(--color-text-dim);
+  color: #aaa;
 }
 
 .service-value {
-  color: var(--color-text);
+  color: #fff;
 }
 
 .status-active {
-  color: var(--color-accent);
+  color: #2ecc71;
 }
 
 .no-services-message {
   padding: 12px;
   text-align: center;
-  color: var(--color-text-dim);
-  background: var(--bg-tertiary);
+  color: #888;
+  background: #2a2a2a;
   border-radius: 6px;
   font-size: 14px;
 }

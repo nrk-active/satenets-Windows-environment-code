@@ -369,21 +369,19 @@ export function useCesium() {
         const simulationTimeline = document.createElement('div');
         simulationTimeline.className = 'simulation-timeline';
         simulationTimeline.style.cssText = `
-          position: fixed;   /* 👈 关键修复 1: 改为固定定位 */
-          bottom: 0;         /* 👈 贴合视口底部 */
-          left: 350px;
-          right: 0px;
-          height: 30px;
+          position: absolute;
+          bottom: 60px;  /* 降低高度避免遮挡底部面板 */
+          left: 360px;  /* 增加左侧偏移以给节点跳转框留出空间 */
+          right: 5px;
+          height: 27px;
           background: rgba(42, 42, 42, 0.95);
           border: 1px solid #666;
-          border-radius: 4px 4px 0 0;
-          z-index: 10010;    /* 👈 关键修复 2: 保证最高层级 */
+          border-radius: 3px;
+          z-index: 9999;  /* 降低z-index避免遮挡重要UI元素 */
           display: flex;
           align-items: center;
-          justify-content: center;
           padding: 0 8px;
           box-sizing: border-box;
-          transition: bottom 0.3s ease; /* 关键：保留动画过渡 */
           font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         `;
         
@@ -569,9 +567,12 @@ export function useCesium() {
         simulationTimeline.appendChild(trackContainer);
         simulationTimeline.appendChild(totalTimeDisplay);
         
-        // 关键修复 3: 挂载到 document.body
-        document.body.appendChild(simulationTimeline);
-        console.log('仿真时间轴已添加到 document.body');
+        // 添加到Cesium容器
+        const cesiumContainer = document.getElementById('cesiumContainer');
+        if (cesiumContainer) {
+          cesiumContainer.appendChild(simulationTimeline);
+          console.log('仿真时间轴已添加到页面');
+        }
         
         // 动态调整时间轴位置以避免遮挡底部面板
         // 防循环标志
@@ -593,7 +594,7 @@ export function useCesium() {
               document.querySelector('.data-panel')
             ];
             
-            let maxBottomHeight = 5; // 👈 关键修复 4: 最小回落距离为 5px
+            let maxBottomHeight = 60; // 默认底部距离
             
             bottomPanels.forEach(panel => {
               if (panel) {
@@ -602,12 +603,10 @@ export function useCesium() {
                                 getComputedStyle(panel).display !== 'none' &&
                                 getComputedStyle(panel).visibility !== 'hidden';
                 
-                const isDrawerOpen = panel.classList.contains('drawer-open');
-                                
-                if (isVisible && isDrawerOpen && rect.height > 50) {
+                if (isVisible && rect.height > 50) {
                   // 面板可见且有合理高度，计算需要的底部距离
                   const panelHeight = rect.height;
-                  const bottomDistance = panelHeight; // fixed 定位不需要 + 10px 间距，直接贴着顶部
+                  const bottomDistance = panelHeight + 10; // 面板高度 + 10px间距
                   maxBottomHeight = Math.max(maxBottomHeight, bottomDistance);
                   console.log(`发现展开的面板，高度: ${panelHeight}px`);
                 }
@@ -619,15 +618,14 @@ export function useCesium() {
             if (collapsedBottomPanel) {
               const rect = collapsedBottomPanel.getBoundingClientRect();
               if (rect.height > 0) {
-                const bottomDistance = rect.height;
+                const bottomDistance = rect.height + 10;
                 maxBottomHeight = Math.max(maxBottomHeight, bottomDistance);
                 console.log(`发现收起的面板，高度: ${rect.height}px`);
               }
             }
             
             // 只有当位置真正需要改变时才更新
-            // 使用 bottom: ${maxBottomHeight}px 调整整个 fixed 元素的位置
-            const currentBottom = parseInt(simulationTimeline.style.bottom) || 0; 
+            const currentBottom = parseInt(simulationTimeline.style.bottom) || 60;
             if (Math.abs(currentBottom - maxBottomHeight) > 5) { // 5px的容差，避免微小变化
               simulationTimeline.style.bottom = maxBottomHeight + 'px';
               console.log(`时间轴位置已调整，底部距离: ${currentBottom}px -> ${maxBottomHeight}px`);
@@ -1278,9 +1276,8 @@ export function useCesium() {
     // 设置纯黑背景色以增强对比度
     viewer.scene.backgroundColor = Cesium.Color.BLACK;
     
-    // 禁用地球大气层以获得更清晰的宇宙背景
-    viewer.scene.skyAtmosphere.show = false;
-    viewer.scene.globe.showGroundAtmosphere = false;
+    // 禁用雾化效果，让远处物体更清晰
+    viewer.scene.fog.enabled = false;
     
     console.log('8K分辨率星空背景设置完成');
     
@@ -1797,12 +1794,12 @@ export function useCesium() {
       animationContainer.style.display = 'block';
       animationContainer.style.visibility = 'visible';
       animationContainer.style.position = 'absolute';
-      animationContainer.style.bottom = '180px'; // 初始位置
+      animationContainer.style.bottom = '200px'; // 初始位置
       animationContainer.style.left = '0px';
       animationContainer.style.width = '169px';
       animationContainer.style.height = '112px';
       animationContainer.style.zIndex = '1000';
-      console.log('动画控件容器样式已设置:', animationContainer);
+      console.log('动画控件容器样式已设置');
     }
     
     // 通过DOM查找并设置样式（备用方案）
@@ -1820,7 +1817,7 @@ export function useCesium() {
         element.style.visibility = 'visible';
         console.log('通过DOM设置了动画控件样式');
       });
-    }, 1000); // 增加延迟确保DOM完全加载
+    }, 100);
   }
 
   // 动态调整时间轴位置的函数
