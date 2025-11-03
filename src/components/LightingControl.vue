@@ -84,7 +84,7 @@ defineExpose({
   position: fixed;
   bottom: 20px;
   left: 30px;
-  z-index: 10000000;
+  z-index: 99990;
 }
 
 /* 太阳图标按钮样式 */

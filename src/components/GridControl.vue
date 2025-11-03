@@ -85,7 +85,7 @@ defineExpose({
   position: fixed;
   bottom: 20px;
   left: 130px; /* 位置在国界线按钮右侧 */
-  z-index: 10000000;
+  z-index: 99990;
 }
 
 /* 网格图标按钮样式 */

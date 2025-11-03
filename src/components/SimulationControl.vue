@@ -181,7 +181,7 @@ function hideTooltip() {
   position: fixed;
   bottom: 20px;
   right: 30px;
-  z-index: 10000000;
+  z-index: 99990;
   display: flex;
   align-items: center;
   gap: 12px;

@@ -139,8 +139,10 @@ export function useCesium() {
     };
     
     viewer = new Cesium.Viewer(containerId, {
+      geocoder: false,
+      navigationHelpButton: false,
       animation: false, // 禁用动画控件（移除左下角的球形控件）
-      timeline: true,  // 启用时间轴
+      timeline: false,  // 启用时间轴
       fullscreenButton: false,
       baseLayerPicker: false, // 禁用地图选择按钮，只使用本地资源
       selectionIndicator: false, // 禁用原生选择指示器，使用自定义的

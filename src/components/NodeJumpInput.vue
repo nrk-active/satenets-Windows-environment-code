@@ -812,9 +812,9 @@ onUnmounted(() => {
 
 .suggestions-dropdown {
   position: absolute;
-  bottom: 100%; /* 改为从容器上方弹出 */
-  left: 0;
-  right: 0;
+  right: 100%; /* 从容器左侧弹出 */
+  top: 0;
+  width: 200px;
   background: var(--theme-dialog-bg); 
   border: 1px solid var(--theme-border);
   border-radius: 4px;
@@ -823,7 +823,7 @@ onUnmounted(() => {
   overflow-y: auto;
   z-index: 1001;
   backdrop-filter: blur(5px);
-  box-shadow: 0 -4px 12px var(--theme-shadow); /* 改为向上的阴影 */
+  box-shadow: -4px 0 12px var(--theme-shadow); /* 向左的阴影 */
 }
 
 .suggestion-item {

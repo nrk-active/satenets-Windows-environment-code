@@ -81,7 +81,7 @@ defineExpose({
   position: fixed;
   bottom: 20px;
   left: 180px; /* 调整位置，使四个按钮均匀排列 */
-  z-index:  10000000;
+  z-index:  99990;
 }
 
 /* 星空图标按钮样式 */

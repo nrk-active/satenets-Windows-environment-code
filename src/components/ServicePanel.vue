@@ -923,7 +923,7 @@ onUnmounted(() => {
   backdrop-filter: blur(10px);
   border-top: 1px solid var(--theme-border); /* 修复：使用主题边框 */
   color: var(--theme-main-text); /* 修复：使用主文字 */
-  z-index: 10000001;
+  z-index: 99998;
   overflow: hidden;
   display: flex;
   flex-direction: column;

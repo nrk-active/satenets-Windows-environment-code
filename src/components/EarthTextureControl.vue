@@ -93,7 +93,7 @@ defineExpose({
   position: fixed;
   bottom: 20px;
   left: 230px; /* 位于星空按钮右侧 */
-  z-index: 10000000;
+  z-index: 99990;
 }
 
 /* 地球图标按钮样式 */
