@@ -213,21 +213,26 @@ const throughputData = ref(null);
 // 加载流量数据
 const loadTrafficData = async (timestamp) => {
   try {
+    // 根据当前选择的文件夹读取对应的卫星流量数据
+    const currentFolder = localStorage.getItem('selectedDataFolder');
+    
     // 加载 downlink 数据
-    const downlinkResponse = await fetch(`./data/data3/satellite_traffic/satellite_downlink_${timestamp}.json`);
+    const downlinkResponse = await fetch(`./data/${currentFolder}/satellite_traffic/satellite_downlink_${timestamp}.json`);
     if (downlinkResponse.ok) {
       downlinkData.value = await downlinkResponse.json();
+      console.log(`EntityInfoPanel: 从 ${currentFolder} 加载 downlink 数据成功`);
     } else {
-      console.warn(`无法加载 downlink 数据: ${timestamp}`);
+      console.warn(`无法加载 downlink 数据: ${timestamp} (文件夹: ${currentFolder})`);
       downlinkData.value = null;
     }
     
     // 加载 throughput 数据
-    const throughputResponse = await fetch(`./data/data3/satellite_traffic/satellite_throughput_${timestamp}.json`);
+    const throughputResponse = await fetch(`./data/${currentFolder}/satellite_traffic/satellite_throughput_${timestamp}.json`);
     if (throughputResponse.ok) {
       throughputData.value = await throughputResponse.json();
+      console.log(`EntityInfoPanel: 从 ${currentFolder} 加载 throughput 数据成功`);
     } else {
-      console.warn(`无法加载 throughput 数据: ${timestamp}`);
+      console.warn(`无法加载 throughput 数据: ${timestamp} (文件夹: ${currentFolder})`);
       throughputData.value = null;
     }
   } catch (error) {
@@ -369,22 +374,25 @@ const connections = computed(() => {
 const trafficInfo = computed(() => {
   if (!props.selectedEntity || entityType.value !== 'satellite') {
     return {
-      downlink: 0,
-      throughput: 0
+      downlink: null,  // 改为 null，表示无数据
+      throughput: null  // 改为 null，表示无数据
     };
   }
   
   const satelliteId = props.selectedEntity.id;
   
   return {
-    downlink: downlinkData.value?.data?.[satelliteId] || 0,
-    throughput: throughputData.value?.data?.[satelliteId] || 0
+    downlink: downlinkData.value?.data?.[satelliteId] ?? null,  // 使用 ?? null
+    throughput: throughputData.value?.data?.[satelliteId] ?? null  // 使用 ?? null
   };
 });
 
 // 格式化数字
 function formatNumber(num) {
-  if (num === undefined || num === null) return 'N/A';
+  // 优先检查 null/undefined，显示 NaN
+  if (num === undefined || num === null) return 'NaN';
+  // 检查是否为数字，如果不是也显示 NaN
+  if (typeof num !== 'number' || isNaN(num)) return 'NaN';
   return parseFloat(num).toFixed(2);
 }
 </script>

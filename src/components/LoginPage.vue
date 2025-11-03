@@ -240,6 +240,9 @@ async function handleSubmit() {
 
 // 游客登录
 function guestLogin() {
+  console.log('游客登录：当前路由', route.path);
+  
+  // 设置游客模式标识
   localStorage.setItem('guest_mode', 'true');
   
   // 调用App.vue的游客登录方法
@@ -247,8 +250,12 @@ function guestLogin() {
     handleGuestLogin();
   }
   
+  // 触发事件
   emit('guest-login');
-  router.push('/satellite');  // 跳转到卫星视图
+  
+  // 直接使用 window.location.href 强制页面完全重新加载
+  // 这是最可靠的方式，确保组件完全卸载和重新加载
+  window.location.href = '/satellite';
 }
 
 // 切换模式时清理字段并更新URL

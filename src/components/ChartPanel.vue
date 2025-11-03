@@ -164,11 +164,12 @@ const parseFolderName = (folderName) => {
 // 加载链路长度数据
 const loadLinkLengthData = async (frame) => {
   try {
-    // 从 data/data3/link_length 文件夹加载数据
+    // 根据当前选择的文件夹读取对应的链路长度数据
+    const currentFolder = localStorage.getItem('selectedDataFolder');
     const orbitNumber = String(frame).padStart(6, '0');
-    const filename = `./data/data3/link_length/isl_inter_stats_orbit_${orbitNumber}.json`;
+    const filename = `./data/${currentFolder}/link_length/isl_inter_stats_orbit_${orbitNumber}.json`;
     
-    console.log('ChartPanel: 加载链路长度数据', filename);
+    console.log(`ChartPanel: 从文件夹 ${currentFolder} 加载链路长度数据:`, filename);
     
     const response = await fetch(filename);
     if (!response.ok) {
@@ -647,14 +648,26 @@ const createChartOption = (type) => {
 
   return {
     backgroundColor: '#000000',
+    grid: {
+      left: '3%',
+      right: '4%',
+      top: type === 'bandwidth' || type.startsWith('linkLength') ? '55' : '60',  // 为带宽利用率和链路长度图表增加顶部空间
+      bottom: '10%',
+      containLabel: true
+    },
     legend: type === 'bandwidth' ? {
       data: ['总利用率', '星间同轨', '星间异轨', '星地链路', 'GRL链路', '骨干网'],
       textStyle: { color: '#cccccc', fontSize: 10 },
-      top: 5
+      top: 1,  // 增加图例的顶部距离，避免与标题重叠
+      left: 'center',  // 图例居中
+      itemGap: 10,  // 图例项之间的间距
+      itemWidth: 20,  // 图例标记的宽度
+      itemHeight: 10  // 图例标记的高度
     } : (type === 'linkLength_serviceCount' || type === 'linkLength_maxDistance' || type === 'linkLength_minDistance') ? {
       data: ['非洲', '南美洲', '大洋洲', '东南亚', '欧洲', '北美洲', '中东'],
       textStyle: { color: '#cccccc', fontSize: 10 },
-      top: 5,
+      top: 8,
+      left: 'center',  // 图例居中
       itemGap: 8,  // 图例项之间的间距
       itemWidth: 20,  // 图例标记的宽度
       itemHeight: 10  // 图例标记的高度
@@ -932,6 +945,95 @@ watch(() => props.currentFrameData, (newData, oldData) => {
     addDataPoint(props.timeFrame, newData);
   }
 }, { immediate: true });
+
+// 监听selectedData变化，重新初始化图表
+watch(() => props.selectedData, (newSelection, oldSelection) => {
+  console.log('ChartPanel: selectedData变化', {
+    new: newSelection,
+    old: oldSelection
+  });
+  
+  nextTick(() => {
+    // 检查是否需要初始化新的图表
+    
+    // 平均延迟图表
+    if (newSelection.averageLatency && !oldSelection?.averageLatency) {
+      console.log('初始化平均延迟图表');
+      if (latencyChart.value && !latencyChartInstance) {
+        latencyChartInstance = echarts.init(latencyChart.value);
+        latencyChartInstance.setOption(createChartOption('latency'));
+      }
+    } else if (!newSelection.averageLatency && latencyChartInstance) {
+      console.log('销毁平均延迟图表');
+      latencyChartInstance.dispose();
+      latencyChartInstance = null;
+    }
+    
+    // 带宽利用率图表
+    if (newSelection.bandwidthUtil && !oldSelection?.bandwidthUtil) {
+      console.log('初始化带宽利用率图表');
+      if (bandwidthChart.value && !bandwidthChartInstance) {
+        bandwidthChartInstance = echarts.init(bandwidthChart.value);
+        bandwidthChartInstance.setOption(createChartOption('bandwidth'));
+      }
+    } else if (!newSelection.bandwidthUtil && bandwidthChartInstance) {
+      console.log('销毁带宽利用率图表');
+      bandwidthChartInstance.dispose();
+      bandwidthChartInstance = null;
+    }
+    
+    // 平均跳数图表
+    if (newSelection.hopCounts && !oldSelection?.hopCounts) {
+      console.log('初始化平均跳数图表');
+      if (hopChart.value && !hopChartInstance) {
+        hopChartInstance = echarts.init(hopChart.value);
+        hopChartInstance.setOption(createChartOption('hop'));
+      }
+    } else if (!newSelection.hopCounts && hopChartInstance) {
+      console.log('销毁平均跳数图表');
+      hopChartInstance.dispose();
+      hopChartInstance = null;
+    }
+    
+    // 链路长度图表
+    if (newSelection.linkLength && !oldSelection?.linkLength) {
+      console.log('初始化链路长度图表');
+      if (linkLengthServiceCountChart.value && !linkLengthServiceCountChartInstance) {
+        linkLengthServiceCountChartInstance = echarts.init(linkLengthServiceCountChart.value);
+        linkLengthServiceCountChartInstance.setOption(createChartOption('linkLength_serviceCount'));
+      }
+      if (linkLengthMaxDistanceChart.value && !linkLengthMaxDistanceChartInstance) {
+        linkLengthMaxDistanceChartInstance = echarts.init(linkLengthMaxDistanceChart.value);
+        linkLengthMaxDistanceChartInstance.setOption(createChartOption('linkLength_maxDistance'));
+      }
+      if (linkLengthMinDistanceChart.value && !linkLengthMinDistanceChartInstance) {
+        linkLengthMinDistanceChartInstance = echarts.init(linkLengthMinDistanceChart.value);
+        linkLengthMinDistanceChartInstance.setOption(createChartOption('linkLength_minDistance'));
+      }
+    } else if (!newSelection.linkLength) {
+      if (linkLengthServiceCountChartInstance) {
+        console.log('销毁链路长度-业务数量图表');
+        linkLengthServiceCountChartInstance.dispose();
+        linkLengthServiceCountChartInstance = null;
+      }
+      if (linkLengthMaxDistanceChartInstance) {
+        console.log('销毁链路长度-最大距离图表');
+        linkLengthMaxDistanceChartInstance.dispose();
+        linkLengthMaxDistanceChartInstance = null;
+      }
+      if (linkLengthMinDistanceChartInstance) {
+        console.log('销毁链路长度-最小距离图表');
+        linkLengthMinDistanceChartInstance.dispose();
+        linkLengthMinDistanceChartInstance = null;
+      }
+    }
+    
+    // 延迟调整图表大小，确保正确渲染
+    setTimeout(() => {
+      resizeCharts();
+    }, 100);
+  });
+}, { deep: true });
 
 // 也监听timeFrame变化
 watch(() => props.timeFrame, (newFrame, oldFrame) => {

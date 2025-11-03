@@ -58,14 +58,14 @@ export function createSatelliteEntity(node, show = true) {
       return initialPosition;
     }, false),
     point: {
-      pixelSize: 2,
+      pixelSize: 3,
       // 使用CallbackProperty创建随机闪烁效果
       color: new Cesium.CallbackProperty(function(time) {
-        // 计算闪烁周期，加入随机相位和速度
+        // 计算闪烁周期,加入随机相位和速度
         const timeValue = Cesium.JulianDate.secondsDifference(time, Cesium.JulianDate.now());
-        // 确保透明度在0.65到1.0之间，使闪烁效果稍微明显一点
+        // 确保透明度在0.65到1.0之间,使闪烁效果稍微明显一点
         const alpha = 0.65 + 0.35 * (0.5 + 0.5 * Math.sin(timeValue * Math.PI * randomSpeed + randomPhase));
-        return Cesium.Color.ORANGE.withAlpha(alpha);
+        return Cesium.Color.ORANGE.withAlpha(alpha); // 卫星颜色
       }, false),
       outlineWidth: 0,
       // outlineColor: Cesium.Color.WHITE,
@@ -101,7 +101,7 @@ export function createStationEntity(node, show = true) {
     id: node.id,
     name: node.id,
     show,
-    // ✅ 性能优化: 地面站是静态的，直接使用Cartesian3，避免每帧调用CallbackProperty
+    // 性能优化: 地面站是静态的，直接使用Cartesian3，避免每帧调用CallbackProperty
     position: cartesianPosition,
     point: {
       pixelSize: 2,
@@ -111,7 +111,7 @@ export function createStationEntity(node, show = true) {
         const timeValue = Cesium.JulianDate.secondsDifference(time, Cesium.JulianDate.now());
         // 确保透明度在0.7到1.0之间，使闪烁效果稍微明显一点
         const alpha = 0.7 + 0.3 * (0.5 + 0.5 * Math.sin(timeValue * Math.PI * randomSpeed + randomPhase));
-        return Cesium.Color.RED.withAlpha(alpha);
+        return Cesium.Color.RED.withAlpha(alpha);   // 地面站颜色
       }, false),
       outlineWidth: 0,
       // 改为NONE，避免2D模式下的贴地问题
@@ -149,7 +149,7 @@ export function createRoadmEntity(node, show = true) {
     id: node.id,
     name: node.id,
     show,
-    // ✅ 性能优化: ROADM是静态的,直接使用Cartesian3,避免每帧调用CallbackProperty
+    // 性能优化: ROADM是静态的,直接使用Cartesian3,避免每帧调用CallbackProperty
     position: cartesianPosition,
     point: {
       pixelSize: 2,
@@ -159,7 +159,8 @@ export function createRoadmEntity(node, show = true) {
         const timeValue = Cesium.JulianDate.secondsDifference(time, Cesium.JulianDate.now());
         // 确保透明度在0.68到1.0之间，使闪烁效果稍微明显一点
         const alpha = 0.68 + 0.32 * (0.5 + 0.5 * Math.sin(timeValue * Math.PI * randomSpeed + randomPhase));
-        return Cesium.Color.GREENYELLOW.withAlpha(alpha);
+        // return Cesium.Color.GREENYELLOW.withAlpha(alpha); // ROADM颜色
+        return Cesium.Color.fromCssColorString('#a1daf5ff').withAlpha(alpha); // ROADM颜色
       }, false),
       outlineWidth: 0,
       // 改为NONE，避免2D模式下的贴地问题

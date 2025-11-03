@@ -6,25 +6,28 @@ const routes = [
   {
     path: '/login',
     name: 'login',
-    component: LoginPage
+    component: LoginPage,
+    meta: { keepAlive: false }
   },
   {
     path: '/register',
     name: 'register', 
-    component: LoginPage
+    component: LoginPage,
+    meta: { keepAlive: false }
   },
   {
     path: '/satellite',
     name: 'satellite',
-    component: SatelliteViewer
+    component: SatelliteViewer,
+    meta: { keepAlive: false }
   },
   {
     path: '/',
-    redirect: '/login'  // 默认跳转到卫星视图
+    redirect: '/login'
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/satellite'  // 404也跳转到卫星视图
+    redirect: '/login'
   }
 ]
 
@@ -32,5 +35,15 @@ const router = createRouter({
   history: createWebHistory(),
   routes
 })
+
+// 添加全局导航守卫，帮助调试
+router.beforeEach((to, from, next) => {
+  console.log(`路由导航: ${from.path} → ${to.path}`);
+  next();
+});
+
+router.afterEach((to, from) => {
+  console.log(`路由完成: ${from.path} → ${to.path}`);
+});
 
 export default router

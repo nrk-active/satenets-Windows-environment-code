@@ -1,12 +1,15 @@
 <template>
   <div id="app">
-    <!-- 路由出口 -->
-    <router-view />
+    <!-- 路由出口，使用key强制重新渲染 -->
+    <router-view :key="$route.fullPath" />
   </div>
 </template>
 
 <script setup>
 import { ref, provide, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
+
+const $route = useRoute();
 
 // 登录状态管理
 const isLoggedIn = ref(false);

@@ -383,6 +383,7 @@ export function useCesium() {
           padding: 0 8px;
           box-sizing: border-box;
           font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          transition: bottom 0.3s ease;  /* 添加平滑过渡动画，与NodeJumpInput一致 */
         `;
         
         // 创建时间显示（当前时间）
@@ -608,7 +609,7 @@ export function useCesium() {
                   const panelHeight = rect.height;
                   const bottomDistance = panelHeight + 10; // 面板高度 + 10px间距
                   maxBottomHeight = Math.max(maxBottomHeight, bottomDistance);
-                  console.log(`发现展开的面板，高度: ${panelHeight}px`);
+                  // console.log(`发现展开的面板，高度: ${panelHeight}px`);
                 }
               }
             });
@@ -628,18 +629,12 @@ export function useCesium() {
             const currentBottom = parseInt(simulationTimeline.style.bottom) || 60;
             if (Math.abs(currentBottom - maxBottomHeight) > 5) { // 5px的容差，避免微小变化
               simulationTimeline.style.bottom = maxBottomHeight + 'px';
-              console.log(`时间轴位置已调整，底部距离: ${currentBottom}px -> ${maxBottomHeight}px`);
+              console.log(`⬆️ 时间轴位置已调整: ${currentBottom}px -> ${maxBottomHeight}px`);
               
-              // 通知其他组件同步位置变化
-              window.dispatchEvent(new CustomEvent('ui-positions-changed', {
-                detail: { 
-                  bottomHeight: maxBottomHeight,
-                  source: 'timeline'
-                }
-              }));
-            } else {
-              console.log(`位置差异不足5px，跳过调整: ${currentBottom}px vs ${maxBottomHeight}px`);
+              // ✅ 移除事件派发，避免触发其他监听器形成循环调用
+              // 面板组件自己知道状态变化，不需要时间轴再通知
             }
+            // ✅ 移除else分支的日志，完全静默执行
           } catch (error) {
             console.error('时间轴位置调整错误:', error);
           } finally {
@@ -669,72 +664,103 @@ export function useCesium() {
           debouncedAdjustPosition();
         });
         
-        // 添加DOM变化监听器，监听底部面板的变化
+        // ✅ 添加用户操作监听：响应面板展开/收起和拖拽伸缩
         const observeBottomPanels = () => {
-          const observer = new MutationObserver((mutations) => {
-            let shouldAdjust = false;
+          let timelineCleanupFunctions = [];
+          
+          // 1. 监听面板状态变化的自定义事件（由面板组件派发）
+          const handlePanelStateChange = (event) => {
+            console.log('📊 面板状态变化，调整时间轴位置:', event.detail);
+            debouncedAdjustPosition();
+          };
+          window.addEventListener('panel-state-changed', handlePanelStateChange);
+          timelineCleanupFunctions.push(() => {
+            window.removeEventListener('panel-state-changed', handlePanelStateChange);
+          });
+          
+          // 2. 监听用户点击面板展开/收起按钮
+          const handlePanelClick = (event) => {
+            const target = event.target;
+            // 检查是否点击了面板相关的按钮
+            const isPanelButton = 
+              target.classList.contains('panel-toggle') ||
+              target.classList.contains('toggle-button') ||
+              target.classList.contains('expand-btn') ||
+              target.classList.contains('collapse-btn') ||
+              target.closest('.panel-toggle') ||
+              target.closest('.toggle-button');
             
-            mutations.forEach((mutation) => {
-              // 检查是否有面板相关的DOM变化
-              if (mutation.type === 'attributes' && 
-                  (mutation.attributeName === 'style' || mutation.attributeName === 'class')) {
-                const target = mutation.target;
-                if (target.classList.contains('service-panel') || 
-                    target.classList.contains('chart-panel') ||
-                    target.classList.contains('data-panel') ||
-                    target.classList.contains('collapsed-bottom-panel')) {
-                  shouldAdjust = true;
-                  console.log(`检测到面板DOM变化: ${target.className}`);
-                }
-              }
-              
-              // 检查是否有新的面板被添加或移除
-              if (mutation.type === 'childList') {
-                mutation.addedNodes.forEach((node) => {
-                  if (node.nodeType === 1 && 
-                      (node.classList?.contains('service-panel') ||
-                       node.classList?.contains('chart-panel') ||
-                       node.classList?.contains('data-panel'))) {
-                    shouldAdjust = true;
-                    console.log(`检测到新面板添加: ${node.className}`);
-                  }
-                });
-              }
-            });
-            
-            if (shouldAdjust) {
+            if (isPanelButton) {
+              console.log('🖱️ 检测到面板按钮点击');
+              // 延迟调整，等待面板动画完成
+              setTimeout(() => {
+                debouncedAdjustPosition();
+              }, 350); // 等待面板过渡动画（通常300ms）
+            }
+          };
+          document.addEventListener('click', handlePanelClick);
+          timelineCleanupFunctions.push(() => {
+            document.removeEventListener('click', handlePanelClick);
+          });
+          
+          // 3. 监听面板过渡动画结束事件（更精确）
+          const handleTransitionEnd = (event) => {
+            const target = event.target;
+            if (target.classList.contains('service-panel') ||
+                target.classList.contains('chart-panel') ||
+                target.classList.contains('data-panel') ||
+                target.classList.contains('collapsed-bottom-panel')) {
+              console.log('✨ 面板动画完成，调整时间轴位置');
               debouncedAdjustPosition();
             }
+          };
+          document.addEventListener('transitionend', handleTransitionEnd);
+          timelineCleanupFunctions.push(() => {
+            document.removeEventListener('transitionend', handleTransitionEnd);
           });
           
-          // 观察整个文档的变化
-          observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ['style', 'class']
+          // 4. ✅ 轻量级MutationObserver - 只监听ServicePanel的style属性
+          let lastPanelHeight = 0;
+          const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+              if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                const target = mutation.target;
+                
+                // 只处理service-panel的变化
+                if (target.classList.contains('service-panel')) {
+                  const currentHeight = target.getBoundingClientRect().height;
+                  
+                  // 防抖：只有高度变化超过5px才触发
+                  if (Math.abs(currentHeight - lastPanelHeight) > 5) {
+                    console.log(`📏 检测到ServicePanel高度变化: ${lastPanelHeight.toFixed(0)}px -> ${currentHeight.toFixed(0)}px`);
+                    lastPanelHeight = currentHeight;
+                    debouncedAdjustPosition();
+                  }
+                }
+              }
+            });
           });
           
-          // 保存observer到清理函数中
-          let timelineCleanupFunctions = [];
+          // 只观察ServicePanel元素
+          const servicePanel = document.querySelector('.service-panel');
+          if (servicePanel) {
+            // 记录初始高度
+            lastPanelHeight = servicePanel.getBoundingClientRect().height;
+            
+            observer.observe(servicePanel, {
+              attributes: true,
+              attributeFilter: ['style']  // 只监听style属性
+            });
+            
+            console.log('✅ 已启动ServicePanel的MutationObserver监听（仅style属性）');
+          }
           
           timelineCleanupFunctions.push(() => observer.disconnect());
           
-          console.log('已启动底部面板DOM变化监听器');
-          
-          // 定期检查位置（作为备用机制）
-          const intervalCheck = setInterval(() => {
-            if (!isAdjusting) {
-              debouncedAdjustPosition();
-            }
-          }, 1000); // 每秒检查一次
-          
-          timelineCleanupFunctions.push(() => clearInterval(intervalCheck));
+          console.log('✅ 时间轴位置调整：用户操作监听已启动（含MutationObserver）');
           
           // 统一保存清理函数
           window.cleanupTimelinePosition = function() {
-            window.removeEventListener('resize', debouncedAdjustPosition);
-            window.removeEventListener('panel-state-changed', debouncedAdjustPosition);
             if (adjustTimeout) {
               clearTimeout(adjustTimeout);
             }
@@ -2192,13 +2218,13 @@ export function useCesium() {
         
         if (sourceNode.type === 'roadm' && targetNode.type === 'roadm') {
           // ROADM-ROADM 连线：偏深的绿色
-          linkColor = Cesium.Color.fromCssColorString('#228B22').withAlpha(0.8);
+          linkColor = Cesium.Color.fromCssColorString('#2c424dff').withAlpha(0.8); 
           linkId = `roadm-roadm-link-${edge.source}-${edge.target}`;
           description = 'ROADM骨干连接';
         } else if ((sourceNode.type === 'station' && targetNode.type === 'roadm') ||
                    (sourceNode.type === 'roadm' && targetNode.type === 'station')) {
           // 地面站-ROADM 连线：偏深的黄色
-          linkColor = Cesium.Color.fromCssColorString('#DAA520').withAlpha(0.8);
+          linkColor = Cesium.Color.fromCssColorString('#6b551bff').withAlpha(0.8);
           linkId = `station-roadm-link-${edge.source}-${edge.target}`;
           description = '地面接入连接';
         } else {
@@ -2294,8 +2320,8 @@ export function useCesium() {
       if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.id)) {
         const entity = pickedObject.id;
         
-        // 处理卫星、地面站和ROADM实体
-        if (entity.id && (entity.id.startsWith('satellite') || entity.nodeType === 'station' || entity.nodeType === 'roadm')) {
+        // 只处理卫星实体，忽略链路和其他实体
+        if (entity.id && entity.id.startsWith('satellite')) {
           hoveredEntity = entity;
           
           // 保存原始样式
@@ -2831,8 +2857,8 @@ export function useCesium() {
       if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.id)) {
         const entity = pickedObject.id;
         
-        // 处理卫星、地面站和ROADM实体
-        if (entity.id && (entity.id.startsWith('satellite') || entity.nodeType === 'station' || entity.nodeType === 'roadm')) {
+        // 只处理卫星实体，忽略链路和其他实体
+        if (entity.id && entity.id.startsWith('satellite')) {
           hoveredEntity = entity;
           
           // 保存原始样式
