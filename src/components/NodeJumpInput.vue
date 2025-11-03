@@ -22,7 +22,7 @@
             v-model="nodeInput"
             type="text"
             class="node-input"
-            placeholder="输入节点ID"
+            placeholder="请输入对象ID"
             @keyup.enter="jumpToNode"
             @input="filterNodes"
             autofocus
@@ -479,18 +479,33 @@ import { onUnmounted, onMounted } from 'vue';
 // 动态调整位置
 const containerStyle = ref({});
 
-// 动态调整输入框位置 - 修改为固定在右侧中部偏上
+// 动态调整输入框位置 - 根据右侧面板状态调整
 function adjustPosition() {
   try {
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
     
-    //11.1 固定在右侧中部偏上位置
+    // 检测右侧面板是否展开
+    const rightPanelContainer = document.querySelector('.right-panel-container');
+    const rightCollapsedSidebar = document.querySelector('.collapsed-sidebar.right-sidebar');
+    
+    let rightOffset = 20; // 默认右侧偏移
+    
+    // 如果右侧面板展开，获取其宽度并调整偏移
+    if (rightPanelContainer && window.getComputedStyle(rightPanelContainer).display !== 'none') {
+      const panelWidth = rightPanelContainer.offsetWidth;
+      rightOffset = panelWidth + 20; // 面板宽度 + 间距
+    } 
+    // 如果右侧是收起的侧边栏
+    else if (rightCollapsedSidebar && window.getComputedStyle(rightCollapsedSidebar).display !== 'none') {
+      const sidebarWidth = rightCollapsedSidebar.offsetWidth || 30;
+      rightOffset = sidebarWidth + 20; // 侧边栏宽度 + 间距
+    }
+    
     let position = {
-      top: '18%', // 设置为视口高度的15%，位于中部偏上
-      right: '20px'
+      top: '10%', // 设置为视口高度的10%，位于中部偏上
+      right: `${rightOffset}px`
     };
-    //11.1 新增结束
     
     // 移动端适配
     if (viewportWidth <= 768) {
@@ -518,27 +533,33 @@ onMounted(() => {
   const handleUIPositionsChange = (event) => {
     if (event.detail.source !== 'nodeJump') {
       console.log('NodeJump: 响应UI位置变化事件');
-      setTimeout(adjustPosition, 50);
+      adjustPosition(); // 立即调整，不延迟
     }
   };
   window.addEventListener('ui-positions-changed', handleUIPositionsChange);
   
+  // 监听面板状态变化事件 - 立即响应
+  const handlePanelStateChange = (event) => {
+    console.log('NodeJump: 响应面板状态变化', event.detail);
+    adjustPosition(); // 立即调整
+  };
+  window.addEventListener('panel-state-changed', handlePanelStateChange);
+  
   // 初始位置调整
-  setTimeout(adjustPosition, 300);
+  setTimeout(adjustPosition, 100);
   
-  // 定期检查位置 - 与仿真时间轴保持相同间隔
-  const interval = setInterval(adjustPosition, 2000);
+  // 减少定期检查的频率（作为备用机制）
+  const interval = setInterval(adjustPosition, 5000);
   
-  // DOM变化观察（简化版）
+  // DOM变化观察 - 减少延迟
   const observer = new MutationObserver(() => {
-    setTimeout(adjustPosition, 100);
+    adjustPosition(); // 立即调整，不延迟
   });
   
-  // 观察可能影响布局的元素 - 只观察ServicePanel
+  // 观察可能影响布局的元素 - 包括右侧面板
   const elementsToObserve = [
-    document.querySelector('.object-viewer-container'),
-    document.querySelector('.object-viewer'),
-    document.querySelector('.service-panel')
+    document.querySelector('.right-panel-container'),
+    document.querySelector('.collapsed-sidebar.right-sidebar')
   ].filter(Boolean);
   
   elementsToObserve.forEach(element => {
@@ -548,13 +569,30 @@ onMounted(() => {
     });
   });
   
+  // 额外监听右侧面板容器的子节点变化（面板切换）- 减少延迟
+  const cesiumContainer = document.querySelector('#cesiumContainer');
+  let rightPanelObserver = null;
+  if (cesiumContainer) {
+    rightPanelObserver = new MutationObserver(() => {
+      adjustPosition(); // 立即调整，不延迟
+    });
+    rightPanelObserver.observe(cesiumContainer, {
+      childList: true,
+      subtree: false // 只观察直接子节点，提高性能
+    });
+  }
+  
   // 清理函数
   window.nodeJumpCleanup = () => {
     document.removeEventListener('click', handleClickOutside);
     window.removeEventListener('resize', adjustPosition);
     window.removeEventListener('ui-positions-changed', handleUIPositionsChange);
+    window.removeEventListener('panel-state-changed', handlePanelStateChange);
     clearInterval(interval);
     observer.disconnect();
+    if (rightPanelObserver) {
+      rightPanelObserver.disconnect();
+    }
   };
 });
 
@@ -575,6 +613,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  /* 添加平滑过渡动画 */
+  transition: right 0.3s ease-out, top 0.3s ease-out;
 }
 
 /* 放大镜按钮样式 */
@@ -771,18 +811,18 @@ onUnmounted(() => {
 
 .suggestions-dropdown {
   position: absolute;
-  bottom: 100%; /* 改为从容器上方弹出 */
-  left: 0;
-  right: 0;
+  right: 100%; /* 从容器左侧弹出 */
+  top: 0;
+  width: 200px;
   background: rgba(40, 40, 40, 0.95);
   border: 1px solid #555;
   border-radius: 4px;
-  margin-bottom: 5px; /* 改为底部间距 */
-  max-height: 200px;
+  margin-right: 10px; /* 左侧间距 */
+  max-height: 300px;
   overflow-y: auto;
   z-index: 1001;
   backdrop-filter: blur(5px);
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3); /* 改为向上的阴影 */
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.3); /* 向左的阴影 */
 }
 
 .suggestion-item {

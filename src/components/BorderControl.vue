@@ -85,14 +85,14 @@ defineExpose({
 .tooltip-container {
   position: fixed;
   bottom: 20px;
-  left: 70px;
-  z-index: 1000;
+  left: 80px;
+  z-index: 10000000;
 }
 
 /* 国界线图标按钮样式 */
 .border-icon {
-  width: 40px;
-  height: 40px;
+  width: 35px;
+  height: 35px;
   border: 1px solid var(--theme-border);
   background: var(--theme-dialog-bg);
   border-radius: 4px;

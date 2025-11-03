@@ -80,14 +80,14 @@ defineExpose({
 .tooltip-container {
   position: fixed;
   bottom: 20px;
-  left: 170px; /* 调整位置，使四个按钮均匀排列 */
-  z-index: 1000;
+  left: 180px; /* 调整位置，使四个按钮均匀排列 */
+  z-index:  10000000;
 }
 
 /* 星空图标按钮样式 */
 .sky-icon {
-  width: 40px;
-  height: 40px;
+  width: 35px;
+  height: 35px;
   border: 1px solid var(--theme-border);
   background: var(--theme-dialog-bg);
   border-radius: 4px;

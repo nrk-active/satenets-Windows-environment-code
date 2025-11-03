@@ -350,7 +350,7 @@ onMounted(async () => {
 
 <style scoped>
 .object-viewer {
-  width: 280px;
+  width: 260px;
   height: 100%;
   background: var(--theme-main-bg); 
   border-right: 1px solid var(--theme-border);

@@ -53,9 +53,7 @@
       <!-- 中间Cesium容器 -->
       <div id="cesiumContainer">
         <!-- 播放速度显示 -->
-        <div class="speed-display-panel">
-          <div class="current-speed">{{ playbackSpeed }}x</div>
-        </div>
+        
         
         <!-- 自定义选择指示器 -->
         <div 
@@ -129,6 +127,19 @@
       />
       <!--新增结束-->
 
+      <!-- 仿真控制组件 -->
+      <SimulationControl 
+        :is-logged-in="isLoggedIn"
+        :is-simulating="false"
+        :is-local-simulation-running="isPlaying"
+        :current-speed="playbackSpeed"
+        @start-simulation="handleStartLocalSimulation"
+        @pause-simulation="handlePauseLocalSimulation"
+        @increase-speed="handleIncreaseSpeed"
+        @decrease-speed="handleDecreaseSpeed"
+      />
+      <!--仿真控制组件结束-->
+
       <!-- 右侧面板区域 -->
       <div class="right-panel-container" v-if="selectedService || showRightPanel || showDataPanel">
         <!-- 图表面板 -->
@@ -183,6 +194,7 @@ import BorderControl from './BorderControl.vue'; //10.27 新增
 import GridControl from './GridControl.vue'; //10.28 新增
 import SkyControl from './SkyControl.vue'; //10.28 新增
 import EarthTextureControl from './EarthTextureControl.vue'; //新增
+import SimulationControl from './SimulationControl.vue'; //仿真控制组件
 
 import { useCesium } from '../composables/useCesium.js';
 import { useDataLoader } from '../composables/useDataLoader.js';
@@ -280,7 +292,7 @@ const selectedSimulationData = ref({
   bandwidthUtil: true,      // 显示带宽利用率图表
   hopCounts: true          // 显示平均跳数图表
 });
-const showObjectViewer = ref(true);
+// const showObjectViewer = ref(false);
 const objectViewerRef = ref(null);
 const chartPanelRef = ref(null);
 
@@ -288,7 +300,7 @@ const chartPanelRef = ref(null);
 let lastProcessedFrame = null; // 跟踪上一次处理的帧号，用于检测大跨度跳跃
 
 // 侧边栏状态管理
-const showLeftPanel = ref(true);
+const showLeftPanel = ref(false);
 const showRightPanel = ref(false);
 const showBottomPanel = ref(true);
 
@@ -661,6 +673,23 @@ let currentGraphData = null;
 // 监听显示状态变化
 watch([showSatellite, showStation, showRoadm, showLinks], () => {
   updateVisibility();
+}, { deep: true });
+
+// 监听右侧面板状态变化（包括数据面板和服务面板）
+watch([showRightPanel, showDataPanel, selectedService], () => {
+  // 只要右侧有任何面板显示，就触发状态变化事件
+  const hasRightPanel = showRightPanel.value || showDataPanel.value || selectedService.value;
+  window.dispatchEvent(new CustomEvent('panel-state-changed', {
+    detail: { 
+      type: 'right-panel', 
+      action: hasRightPanel ? 'open' : 'close',
+      panels: {
+        rightPanel: showRightPanel.value,
+        dataPanel: showDataPanel.value,
+        servicePanel: !!selectedService.value
+      }
+    }
+  }));
 }, { deep: true });
 
 // 本地仿真播放相关
@@ -1382,6 +1411,10 @@ async function handleTimeJump(frame) {
 // 侧边栏控制函数
 function handleLeftPanelClose() {
   showLeftPanel.value = false;
+  // 触发面板状态变化事件
+  window.dispatchEvent(new CustomEvent('panel-state-changed', {
+    detail: { type: 'left-panel', action: 'close' }
+  }));
 }
 
 function handleRightPanelClose() {
@@ -1389,6 +1422,10 @@ function handleRightPanelClose() {
   // 关闭右侧面板时清除选择
   selectedEntities.value = [];
   selectedEntityRawData.value = null;
+  // 触发面板状态变化事件
+  window.dispatchEvent(new CustomEvent('panel-state-changed', {
+    detail: { type: 'right-panel', action: 'close' }
+  }));
 }
 
 function handleBottomPanelClose() {
@@ -1413,10 +1450,18 @@ function handleServiceDataUpdate(newServiceData) {
 
 function reopenLeftPanel() {
   showLeftPanel.value = true;
+  // 触发面板状态变化事件
+  window.dispatchEvent(new CustomEvent('panel-state-changed', {
+    detail: { type: 'left-panel', action: 'open' }
+  }));
 }
 
 function reopenRightPanel() {
   showRightPanel.value = true;
+  // 触发面板状态变化事件
+  window.dispatchEvent(new CustomEvent('panel-state-changed', {
+    detail: { type: 'right-panel', action: 'open' }
+  }));
 }
 
 function reopenBottomPanel() {
@@ -1889,7 +1934,7 @@ onMounted(async () => {
     console.log('- userHasSelectedFolder:', userHasSelectedFolder);
     
     if (hasProcessId || userHasSelectedFolder) {
-      showLeftPanel.value = true;
+      showLeftPanel.value = false;
       console.log('检测到已保存的数据源，显示ObjectViewer面板');
       console.log('- 进程ID:', hasProcessId);
       console.log('- 用户主动选择文件夹:', userHasSelectedFolder);
@@ -1997,9 +2042,9 @@ defineExpose({
 .main-content {
   display: flex;
   flex: 1;
-  /* 核心修改: 偏移主内容区域到导航栏下方 (60px 高度 + 1px 边框) */
-  margin-top: 61px;
-  height: calc(100vh - 61px);
+  /* 核心修改: 偏移主内容区域到导航栏下方 (40px 高度 + 1px 边框) */
+  margin-top: 40px;
+  height: calc(100vh - 40px);
   overflow: hidden;
   position: relative;
 }
@@ -2016,32 +2061,6 @@ defineExpose({
   min-width: 0; /* 防止flex项目收缩问题 */
   height: 100%;
   overflow: hidden;
-}
-
-/* 播放速度控制面板 */
-.speed-display-panel {
-  position: absolute;
-  top: 15px;/* 相对 CesiumContainer 顶部 15px 偏移 */
-  left: 15px;
-  z-index: 10000;
-  background: rgba(0, 0, 0, 0.8);
-  border: 1px solid #444;
-  border-radius: 4px;
-  padding: 8px 12px;
-  backdrop-filter: blur(5px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.current-speed {
-  color: #00ff88;
-  font-family: 'Courier New', monospace;
-  font-size: 14px;
-  font-weight: bold;
-  text-align: center;
-  background: rgba(0, 255, 136, 0.1);
-  padding: 4px 8px;
-  border-radius: 2px;
-  border: 1px solid rgba(0, 255, 136, 0.3);
 }
 
 .speed-hint {

@@ -370,9 +370,9 @@ export function useCesium() {
         simulationTimeline.className = 'simulation-timeline';
         simulationTimeline.style.cssText = `
           position: absolute;
-          bottom: 60px;  /* 降低高度避免遮挡底部面板 */
-          left: 360px;  /* 增加左侧偏移以给节点跳转框留出空间 */
-          right: 5px;
+          bottom: 20px;  /* 与左右按钮对齐（从10改为20） */
+          left: 20px;  /* 增加左侧偏移以给节点跳转框留出空间 */
+          right: 20px;
           height: 27px;
           background: rgba(42, 42, 42, 0.95);
           border: 1px solid #666;
@@ -589,14 +589,14 @@ export function useCesium() {
           isAdjusting = true;
           
           try {
+            // 只检测真正的底部面板（ServicePanel）
+            // ChartPanel 是右侧面板，不应该包含在这里
             const bottomPanels = [
-              document.querySelector('.service-panel'),
-              document.querySelector('.chart-panel'),
-              document.querySelector('.data-panel')
+              document.querySelector('.service-panel')
             ];
-            
-            let maxBottomHeight = 60; // 默认底部距离
-            
+
+            let maxBottomHeight = 10; // 默认底部距离，与左右按钮对齐（从60改为0）
+
             bottomPanels.forEach(panel => {
               if (panel) {
                 const rect = panel.getBoundingClientRect();
@@ -604,37 +604,159 @@ export function useCesium() {
                                 getComputedStyle(panel).display !== 'none' &&
                                 getComputedStyle(panel).visibility !== 'hidden';
                 
+                console.log(`检测面板:`, {
+                  className: panel.className,
+                  visible: isVisible,
+                  height: rect.height,
+                  top: rect.top,
+                  bottom: rect.bottom
+                });
+                
                 if (isVisible && rect.height > 50) {
-                  // 面板可见且有合理高度，计算需要的底部距离
-                  const panelHeight = rect.height;
-                  const bottomDistance = panelHeight + 10; // 面板高度 + 10px间距
-                  maxBottomHeight = Math.max(maxBottomHeight, bottomDistance);
-                  // console.log(`发现展开的面板，高度: ${panelHeight}px`);
+                  // 面板可见且有合理高度
+                  const viewportHeight = window.innerHeight;
+                  const panelBottom = rect.bottom;
+                  
+                  // 检查是否是全屏大面板（如 ChartPanel）
+                  // 如果面板底部接近视口底部（占据80%以上），并且顶部很靠近顶部，说明是全屏面板
+                  const isFullScreenPanel = panelBottom >= viewportHeight * 0.8 && rect.top < 100;
+                  
+                  if (isFullScreenPanel) {
+                    // 全屏面板：不调整进度条位置，保持默认的 60px
+                    console.log(`检测到全屏面板 (${panel.className}) - 不调整进度条位置`);
+                  } else {
+                    // 普通底部面板：计算合理的进度条位置
+                    const panelTopY = rect.top;
+                    const occupiedHeight = viewportHeight - panelTopY;
+                    // 移除高度限制，让进度条能正确显示在任何高度的面板上方
+                    const bottomDistance = occupiedHeight + 5;
+                    maxBottomHeight = Math.max(maxBottomHeight, bottomDistance);
+                    console.log(`普通底部面板 (${panel.className}) - panelTopY: ${panelTopY}px, occupiedHeight: ${occupiedHeight}px, bottom: ${bottomDistance}px`);
+                  }
                 }
               }
             });
             
             // 检查收起的底部面板
-            const collapsedBottomPanel = document.querySelector('.collapsed-bottom-panel');
+            const collapsedBottomPanel = document.querySelector('.collapsed-sidebar.bottom-sidebar');
             if (collapsedBottomPanel) {
               const rect = collapsedBottomPanel.getBoundingClientRect();
-              if (rect.height > 0) {
-                const bottomDistance = rect.height + 10;
-                maxBottomHeight = Math.max(maxBottomHeight, bottomDistance);
-                console.log(`发现收起的面板，高度: ${rect.height}px`);
+              const isVisible = getComputedStyle(collapsedBottomPanel).display !== 'none';
+              if (isVisible && rect.height > 0) {
+                // 收起面板：同样使用顶部位置计算
+                const viewportHeight = window.innerHeight;
+                const panelTopY = rect.top;
+                
+                if (panelTopY >= 0 && panelTopY < viewportHeight) {
+                  const occupiedHeight = viewportHeight - panelTopY;
+                  // 修改间距：从 +37 改为 +5，使进度条更靠近底部（30px左右）
+                  const bottomDistance = occupiedHeight + 5;
+                  maxBottomHeight = Math.max(maxBottomHeight, bottomDistance);
+                  console.log(`收起面板 - 顶部Y: ${panelTopY}px, 占据高度: ${occupiedHeight}px, 进度条bottom: ${bottomDistance}px`);
+                }
               }
+            }
+            
+            // 🎯 检查左右边栏状态，动态调整进度条的左右偏移
+            // 逻辑说明：
+            // - 左侧宽度 > 50px（ObjectViewer 260px）= 边栏展开 → left: 20px
+            // - 左侧宽度 < 50px（CollapsedSidebar 24px）= 边栏收起 → left: 270px
+            // - 右侧同理
+            const objectViewer = document.querySelector('.object-viewer');
+            const leftCollapsedSidebar = document.querySelector('.collapsed-sidebar.left-sidebar');
+            const rightPanelContainer = document.querySelector('.right-panel-container');
+            const rightCollapsedSidebar = document.querySelector('.collapsed-sidebar.right-sidebar');
+            
+            // 判断左侧面板是否展开（检查实际可见元素的宽度）
+            let leftWidth = 0;
+            if (objectViewer && getComputedStyle(objectViewer).display !== 'none') {
+              leftWidth = objectViewer.offsetWidth;
+            } else if (leftCollapsedSidebar && getComputedStyle(leftCollapsedSidebar).display !== 'none') {
+              leftWidth = leftCollapsedSidebar.offsetWidth;
+            }
+            const isLeftPanelOpen = leftWidth > 50; // 大于50px视为展开
+            
+            // 判断右侧面板是否展开
+            let rightWidth = 0;
+            if (rightPanelContainer && getComputedStyle(rightPanelContainer).display !== 'none') {
+              rightWidth = rightPanelContainer.offsetWidth;
+            } else if (rightCollapsedSidebar && getComputedStyle(rightCollapsedSidebar).display !== 'none') {
+              rightWidth = rightCollapsedSidebar.offsetWidth;
+            }
+            const isRightPanelOpen = rightWidth > 50; // 大于50px视为展开
+            
+            console.log('边栏宽度检测:', {
+              leftWidth,
+              rightWidth,
+              isLeftPanelOpen,
+              isRightPanelOpen,
+              objectViewer: objectViewer ? 'found' : 'not found',
+              leftCollapsedSidebar: leftCollapsedSidebar ? 'found' : 'not found',
+              rightPanelContainer: rightPanelContainer ? 'found' : 'not found',
+              rightCollapsedSidebar: rightCollapsedSidebar ? 'found' : 'not found'
+            });
+            
+            // 判断底部面板是否展开（任意一个底部面板展开即为true）
+            const isBottomPanelOpen = bottomPanels.some(panel => {
+              if (!panel) return false;
+              return panel.offsetHeight > 50 && 
+                     getComputedStyle(panel).display !== 'none' &&
+                     getComputedStyle(panel).visibility !== 'hidden';
+            });
+            
+            // 简化的逻辑：
+            let leftOffset, rightOffset;
+            
+            console.log('📊 面板状态检测:', {
+              isBottomPanelOpen,
+              isLeftPanelOpen,
+              isRightPanelOpen
+            });
+            
+            if (isBottomPanelOpen) {
+              // 下边栏展开：无论左右边栏状态，间距都是20
+              leftOffset = 20;
+              rightOffset = 20;
+              console.log('下边栏展开 → left: 20, right: 20');
+            } else {
+              // 下边栏收起：哪一侧展开间距就是10，否则就是270
+              leftOffset = isLeftPanelOpen ? 10 : 270;
+              rightOffset = isRightPanelOpen ? 10 : 270;
+              console.log(`下边栏收起 → left: ${leftOffset}, right: ${rightOffset}`);
             }
             
             // 只有当位置真正需要改变时才更新
             const currentBottom = parseInt(simulationTimeline.style.bottom) || 60;
+            const currentLeft = parseInt(simulationTimeline.style.left) || 10;
+            const currentRight = parseInt(simulationTimeline.style.right) || 10;
+            
+            let needsUpdate = false;
+            
             if (Math.abs(currentBottom - maxBottomHeight) > 5) { // 5px的容差，避免微小变化
               simulationTimeline.style.bottom = maxBottomHeight + 'px';
-              console.log(`⬆️ 时间轴位置已调整: ${currentBottom}px -> ${maxBottomHeight}px`);
-              
-              // ✅ 移除事件派发，避免触发其他监听器形成循环调用
-              // 面板组件自己知道状态变化，不需要时间轴再通知
+              needsUpdate = true;
             }
-            // ✅ 移除else分支的日志，完全静默执行
+            
+            if (Math.abs(currentLeft - leftOffset) > 5) {
+              simulationTimeline.style.left = leftOffset + 'px';
+              needsUpdate = true;
+            }
+            
+            if (Math.abs(currentRight - rightOffset) > 5) {
+              simulationTimeline.style.right = rightOffset + 'px';
+              needsUpdate = true;
+            }
+            
+            if (needsUpdate) {
+              console.log(`⬆️ 时间轴位置已调整:`, {
+                bottom: `${currentBottom}px -> ${maxBottomHeight}px`,
+                left: `${currentLeft}px -> ${leftOffset}px`,
+                right: `${currentRight}px -> ${rightOffset}px`,
+                leftPanelOpen: isLeftPanelOpen,
+                rightPanelOpen: isRightPanelOpen
+              });
+            }
+
           } catch (error) {
             console.error('时间轴位置调整错误:', error);
           } finally {
@@ -664,7 +786,7 @@ export function useCesium() {
           debouncedAdjustPosition();
         });
         
-        // ✅ 添加用户操作监听：响应面板展开/收起和拖拽伸缩
+        // 添加用户操作监听：响应面板展开/收起和拖拽伸缩
         const observeBottomPanels = () => {
           let timelineCleanupFunctions = [];
           
@@ -2730,7 +2852,7 @@ export function useCesium() {
         entityType: 'satellite-orbit'
       });
       
-      console.log(`✅ 轨道线实体已创建:`, currentOrbitEntity);
+      console.log(`轨道线实体已创建:`, currentOrbitEntity);
       console.log(`轨道线ID: ${currentOrbitEntity.id}`);
       console.log(`轨道线可见性:`, currentOrbitEntity.show, currentOrbitEntity.polyline.show);
       
@@ -2739,7 +2861,7 @@ export function useCesium() {
       viewer.scene.maximumRenderTimeChange = 0.0;
       viewer.scene.requestRender();
       
-      console.log(`✅ 轨道线实体已创建:`, currentOrbitEntity);
+      console.log(`轨道线实体已创建:`, currentOrbitEntity);
       console.log(`轨道线可见性:`, currentOrbitEntity.show, currentOrbitEntity.polyline.show);
       
       console.log(`成功绘制卫星 ${satelliteId} 的轨道，包含 ${orbitPoints.length} 个点`);

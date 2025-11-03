@@ -1115,7 +1115,7 @@ const loadHistoricalData = async () => {
 
 <style scoped>
 .chart-panel {
-  width: 100%;
+  width: 300px;
   height: 100%;
   background: var(--theme-dialog-bg);
   border: 1px solid var(--theme-border);

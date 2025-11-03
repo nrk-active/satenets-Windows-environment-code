@@ -83,14 +83,14 @@ defineExpose({
 .tooltip-container {
   position: fixed;
   bottom: 20px;
-  left: 20px;
-  z-index: 1000;
+  left: 30px;
+  z-index: 10000000;
 }
 
 /* 太阳图标按钮样式 */
 .sun-icon {
-  width: 40px;
-  height: 40px;
+  width: 35px;
+  height: 35px;
   border: 1px solid var(--theme-border); /* 使用主题边框 */
   background: var(--theme-dialog-bg);
   border-radius: 4px;

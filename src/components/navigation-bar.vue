@@ -1,7 +1,10 @@
 <template>
   <!-- 顶部合并导航栏容器 -->
   <div class="top-combined-navbar">
-    <!-- 原顶部细导航栏 -->
+    <!-- 左侧空白区域（用于平衡布局） -->
+    <div class="nav-spacer"></div>
+    
+    <!-- 中间：主菜单组 -->
     <div class="top-thin-navbar nav-menu-group">
     <div
       class="thin-nav-item dropdown"
@@ -70,43 +73,9 @@
       </div>
     </div>
     <div class="thin-nav-item">计算分析</div>
-    <div class="thin-nav-item">信息显示</div>
+    <div class="thin-nav-item" @click="showSimulationResultDialog">仿真结果展示</div>
     <div class="thin-nav-item">窗口</div>
   </div>
-
-  <!-- 中间控制按钮区域，原仿真相关菜单 -->
-    <div class="nav-control-group">
-      <div class="nav-item-center nav-item-open"
-        @click="openActionMenu"
-        :class="{ 'nav-disabled': isSimulationDisabled }"
-      >
-        Open
-      </div>
-      <div class="nav-item-center nav-item-save" @click="saveActionMenu">
-        Save
-      </div>
-      <div class="nav-item-center nav-item-save-as" @click="saveAsActionMenu">
-        Save As
-      </div>
-      <div class="nav-item-center nav-item-start"
-        @click="handleStartSimulationClick"
-        :class="{ 'nav-disabled': isSimulationDisabled }"
-      >
-        {{ getSimulationButtonText() }}
-      </div>
-      <div class="nav-item-center nav-item-pause" @click="handlePauseSimulation">
-        暂停仿真
-      </div>
-      <div class="nav-item-center nav-item-speed-up" @click="increaseSpeed">
-        加速
-      </div>
-      <div class="nav-item-center nav-item-speed-down" @click="decreaseSpeed">
-        减速
-      </div>
-      <div class="nav-item-center nav-item-result-display" @click="showSimulationResultDialog">
-        仿真结果展示
-      </div>
-    </div>
 
     <!-- 顶部右侧 登录/注册 或 用户名/退出 -->
     <div class="thin-nav-auth nav-auth-group">
@@ -552,13 +521,14 @@ const handleBusinessSettings = (settings) => {
 };
 
 // 播放速度控制函数
-const increaseSpeed = () => {
-  emit('increase-speed');
-};
+// 注释：这些功能已移至 SimulationControl.vue 组件
+// const increaseSpeed = () => {
+//   emit('increase-speed');
+// };
 
-const decreaseSpeed = () => {
-  emit('decrease-speed');
-};
+// const decreaseSpeed = () => {
+//   emit('decrease-speed');
+// };
 
 // 添加当前视图状态
 const currentView = ref('sat'); // 默认是三维场景视图
@@ -775,7 +745,7 @@ function logout() {
 .top-combined-navbar {
   /* 基础容器样式 */
   width: 100%;
-  height: 60px; 
+  height: 40px; 
   background: var(--theme-secondary-bg); /* 修复：使用次级背景 */
   border-bottom: 1px solid var(--theme-border); 
   
@@ -794,15 +764,20 @@ function logout() {
   right: 0;
 }
 
-/* 1. 左侧菜单组 (nav-menu-group) */
+/* 左侧空白区域（用于平衡布局） */
+.nav-spacer {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 中间菜单组 (nav-menu-group) - 居中显示 */
 .nav-menu-group {
   display: flex;
   align-items: center;
   height: 100%;
-  flex-grow: 1; 
-  flex-shrink: 1; 
-  flex-basis: 0; 
-  justify-content: flex-start; 
+  flex-grow: 0; 
+  flex-shrink: 0; 
+  justify-content: center; 
   min-width: 0;
 }
 
@@ -816,21 +791,6 @@ function logout() {
   flex-basis: 0; 
   justify-content: flex-end; 
   min-width: 0;
-}
-
-/* 2. 中央功能按钮组 (nav-control-group) */
-.nav-control-group {
-  /* 核心：不伸缩，不收缩，只占据内容所需的宽度 */
-  display: flex;
-  justify-content: center; 
-  align-items: center;
-  flex-grow: 0; 
-  flex-shrink: 0; 
-  gap: 12px;
-  padding: 0 20px;
-  background: var(--theme-dialog-bg); /* **修复：使用对话框背景** */
-  border-radius: 6px;
-  box-shadow: inset 0 0 10px var(--theme-shadow);
 }
 
 /* ==========================================================
@@ -935,7 +895,8 @@ function logout() {
 }
 
 /* Start Simulation (突出绿色) - 保持特殊色 */
-.nav-item-start { 
+/* 注释：这些样式已移至 SimulationControl.vue 组件 */
+/* .nav-item-start { 
   background: #00ff88;
   color: #101010;
   border-color: #00e077;
@@ -947,10 +908,11 @@ function logout() {
   box-shadow: 0 0 8px #00ff88;
   color: #101010;
   border-color: #00ff88;
-}
+} */
 
 /* Pause Simulation (突出红色) - 保持特殊色 */
-.nav-item-pause {
+/* 注释：这些样式已移至 SimulationControl.vue 组件 */
+/* .nav-item-pause {
   background: #e74c3c;
   color: #fff;
   border-color: #c0392b;
@@ -960,15 +922,16 @@ function logout() {
   background: #c0392b;
   box-shadow: 0 0 8px #e74c3c50;
   border-color: #e74c3c;
-}
+} */
 
 /* 加速/减速 (深蓝色强调) - 保持特殊色 */
-.nav-item-speed-up,
+/* 注释：这些样式已移至 SimulationControl.vue 组件 */
+/* .nav-item-speed-up,
 .nav-item-speed-down {
   background: #34495e;
   border-color: #2c3e50;
   color: #fff;
-}
+} */
 
 /* 仿真结果展示 (突出蓝色) - 保持特殊色 */
 .nav-item-result-display { 
