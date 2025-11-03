@@ -619,8 +619,8 @@ onUnmounted(() => {
 
 /* 放大镜按钮样式 */
 .magnifier-button {
-  background: rgba(30, 30, 30, 0.9);
-  border: 1px solid rgba(85, 85, 85, 0.7);
+  background: var(--theme-secondary-bg);
+  border: 1px solid var(--theme-border);
   border-radius: 50%;
   width: 40px;
   height: 40px;
@@ -628,13 +628,13 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #fff;
+  color: var(--theme-main-text);
   transition: all 0.3s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
 .magnifier-button:hover {
-  background: rgba(45, 45, 45, 0.9);
+  background: var(--theme-main-bg);
   transform: scale(1.05);
 }
 
@@ -644,12 +644,12 @@ onUnmounted(() => {
 
 /* 输入框面板样式 */
 .node-jump-container {
-  background: rgba(30, 30, 30, 0.9);
-  border: 1px solid rgba(85, 85, 85, 0.7);
+  background: var(--theme-dialog-bg);
+  border: 1px solid var(--theme-border);
   border-radius: 6px;
   padding: 10px;
   width: 180px; /* 宽度从280px进一步减小到220px */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 12px var(--theme-shadow);
   backdrop-filter: blur(8px);
   transition: all 0.3s ease;
   display: flex;
@@ -714,12 +714,12 @@ onUnmounted(() => {
 }
 
 .time-jump {
-  border-top: 1px solid #444;
+  border-top: 1px solid var(--theme-border);
   padding-top: 8px;
 }
 
 .jump-label {
-  color: #fff;
+  color: var(--theme-main-text);
   font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
@@ -739,10 +739,10 @@ onUnmounted(() => {
   min-width: 50px; /* 进一步减小输入框最小宽度 */
   max-width: 100px; /* 减小最大宽度使输入框进一步变窄 */
   padding: 5px 4px; /* 减小内边距 */
-  border: 1px solid #555;
+  border: 1px solid var(--theme-border);
   border-radius: 3px;
-  background: rgba(40, 40, 40, 0.8);
-  color: #fff;
+  background: var(--theme-secondary-bg); /* 输入框背景使用次级背景 */
+  color: var(--theme-main-text);
   font-size: 12px; /* 适当减小字体大小 */
   outline: none;
   transition: border-color 0.2s;
@@ -755,19 +755,18 @@ onUnmounted(() => {
 }
 
 .node-input:focus, .time-input:focus {
-  border-color: #4CAF50;
+  border-color: var(--theme-accent);
 }
 
 .node-input::placeholder, .time-input::placeholder {
-  color: #999;
+  color: var(--theme-border);
   text-align: center; /* 确保占位符文本也居中 */
 }
 
 .jump-button {
   padding: 5px 10px;
-  background: #4CAF50;
-  color: white;
-  border: none;
+  background: var(--theme-main-bg); /* 修复：按钮背景使用主背景 */
+  color: var(--theme-main-text); 
   border-radius: 3px;
   font-size: 12px;
   cursor: pointer;
@@ -777,17 +776,19 @@ onUnmounted(() => {
 }
 
 .jump-button:hover:not(:disabled) {
-  background: #45a049;
+  background: var(--theme-accent); /* 修复：悬停使用强调色 */
+  color: #fff; /* 悬停文字保持白色 */
 }
 
 .jump-button:disabled {
-  background: #666;
+  background: var(--theme-border);
+  color: var(--theme-main-text);
   cursor: not-allowed;
 }
 
 /* 跳转动画效果 */
 .jump-button.jumping {
-  background: #45a049;
+  background: var(--theme-accent);
   animation: pulse 1s infinite;
 }
 
@@ -811,32 +812,33 @@ onUnmounted(() => {
 
 .suggestions-dropdown {
   position: absolute;
-  right: 100%; /* 从容器左侧弹出 */
-  top: 0;
-  width: 200px;
-  background: rgba(40, 40, 40, 0.95);
-  border: 1px solid #555;
+  bottom: 100%; /* 改为从容器上方弹出 */
+  left: 0;
+  right: 0;
+  background: var(--theme-dialog-bg); 
+  border: 1px solid var(--theme-border);
   border-radius: 4px;
   margin-right: 10px; /* 左侧间距 */
   max-height: 300px;
   overflow-y: auto;
   z-index: 1001;
   backdrop-filter: blur(5px);
-  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.3); /* 向左的阴影 */
+  box-shadow: 0 -4px 12px var(--theme-shadow); /* 改为向上的阴影 */
 }
 
 .suggestion-item {
   padding: 8px 12px;
   cursor: pointer;
-  border-bottom: 1px solid #555;
+  border-bottom: 1px solid var(--theme-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
   transition: background-color 0.2s;
+  color: var(--theme-main-text);
 }
 
 .suggestion-item:hover {
-  background: rgba(76, 175, 80, 0.2);
+  background: var(--theme-main-bg);
 }
 
 .suggestion-item:last-child {
@@ -844,16 +846,16 @@ onUnmounted(() => {
 }
 
 .node-id {
-  color: #fff;
+  color: var(--theme-main-text);
   font-size: 12px;
   font-weight: 500;
 }
 
 .node-type {
-  color: #4CAF50;
+  color: var(--theme-accent);
   font-size: 11px;
   padding: 2px 6px;
-  background: rgba(76, 175, 80, 0.2);
+  background: var(--theme-dialog-bg);
   border-radius: 3px;
 }
 

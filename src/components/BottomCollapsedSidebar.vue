@@ -15,8 +15,8 @@ const emit = defineEmits(['reopen']);
 .collapsed-sidebar {
   height: 24px;
   width: 100%;
-  background: #181818;
-  border-top: 1px solid #333;
+  background: var(--theme-secondary-bg);
+  border-top: 1px solid var(--theme-border);
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -27,7 +27,7 @@ const emit = defineEmits(['reopen']);
 }
 
 .collapsed-sidebar:hover {
-  background: #2a2a2a;
+  background: var(--theme-main-bg);
 }
 
 .bottom-sidebar {
@@ -41,22 +41,22 @@ const emit = defineEmits(['reopen']);
 .arrow-icon {
   margin-right: 8px;
   font-size: 12px;
-  color: #ccc;
+  color: var(--theme-border);
   transition: color 0.3s ease;
 }
 
 .collapsed-sidebar:hover .arrow-icon {
-  color: #fff;
+  color: var(--theme-main-text);
 }
 
 .sidebar-text {
   font-size: 12px;
-  color: #ccc;
+  color: var(--theme-border);
   transition: color 0.3s ease;
   white-space: nowrap;
 }
 
 .collapsed-sidebar:hover .sidebar-text {
-  color: #fff;
+  color: var(--theme-main-text);
 }
 </style>
