@@ -38,12 +38,12 @@ const router = createRouter({
 
 // 添加全局导航守卫，帮助调试
 router.beforeEach((to, from, next) => {
-  console.log(`路由导航: ${from.path} → ${to.path}`);
+  // console.log(`路由导航: ${from.path} → ${to.path}`);
   next();
 });
 
 router.afterEach((to, from) => {
-  console.log(`路由完成: ${from.path} → ${to.path}`);
+  // console.log(`路由完成: ${from.path} → ${to.path}`);
 });
 
 export default router

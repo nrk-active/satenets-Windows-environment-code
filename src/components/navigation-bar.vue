@@ -253,7 +253,7 @@ async function startSimulation() {
     })
     .then(res => res.json())
     .then(data => {
-      console.log("Token:", data);
+      // console.log("Token:", data);
       return data.csrfToken;
     });
 
@@ -264,7 +264,7 @@ async function startSimulation() {
     });
     const simulatorData = await simulatorResponse.json();
     const id = simulatorData.simulators[simulatorData.simulators.length - 1].id;
-    console.log("ID2:", id);
+    // console.log("ID2:", id);
 
     const event = new CustomEvent('start-satellite-polling', { detail: { message: '开始轮询' } });
     window.dispatchEvent(event);
@@ -283,7 +283,7 @@ async function startSimulation() {
     }
 
     const result = await response.json();
-    console.log('仿真完成:', result);
+    // console.log('仿真完成:', result);
     alert('仿真完成！');
     
   } catch (error) {
@@ -309,7 +309,7 @@ function handleStartSimulation() {
 function handlePauseSimulation() {
   if (props.isLoggedIn) {
     // 登录状态下的暂停逻辑（如果有的话）
-    console.log('暂停API仿真');
+    // console.log('暂停API仿真');
   } else {
     // 未登录状态下暂停本地仿真
     emit('pause-local-simulation');
@@ -318,7 +318,7 @@ function handlePauseSimulation() {
 
 // 处理停止仿真 - 清除所有仿真相关缓存
 function handleStopSimulation() {
-  console.log('=== 停止仿真并清除缓存 ===');
+  // console.log('=== 停止仿真并清除缓存 ===');
   
   // 显示确认对话框
   const confirmed = confirm('确定要停止仿真吗？这将清除所有仿真数据和缓存，需要重新开始。');
@@ -367,7 +367,7 @@ function handleStopSimulation() {
     
     keysToRemove.forEach(key => {
       localStorage.removeItem(key);
-      console.log(`已清除 localStorage: ${key}`);
+      // console.log(`已清除 localStorage: ${key}`);
     });
     
     // 4. 发送停止事件给父组件
@@ -396,7 +396,7 @@ function handleStopSimulation() {
       simulationTime.value = { start: '', end: '' };
     }
     
-    console.log('仿真已停止，所有缓存已清除');
+    // console.log('仿真已停止，所有缓存已清除');
     alert('仿真已停止，所有数据已清除。请重新从Open菜单选择文件夹开始。');
     
   } catch (error) {
@@ -517,7 +517,7 @@ const handleDataSelected = (data) => {
 
 const handleBusinessSettings = (settings) => {
   emit('business-settings-confirmed', settings);
-  console.log('业务设计设置:', settings);
+  // console.log('业务设计设置:', settings);
 };
 
 // 播放速度控制函数
@@ -553,7 +553,7 @@ const switchToSatView = () => {
 
 const switchToTopographyView = () => {
   if (currentView.value === 'topography') return; // 如果已经是天地一体化视图则不处理
-  console.log('切换到天地一体化', currentView.value);
+  // console.log('切换到天地一体化', currentView.value);
   currentView.value = 'topography';
   // 清理三维场景
   const satElement = document.getElementById('satContainer');
@@ -573,7 +573,7 @@ const showSettingDropdown = ref(false)
 const showSceneDropdown = ref(false)
 function selectModel(model) {
   // 这里可以根据需要处理选中逻辑
-  console.log('选择模型:', model)
+  // console.log('选择模型:', model)
   showModelDropdown.value = false
   showSettingDropdown.value = false
   showSceneDropdown.value = false
@@ -595,7 +595,7 @@ onMounted(() => {
   if (cachedProcessId) {
     selectedProcessId.value = cachedProcessId;
     globalSelectedProcessId.value = cachedProcessId; // 同时更新全局状态
-    console.log('恢复缓存的进程ID:', cachedProcessId);
+    // console.log('恢复缓存的进程ID:', cachedProcessId);
   }
   
   // 恢复之前选择的数据文件夹（仅在用户主动选择过的情况下）
@@ -604,7 +604,7 @@ onMounted(() => {
     const cachedFolder = localStorage.getItem('selectedDataFolder');
     if (cachedFolder) {
       selectedDataFolder.value = cachedFolder;
-      console.log('恢复缓存的数据文件夹:', cachedFolder);
+      // console.log('恢复缓存的数据文件夹:', cachedFolder);
     }
   }
 })
@@ -628,7 +628,7 @@ function openSettingDialog() {
 function openActionMenu() {
   // 检查动画是否正在播放，如果是则不执行
   if (isSimulationDisabled.value) {
-    console.log('动画播放中，Open按钮被禁用');
+    // console.log('动画播放中，Open按钮被禁用');
     return;
   }
   
@@ -643,8 +643,8 @@ function openActionMenu() {
 
 // 处理文件夹选择
 function handleFolderSelected(folderInfo) {
-  console.log('=== 处理文件夹选择 ===');
-  console.log('选择的文件夹:', folderInfo);
+  // console.log('=== 处理文件夹选择 ===');
+  // console.log('选择的文件夹:', folderInfo);
   
   selectedDataFolder.value = folderInfo.name;
   
@@ -653,7 +653,7 @@ function handleFolderSelected(folderInfo) {
   localStorage.setItem('selectedDataFolder', folderInfo.name);
   localStorage.setItem('hasUserSelectedFolder', 'true'); // 标记用户已主动选择
   
-  console.log(`数据文件夹已设置为: ${folderInfo.name}`);
+  // console.log(`数据文件夹已设置为: ${folderInfo.name}`);
   
   // 发送自定义事件通知其他组件文件夹已更改
   const event = new CustomEvent('data-folder-changed', {
@@ -671,26 +671,26 @@ function closeFolderDialog() {
 
 // 处理进程选择
 function handleProcessSelected(process) {
-  console.log('=== 处理进程选择 ===');
-  console.log('选择的进程:', process);
-  console.log('进程ID:', process.id);
+  // console.log('=== 处理进程选择 ===');
+  // console.log('选择的进程:', process);
+  // console.log('进程ID:', process.id);
   
   selectedProcessId.value = process.id;
   globalSelectedProcessId.value = process.id; // 更新全局状态
   
-  console.log('本地进程ID已更新:', selectedProcessId.value);
-  console.log('全局进程ID已更新:', globalSelectedProcessId.value);
-  console.log('缓存的进程ID:', selectedProcessId.value);
+  // console.log('本地进程ID已更新:', selectedProcessId.value);
+  // console.log('全局进程ID已更新:', globalSelectedProcessId.value);
+  // console.log('缓存的进程ID:', selectedProcessId.value);
   
   // 可以将进程ID保存到localStorage以便持久化
   localStorage.setItem('selectedProcessId', process.id);
   localStorage.setItem('selectedProcessInfo', JSON.stringify(process));
   
-  console.log('进程信息已保存到localStorage');
+  // console.log('进程信息已保存到localStorage');
   
   // 检查全局状态是否正确更新
   setTimeout(() => {
-    console.log('延迟检查全局状态:', globalSelectedProcessId.value);
+    // console.log('延迟检查全局状态:', globalSelectedProcessId.value);
   }, 100);
   
   alert(`已选择进程: ${process.name || process.id}`);
@@ -707,7 +707,7 @@ function saveActionMenu() {
     alert('请先选择一个进程');
     return;
   }
-  console.log('保存操作，当前进程ID:', selectedProcessId.value);
+  // console.log('保存操作，当前进程ID:', selectedProcessId.value);
   // 这里可以实现保存逻辑
 }
 
@@ -716,7 +716,7 @@ function saveAsActionMenu() {
     alert('请先选择一个进程');
     return;
   }
-  console.log('另存为操作，当前进程ID:', selectedProcessId.value);
+  // console.log('另存为操作，当前进程ID:', selectedProcessId.value);
   // 这里可以实现另存为逻辑
 }
 

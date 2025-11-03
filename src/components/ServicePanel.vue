@@ -490,7 +490,7 @@ function loadLocalServiceData() {
       // 触发数据更新事件，让父组件知道数据已更新
       emit('updateServiceData', processedData);
       
-      console.log('成功加载业务数据:', processedData);
+      // console.log('成功加载业务数据:', processedData);
       
       // 显示成功提示
       setTimeout(() => {
@@ -527,7 +527,7 @@ function drawSinglePath(service) {
     return;
   }
   
-  console.log('绘制业务路径:', service);
+  // console.log('绘制业务路径:', service);
   drawServicePath(viewer, service, props.networkData);
 }
 
@@ -540,7 +540,7 @@ function clearSinglePath(service) {
   }
   
   const serviceId = props.generateServiceId(service);
-  console.log('清除业务路径:', serviceId);
+  // console.log('清除业务路径:', serviceId);
   clearServicePath(viewer, serviceId);
 }
 
@@ -562,18 +562,18 @@ function toggleSinglePath(service) {
   
   if (hasPath) {
     // 如果已有路径，则清除
-    console.log('清除业务路径:', serviceId);
+    // console.log('清除业务路径:', serviceId);
     clearServicePath(viewer, serviceId);
   } else {
     // 如果没有路径，则绘制
-    console.log('绘制业务路径:', serviceId);
+    // console.log('绘制业务路径:', serviceId);
     drawServicePath(viewer, service, props.networkData);
   }
 }
 
 // 切换所有路径显示
 function toggleAllPaths() {
-  console.log('=== 切换所有路径显示 ===');
+  // console.log('=== 切换所有路径显示 ===');
   
   const viewer = cesiumViewer?.() || cesiumViewer;
   if (!viewer || !props.networkData) {
@@ -584,18 +584,18 @@ function toggleAllPaths() {
   // 先全选所有可见的业务
   const ids = visibleRequests.value.map(req => props.generateServiceId(req));
   selectedServices.value = Array.from(new Set([...selectedServices.value, ...ids]));
-  console.log('已全选所有可见业务:', selectedServices.value.length, '项');
+  // console.log('已全选所有可见业务:', selectedServices.value.length, '项');
   
   showAllPaths.value = !showAllPaths.value;
-  console.log('showAllPaths:', showAllPaths.value);
+  // console.log('showAllPaths:', showAllPaths.value);
   
   if (showAllPaths.value) {
     // 绘制所有选中的路径
-    console.log('开始绘制所有选中路径');
+    // console.log('开始绘制所有选中路径');
     drawSelectedPaths();
   } else {
     // 清除所有选中的路径
-    console.log('清除所有选中路径');
+    // console.log('清除所有选中路径');
     clearSelectedPaths();
   }
 }
@@ -611,7 +611,7 @@ function clearAllPaths() {
   // 先全选所有可见的业务
   const ids = visibleRequests.value.map(req => props.generateServiceId(req));
   selectedServices.value = Array.from(new Set([...selectedServices.value, ...ids]));
-  console.log('已全选所有可见业务:', selectedServices.value.length, '项');
+  // console.log('已全选所有可见业务:', selectedServices.value.length, '项');
   
   // 清除所有选中的路径
   clearSelectedPaths();
@@ -645,9 +645,9 @@ function isServiceSelected(service) {
 
 // 批量绘制选中路径
 function drawSelectedPaths() {
-  console.log('开始绘制选中路径');
-  console.log('当前选中服务数量:', selectedServices.value.length);
-  console.log('选中的服务ID列表:', selectedServices.value);
+  // console.log('开始绘制选中路径');
+  // console.log('当前选中服务数量:', selectedServices.value.length);
+  // console.log('选中的服务ID列表:', selectedServices.value);
   
   const viewer = cesiumViewer?.() || cesiumViewer;
   if (!viewer || !props.networkData) {
@@ -664,17 +664,17 @@ function drawSelectedPaths() {
     ...(props.serviceData.failed_requests || [])
   ];
   
-  console.log('所有业务请求总数:', allRequests.length);
-  console.log('阻塞业务数量:', props.serviceData.blocked_requests?.length || 0);
+  // console.log('所有业务请求总数:', allRequests.length);
+  // console.log('阻塞业务数量:', props.serviceData.blocked_requests?.length || 0);
   
   const selected = allRequests.filter(req => selectedServices.value.includes(props.generateServiceId(req)));
-  console.log('找到匹配的选中业务:', selected.length);
+  // console.log('找到匹配的选中业务:', selected.length);
   
   // 特别检查阻塞业务
   const selectedBlocked = selected.filter(req => 
     props.serviceData.blocked_requests?.includes(req)
   );
-  console.log('选中的阻塞业务:', selectedBlocked.length);
+  // console.log('选中的阻塞业务:', selectedBlocked.length);
   
   if (selectedBlocked.length > 0) {
     console.log('🔍 第一个阻塞业务详情:', {
@@ -686,7 +686,7 @@ function drawSelectedPaths() {
   }
   
   selected.forEach((service, index) => {
-    console.log(`绘制第${index + 1}个业务路径:`, props.generateServiceId(service));
+    // console.log(`绘制第${index + 1}个业务路径:`, props.generateServiceId(service));
     drawServicePath(viewer, service, props.networkData);
   });
 }
@@ -734,12 +734,12 @@ function updateBusinessHistory() {
   // 更新图表数据
   updateMiniChartDataFixed();
   
-  console.log('业务历史数据已更新:', {
-    timeLabel,
-    activeCount,
-    blockedCount,
-    totalPoints: businessHistoryData.value.length
-  });
+  // // console.log('业务历史数据已更新:', {
+  //   timeLabel,
+  //   activeCount,
+  //   blockedCount,
+  //   totalPoints: businessHistoryData.value.length
+  // });
 }
 
 // 新的固定长度数据更新方法
@@ -791,7 +791,7 @@ function updateMiniChartDataFixed() {
 
 // 清空图表历史数据
 function clearBusinessHistory() {
-  console.log('🧹 清空业务趋势图历史数据');
+  // console.log('🧹 清空业务趋势图历史数据');
   businessHistoryData.value = [];
   
   // 重置图表显示为初始状态
@@ -814,7 +814,7 @@ function clearBusinessHistory() {
       ]
     }, false, true);
     
-    console.log('图表已重置为初始状态');
+    // console.log('图表已重置为初始状态');
   }
 }
 
@@ -843,16 +843,16 @@ watch(() => props.serviceData, (newData, oldData) => {
 }, { deep: true });
 
 onMounted(() => {
-  console.log('ServicePanel 挂载完成');
-  console.log('Props:', props);
-  console.log('cesiumViewer 在挂载时:', cesiumViewer);
-  console.log('serviceData:', props.serviceData);
-  console.log('networkData:', props.networkData);
+  // console.log('ServicePanel 挂载完成');
+  // console.log('Props:', props);
+  // console.log('cesiumViewer 在挂载时:', cesiumViewer);
+  // console.log('serviceData:', props.serviceData);
+  // console.log('networkData:', props.networkData);
   
   // 监听文件夹切换事件，切换时清空图表历史数据
   const handleFolderChange = (event) => {
     const { folderName } = event.detail;
-    console.log(`📁 检测到文件夹切换到: ${folderName}，清空图表数据`);
+    // console.log(`📁 检测到文件夹切换到: ${folderName}，清空图表数据`);
     clearBusinessHistory();
   };
   
@@ -864,7 +864,7 @@ onMounted(() => {
   // 延迟初始化图表，确保DOM已经渲染完成
   nextTick(() => {
     setTimeout(() => {
-      console.log('图表组件状态:', businessChart.value);
+      // console.log('图表组件状态:', businessChart.value);
       
       // 初始化图表数据，即使没有业务数据也要创建初始数据点
       if (!businessHistoryData.value.length) {
@@ -888,7 +888,7 @@ onMounted(() => {
       
       // 如果已有初始数据，立即更新图表
       if (props.serviceData) {
-        console.log('开始初始化图表数据');
+        // console.log('开始初始化图表数据');
         setTimeout(() => {
           updateBusinessHistory();
         }, 200);

@@ -88,7 +88,7 @@ async function scanDataFolders() {
         }
       } catch (error) {
         // 忽略无法访问的文件夹
-        console.log(`文件夹 ${folderName} 不存在或无法访问`);
+        // console.log(`文件夹 ${folderName} 不存在或无法访问`);
       }
     }
     

@@ -223,7 +223,7 @@ function jumpToTime() {
   // 如果getCurrentDataFolder返回null，尝试从localStorage直接获取
   if (!currentFolder) {
     currentFolder = localStorage.getItem('selectedDataFolder');
-    console.log(`从localStorage获取文件夹: ${currentFolder}`);
+    // console.log(`从localStorage获取文件夹: ${currentFolder}`);
   }
   
   // 如果仍然没有文件夹信息，尝试从ObjectViewer的显示中推断
@@ -234,7 +234,7 @@ function jumpToTime() {
       const match = text.match(/当前选择：(.+)/);
       if (match && match[1] !== '未选择') {
         currentFolder = match[1];
-        console.log(`从ObjectViewer推断文件夹: ${currentFolder}`);
+        // console.log(`从ObjectViewer推断文件夹: ${currentFolder}`);
       }
     }
   }
@@ -248,10 +248,10 @@ function jumpToTime() {
       const nodeCount = props.networkData.nodes.length;
       if (nodeCount > 5000) {
         currentFolder = 'new_10s_3600s'; // 大数据集通常是new文件夹
-        console.log(`根据节点数量(${nodeCount})推断文件夹: ${currentFolder}`);
+        // console.log(`根据节点数量(${nodeCount})推断文件夹: ${currentFolder}`);
       } else {
         currentFolder = 'old_60s_360s'; // 小数据集通常是old文件夹
-        console.log(`根据节点数量(${nodeCount})推断文件夹: ${currentFolder}`);
+        // console.log(`根据节点数量(${nodeCount})推断文件夹: ${currentFolder}`);
       }
     } else {
       console.warn('无法确定当前数据文件夹，使用默认配置');
@@ -265,7 +265,7 @@ function jumpToTime() {
   const totalDuration = config.totalDuration;
   const maxFrames = Math.ceil(config.totalDuration / config.interval);
   
-  console.log(`使用文件夹: ${currentFolder}, 时间间隔: ${timeInterval}秒, 总时长: ${totalDuration}秒, 最大帧数: ${maxFrames}`);
+  // console.log(`使用文件夹: ${currentFolder}, 时间间隔: ${timeInterval}秒, 总时长: ${totalDuration}秒, 最大帧数: ${maxFrames}`);
   
   // 检查输入时间是否超出文件夹总时长
   if (totalSeconds > totalDuration) {
@@ -303,7 +303,7 @@ function jumpToTime() {
   const clampedFrame = Math.max(1, Math.min(maxFrames, targetFrame));
   
   try {
-    console.log(`跳转到时间: ${timeInput.value} (${totalSeconds}秒) -> 第${clampedFrame}帧 (时间间隔: ${timeInterval}秒, 最大帧数: ${maxFrames})`);
+    // console.log(`跳转到时间: ${timeInput.value} (${totalSeconds}秒) -> 第${clampedFrame}帧 (时间间隔: ${timeInterval}秒, 最大帧数: ${maxFrames})`);
     
     // 添加视觉反馈
     const jumpBtn = document.querySelector('.time-jump .jump-button');
@@ -322,7 +322,7 @@ function jumpToTime() {
       detail: { frame: Number(clampedFrame), forceUpdate: true }
     });
     window.dispatchEvent(frameChangeEvent);
-    console.log(`已发送timeline-frame-change事件，目标帧: ${clampedFrame}`);
+    // console.log(`已发送timeline-frame-change事件，目标帧: ${clampedFrame}`);
   } catch (error) {
     console.error('跳转时间时出错:', error);
     showErrorFeedback('.time-input');
@@ -337,9 +337,9 @@ function jumpToTime() {
   const actualTimeStr = `${actualHours.toString().padStart(2, '0')}:${actualMinutes.toString().padStart(2, '0')}:${actualSecsRemainder.toString().padStart(2, '0')}`;
   
   if (actualSeconds !== totalSeconds) {
-    console.log(`输入时间 ${timeInput.value} (${totalSeconds}秒) 调整为最近的有效时间: ${actualTimeStr} (${actualSeconds}秒, 第${clampedFrame}帧)`);
+    // console.log(`输入时间 ${timeInput.value} (${totalSeconds}秒) 调整为最近的有效时间: ${actualTimeStr} (${actualSeconds}秒, 第${clampedFrame}帧)`);
   } else {
-    console.log(`时间跳转精确匹配: ${actualTimeStr} (${actualSeconds}秒, 第${clampedFrame}帧)`);
+    // console.log(`时间跳转精确匹配: ${actualTimeStr} (${actualSeconds}秒, 第${clampedFrame}帧)`);
   }
   
   // 更新输入框显示为实际跳转的时间
@@ -389,7 +389,7 @@ function jumpToNode() {
       return;
     }
     
-    console.log(`跳转到节点: ${targetNode.id} (${getNodeTypeLabel(targetNode.type)})`);
+    // console.log(`跳转到节点: ${targetNode.id} (${getNodeTypeLabel(targetNode.type)})`);
     
     // 设置输入框为匹配到的节点ID
     nodeInput.value = targetNode.id;
@@ -430,7 +430,7 @@ function jumpToNode() {
         destination: targetPosition,
         duration: 2.0, // 2秒飞行时间
         complete: () => {
-          console.log(`成功跳转到节点: ${targetNode.id}`);
+          // console.log(`成功跳转到节点: ${targetNode.id}`);
           
           // 发射选中事件 - 确保发送字符串ID
           emit('node-selected', String(targetNode.id));
@@ -532,7 +532,7 @@ onMounted(() => {
   // 监听UI位置变化事件（与仿真时间轴同步）
   const handleUIPositionsChange = (event) => {
     if (event.detail.source !== 'nodeJump') {
-      console.log('NodeJump: 响应UI位置变化事件');
+      // console.log('NodeJump: 响应UI位置变化事件');
       adjustPosition(); // 立即调整，不延迟
     }
   };
@@ -540,7 +540,7 @@ onMounted(() => {
   
   // 监听面板状态变化事件 - 立即响应
   const handlePanelStateChange = (event) => {
-    console.log('NodeJump: 响应面板状态变化', event.detail);
+    // console.log('NodeJump: 响应面板状态变化', event.detail);
     adjustPosition(); // 立即调整
   };
   window.addEventListener('panel-state-changed', handlePanelStateChange);

@@ -240,7 +240,7 @@ async function handleSubmit() {
 
 // 游客登录
 function guestLogin() {
-  console.log('游客登录：当前路由', route.path);
+  // console.log('游客登录：当前路由', route.path);
   
   // 设置游客模式标识
   localStorage.setItem('guest_mode', 'true');

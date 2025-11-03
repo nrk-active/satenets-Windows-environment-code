@@ -23,7 +23,7 @@ export function useLogin() {
         password: password.value
       };
       
-      console.log('发送登录数据:', loginData);
+      // console.log('发送登录数据:', loginData);
       
       const response = await fetch('http://127.0.0.1:8000/api/token/', {
         method: 'POST',
@@ -34,7 +34,7 @@ export function useLogin() {
       });
       
       const responseData = await response.json();
-      console.log('登录响应:', responseData);
+      // console.log('登录响应:', responseData);
       
       if (!response.ok) {
         if (response.status === 401) {
@@ -53,7 +53,7 @@ export function useLogin() {
       if (responseData.access && responseData.refresh) {
         // 保存token
         setTokens(responseData.access, responseData.refresh);
-        console.log('登录成功，Token已保存');
+        // console.log('登录成功，Token已保存');
         return {
           success: true,
           tokens: {
@@ -85,10 +85,10 @@ export function useLogin() {
     loginError.value = '';
     
     try {
-      console.log('开始登录...');
+      // console.log('开始登录...');
       const result = await loginUser();
       
-      console.log('登录成功:', result);
+      // console.log('登录成功:', result);
       return {
         success: true,
         data: result,
@@ -112,7 +112,7 @@ export function useLogin() {
   function logout() {
     clearTokens();
     clearFields();
-    console.log('用户已登出');
+    // console.log('用户已登出');
   }
 
   return {

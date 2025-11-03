@@ -220,7 +220,7 @@ const loadTrafficData = async (timestamp) => {
     const downlinkResponse = await fetch(`./data/${currentFolder}/satellite_traffic/satellite_downlink_${timestamp}.json`);
     if (downlinkResponse.ok) {
       downlinkData.value = await downlinkResponse.json();
-      console.log(`EntityInfoPanel: 从 ${currentFolder} 加载 downlink 数据成功`);
+      // console.log(`EntityInfoPanel: 从 ${currentFolder} 加载 downlink 数据成功`);
     } else {
       console.warn(`无法加载 downlink 数据: ${timestamp} (文件夹: ${currentFolder})`);
       downlinkData.value = null;
@@ -230,7 +230,7 @@ const loadTrafficData = async (timestamp) => {
     const throughputResponse = await fetch(`./data/${currentFolder}/satellite_traffic/satellite_throughput_${timestamp}.json`);
     if (throughputResponse.ok) {
       throughputData.value = await throughputResponse.json();
-      console.log(`EntityInfoPanel: 从 ${currentFolder} 加载 throughput 数据成功`);
+      // console.log(`EntityInfoPanel: 从 ${currentFolder} 加载 throughput 数据成功`);
     } else {
       console.warn(`无法加载 throughput 数据: ${timestamp} (文件夹: ${currentFolder})`);
       throughputData.value = null;

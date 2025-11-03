@@ -128,7 +128,7 @@ async function fetchProcesses() {
     }
     
     const data = await response.json();
-    console.log('获取到的进程数据:', data);
+    // console.log('获取到的进程数据:', data);
     
     // 根据返回的数据结构处理
     if (data.results && Array.isArray(data.results)) {

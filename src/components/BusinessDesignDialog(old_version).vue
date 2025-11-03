@@ -98,7 +98,7 @@ async function sendData(businessDesignData) {
   })
   .then(res => res.json())
   .then(data => {
-    console.log("Token:", data);
+    // console.log("Token:", data);
     return data.csrfToken;
   });
 
@@ -113,7 +113,7 @@ async function sendData(businessDesignData) {
   })
   .then(res => res.json())
   .then(data => {
-    console.log("ID:", data.id);
+    // console.log("ID:", data.id);
     return data.id;
   });
 
@@ -128,7 +128,7 @@ async function sendData(businessDesignData) {
     });
     
     const instanizeData = await instanizeResponse.json();
-    console.log("Instanize Response:", instanizeData);
+    // console.log("Instanize Response:", instanizeData);
   } catch (instanizeError) {
     console.warn("Instanize已经完成，继续执行:", instanizeError);
   }
@@ -151,7 +151,7 @@ async function sendData(businessDesignData) {
   }
 
   const result = await response.json();
-  console.log(result);
+  // console.log(result);
   return result;
 }
 

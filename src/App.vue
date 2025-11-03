@@ -33,7 +33,7 @@ const isDarkTheme = ref(localStorage.getItem('theme') === 'dark' || !localStorag
 function applyTheme(theme) {
   // 将主题模式应用于 HTML 根元素，触发 CSS 变量切换
   document.documentElement.setAttribute('data-theme', theme);
-  console.log(`主题已切换到: ${theme}`);
+  // console.log(`主题已切换到: ${theme}`);
 }
 
 function toggleTheme() {
@@ -105,7 +105,7 @@ function handleLogout() {
   localStorage.removeItem('selectedProcessId');
   localStorage.removeItem('selectedProcessInfo');
   
-  console.log('已清除所有用户数据和进程选择');
+  // console.log('已清除所有用户数据和进程选择');
 }
 
 // 从本地存储恢复登录状态
@@ -120,7 +120,7 @@ function restoreLoginState() {
       userCredentials.value = JSON.parse(savedCredentials);
       isLoggedIn.value = true;
       username.value = savedUsername;
-      console.log('恢复登录状态:', { username: savedUsername, isLoggedIn: true });
+      // console.log('恢复登录状态:', { username: savedUsername, isLoggedIn: true });
     } catch (error) {
       console.error('恢复登录状态失败:', error);
       handleLogout(); // 清除可能损坏的数据
@@ -130,7 +130,7 @@ function restoreLoginState() {
   // 恢复进程ID
   if (savedProcessId) {
     selectedProcessId.value = savedProcessId;
-    console.log('恢复进程ID:', savedProcessId);
+    // console.log('恢复进程ID:', savedProcessId);
   }
 }
 

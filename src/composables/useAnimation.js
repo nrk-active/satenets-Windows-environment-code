@@ -86,19 +86,19 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
   // 暴露动画模式切换到全局，方便调试
   window.toggleAnimationMode = () => {
     uniformMotion.value = !uniformMotion.value;
-    console.log('🎬 动画模式切换为:', uniformMotion.value ? '严格匀速运动' : '恒定帧间隔+平滑插值');
-    console.log('💡 提示: 严格匀速=机械精确, 平滑插值=视觉自然');
+    // console.log('🎬 动画模式切换为:', uniformMotion.value ? '严格匀速运动' : '恒定帧间隔+平滑插值');
+    // console.log('💡 提示: 严格匀速=机械精确, 平滑插值=视觉自然');
   };
   
   window.setUniformMotion = () => {
     uniformMotion.value = true;
-    console.log('🎯 已设置为: 严格匀速运动模式');
+    // console.log('🎯 已设置为: 严格匀速运动模式');
   };
   
   window.setSmoothAnimation = () => {
     uniformMotion.value = false;
-    console.log('🌊 已设置为: 超丝滑插值模式');
-    console.log('✨ 特性: 120fps + smootherstep + 正弦平滑 + 多重采样 + EMA滤波');
+    // console.log('🌊 已设置为: 超丝滑插值模式');
+    // console.log('✨ 特性: 120fps + smootherstep + 正弦平滑 + 多重采样 + EMA滤波');
   };
   
   // 超丝滑度调试函数
@@ -107,10 +107,10 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
     const fps = uniformMotion.value ? '60fps' : '120fps';
     const algorithms = uniformMotion.value ? '线性插值' : 'smootherstep + 正弦平滑 + 多重采样';
     
-    console.log(`🎬 当前动画模式: ${mode}`);
-    console.log(`⚡ 帧率: ${fps}`);
-    console.log(`🔧 算法: ${algorithms}`);
-    console.log(`💡 切换命令: toggleAnimationMode()`);
+    // console.log(`🎬 当前动画模式: ${mode}`);
+    // console.log(`⚡ 帧率: ${fps}`);
+    // console.log(`🔧 算法: ${algorithms}`);
+    // console.log(`💡 切换命令: toggleAnimationMode()`);
   };
   
   // 监听animationInProgress变化并同步到全局
@@ -130,14 +130,14 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
     const { targetFrame, source, isDragging } = event.detail;
     // 只在关键操作时输出日志，避免播放时大量输出
     if (source === 'timeline-jump' || !isPlaying.value) {
-      console.log(`收到时间轴帧更新事件: 目标帧=${targetFrame}, 来源=${source}, 拖拽模式=${isDragging}`);
+      // console.log(`收到时间轴帧更新事件: 目标帧=${targetFrame}, 来源=${source}, 拖拽模式=${isDragging}`);
     }
     
     // 只有在非拖拽状态或拖拽结束时才更新timeFrame，避免播放过程中的冲突
     if (!isDragging || source === 'timeline-jump') {
       timeFrame.value = targetFrame;
       if (source === 'timeline-jump' || !isPlaying.value) {
-        console.log(`动画系统timeFrame已同步更新到: ${targetFrame}`);
+        // console.log(`动画系统timeFrame已同步更新到: ${targetFrame}`);
       }
     }
   });
@@ -149,7 +149,7 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
   let forceStopAnimation = false;
 
   function animateTransition(viewer, fromData, toData, onComplete) {
-    console.log("开始过渡动画");
+    // // console.log("开始过渡动画");
     
     // 重置强制停止标志和预加载标志
     forceStopAnimation = false;
@@ -163,7 +163,7 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
     
     // 只有瞬间模式才直接更新位置，连续模式保持动画
     if (instantMode.value) {
-      // console.log("瞬间模式：直接更新卫星位置");
+      // // console.log("瞬间模式：直接更新卫星位置");
       
       const toNodeMap = new Map();
       toData.nodes.forEach(node => {
@@ -252,7 +252,7 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
           fromX = currentPos.x;
           fromY = currentPos.y;
           fromZ = currentPos.z;
-          // console.log(`连续模式：卫星 ${fromNode.id} 从当前位置开始动画`);
+          // // console.log(`连续模式：卫星 ${fromNode.id} 从当前位置开始动画`);
         } else {
           // 传统模式：使用数据中的起始位置
           fromX = parseFloat(fromPos[0]) * 1000;
@@ -305,14 +305,14 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
     });
     
     if (satellitePairs.length === 0) {
-      // console.log("没有卫星需要移动，跳过动画");
+      // // console.log("没有卫星需要移动，跳过动画");
       previousFrameData = toData;
       animationInProgress.value = false;
       if (onComplete) onComplete(satelliteIds);
       return;
     }
     
-    // console.log(`${satellitePairs.length} 个卫星需要动画移动`);
+    // // console.log(`${satellitePairs.length} 个卫星需要动画移动`);
     
     // 计算最大移动距离，用于调整动画时长
     let maxDistance = 0;
@@ -355,7 +355,7 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
         adaptiveTransitionDuration = Math.min(adaptiveTransitionDuration * distanceFactor, maxDuration);
       }
       
-      // console.log(`连续模式 - 速度:${currentSpeed}x, 距离:${(maxDistance/1000).toFixed(1)}km, 触发间隔:${actualTriggerInterval.toFixed(0)}ms, 动画时长:${adaptiveTransitionDuration.toFixed(0)}ms (${(adaptiveTransitionDuration/actualTriggerInterval).toFixed(2)}x)`);
+      // // console.log(`连续模式 - 速度:${currentSpeed}x, 距离:${(maxDistance/1000).toFixed(1)}km, 触发间隔:${actualTriggerInterval.toFixed(0)}ms, 动画时长:${adaptiveTransitionDuration.toFixed(0)}ms (${(adaptiveTransitionDuration/actualTriggerInterval).toFixed(2)}x)`);
     } else {
       // 传统模式：根据距离和速度调整动画时长
       adaptiveTransitionDuration = ANIMATION_CONFIG.TRANSITION_DURATION;
@@ -368,7 +368,7 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
       }
       
       adaptiveTransitionDuration = Math.max(100, adaptiveTransitionDuration / currentSpeed);
-      // console.log(`传统模式 - 最大移动距离: ${(maxDistance/1000).toFixed(1)}km, 动画时长: ${adaptiveTransitionDuration}ms, 播放速度: ${currentSpeed}x`);
+      // // console.log(`传统模式 - 最大移动距离: ${(maxDistance/1000).toFixed(1)}km, 动画时长: ${adaptiveTransitionDuration}ms, 播放速度: ${currentSpeed}x`);
     }
     
     // 为每个卫星准备或复用CallbackProperty
@@ -398,7 +398,7 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
     function animate(timestamp) {
       // 检查是否需要强制停止动画
       if (forceStopAnimation) {
-        // console.log('强制停止动画，保持当前位置用于下一动画');
+        // // console.log('强制停止动画，保持当前位置用于下一动画');
         
         // 保存当前动画位置作为下一个动画的起点
         if (satellitePairs && satellitePairs.length > 0) {
@@ -426,7 +426,7 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
       
       // 如果暂停了播放，立即停止动画，不再继续
       if (!isPlaying.value) {
-        // console.log('播放已暂停，停止当前动画并保持当前位置');
+        // // console.log('播放已暂停，停止当前动画并保持当前位置');
         currentAnimationFrame = null;
         animationInProgress.value = false;
         
@@ -451,7 +451,7 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
         
         // 不设置最终位置，保持当前动画进度的位置
         // 卫星会停留在暂停时刻的位置，而不是跳跃到目标位置
-        // console.log('卫星保持在当前动画进度位置，previousFrameData已更新为当前位置');
+        // // console.log('卫星保持在当前动画进度位置，previousFrameData已更新为当前位置');
         
         if (onComplete) {
           onComplete(satelliteIds);
@@ -476,7 +476,7 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
       // 预加载机制：当动画进行到70%时开始预加载下一帧
       if (fraction >= 0.7 && !window.preloadTriggered && isPlaying.value) {
         window.preloadTriggered = true;
-        console.log('动画进行到70%，开始预加载下一帧数据');
+        // // console.log('动画进行到70%，开始预加载下一帧数据');
         
         // 计算下一帧
         const currentFolder = getCurrentDataFolder();
@@ -553,7 +553,7 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
       if (elapsed < adaptiveTransitionDuration) {
         currentAnimationFrame = requestAnimationFrame(animate);
       } else {
-        // console.log("过渡动画完成");
+        // // console.log("过渡动画完成");
         
         // 动画完成后，设置最终位置
         satellitePairs.forEach(pair => {
@@ -578,24 +578,24 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
   function togglePlayback(onFrameLoad) {
     const wasPlaying = isPlaying.value;
     isPlaying.value = !isPlaying.value;
-    console.log(`播放状态切换为: ${isPlaying.value ? '播放' : '暂停'} (之前: ${wasPlaying ? '播放' : '暂停'})`);
-    console.log(`当前播放将从第 ${timeFrame.value} 帧开始`);
+    // // console.log(`播放状态切换为: ${isPlaying.value ? '播放' : '暂停'} (之前: ${wasPlaying ? '播放' : '暂停'})`);
+    // // console.log(`当前播放将从第 ${timeFrame.value} 帧开始`);
     
     if (isPlaying.value) {
       // 开始播放
-      console.log('开始播放，强制锁定当前帧：', timeFrame.value);
+      // // console.log('开始播放，强制锁定当前帧：', timeFrame.value);
       
       // 使用强制设置帧数接口，确保精确的帧控制
       if (timelineControlRef && timelineControlRef.viewer && timelineControlRef.viewer.forceSetFrame) {
         timelineControlRef.viewer.forceSetFrame(timeFrame.value);
-        console.log('已强制锁定到当前帧:', timeFrame.value);
+        // // console.log('已强制锁定到当前帧:', timeFrame.value);
       }
       
       // 连续模式：立即启动，无延迟
       if (continuousMode.value) {
         if (timelineControlRef && timelineControlRef.setTimelineAnimation) {
           timelineControlRef.setTimelineAnimation(true);
-          console.log('连续模式：已启用时间轴动画');
+          // // console.log('连续模式：已启用时间轴动画');
         }
         
         // 立即开始播放循环
@@ -607,7 +607,7 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
         setTimeout(() => {
           if (timelineControlRef && timelineControlRef.setTimelineAnimation) {
             timelineControlRef.setTimelineAnimation(true);
-            console.log('传统模式：已启用时间轴动画');
+            // console.log('传统模式：已启用时间轴动画');
           }
           
           // 开始播放循环
@@ -619,43 +619,43 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
       
     } else {
       // 暂停播放
-      console.log('暂停播放，完全锁定当前帧');
+      // console.log('暂停播放，完全锁定当前帧');
       
       // 立即禁用时间轴动画
       if (timelineControlRef && timelineControlRef.setTimelineAnimation) {
         timelineControlRef.setTimelineAnimation(false);
-        console.log('已禁用时间轴动画');
+        // console.log('已禁用时间轴动画');
       }
       
       // 清理播放定时器
       if (playbackTimer) {
         clearTimeout(playbackTimer);
         playbackTimer = null;
-        console.log('已清理播放定时器');
+        // console.log('已清理播放定时器');
       }
       
       // 强制锁定到当前帧，防止任何时间漂移
       if (timelineControlRef && timelineControlRef.viewer && timelineControlRef.viewer.forceSetFrame) {
         timelineControlRef.viewer.forceSetFrame(timeFrame.value);
-        console.log('暂停时强制锁定到当前帧:', timeFrame.value);
+        // console.log('暂停时强制锁定到当前帧:', timeFrame.value);
       }
     }
   }
 
   function playNextFrame(onFrameLoad) {
     if (!isPlaying.value) {
-      console.log('播放已停止，终止播放循环');
+      // console.log('播放已停止，终止播放循环');
       return;
     }
     
     if (animationInProgress.value) {
       if (continuousMode.value) {
         // 连续运动模式：创建重叠动画，不等待当前动画完成
-        console.log('连续运动模式：创建重叠动画，无缝衔接');
+        // console.log('连续运动模式：创建重叠动画，无缝衔接');
         // 继续执行，允许多个动画同时进行
       } else {
         // 传统模式：等待当前动画完成
-        console.log('传统模式：等待动画完成后继续播放');
+        // console.log('传统模式：等待动画完成后继续播放');
         const currentSpeed = getPlaybackSpeed();
         const checkInterval = Math.max(5, 20 / currentSpeed);
         playbackTimer = setTimeout(() => playNextFrame(onFrameLoad), checkInterval);
@@ -670,7 +670,7 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
     
     // 检查是否播放完成：到达最后一帧时停止播放
     if (timeFrame.value >= maxFrames) {
-      console.log(`🏁 播放完成！已播放到最后一帧 (${maxFrames}/${maxFrames})，停止播放`);
+      // console.log(`🏁 播放完成！已播放到最后一帧 (${maxFrames}/${maxFrames})，停止播放`);
       isPlaying.value = false;
       
       // 禁用时间轴动画
@@ -691,7 +691,7 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
     
     // 只在关键帧（每10帧或接近完成）时输出日志
     if (nextTimeFrame % 10 === 1 || nextTimeFrame === 1 || nextTimeFrame >= maxFrames - 5) {
-      console.log(`播放进度: 第 ${timeFrame.value} → ${nextTimeFrame} 帧 (总帧数: ${maxFrames})`);
+      // console.log(`播放进度: 第 ${timeFrame.value} → ${nextTimeFrame} 帧 (总帧数: ${maxFrames})`);
     }
     
     // 计算播放间隔 - 支持连续运动模式和传统模式
@@ -702,14 +702,14 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
     if (continuousMode.value) {
       // 连续运动模式：播放间隔稍短于基础间隔，确保动画重叠
       playbackInterval = Math.max(200, (baseInterval * 0.7) / currentSpeed); // 70%的基础间隔
-      console.log(`连续运动模式 - 播放间隔: ${playbackInterval}ms (基础间隔: ${baseInterval}ms, 播放速度: ${currentSpeed}x)`);
+      // console.log(`连续运动模式 - 播放间隔: ${playbackInterval}ms (基础间隔: ${baseInterval}ms, 播放速度: ${currentSpeed}x)`);
     } else {
       // 传统模式：预估动画时长并计算等待时间
       const baseAnimationDuration = 1500;
       const estimatedAnimationDuration = Math.max(100, baseAnimationDuration / currentSpeed);
       const netWaitTime = Math.max(200, baseInterval - estimatedAnimationDuration);
       playbackInterval = Math.max(100, netWaitTime / currentSpeed);
-      console.log(`传统模式 - 播放间隔: ${playbackInterval}ms (基础间隔: ${baseInterval}ms, 预估动画时长: ${estimatedAnimationDuration}ms, 播放速度: ${currentSpeed}x)`);
+      // console.log(`传统模式 - 播放间隔: ${playbackInterval}ms (基础间隔: ${baseInterval}ms, 预估动画时长: ${estimatedAnimationDuration}ms, 播放速度: ${currentSpeed}x)`);
     }
     
     // 启动下一次播放的定时器
@@ -717,7 +717,7 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
       // 连续模式：提前启动下一帧，在当前动画完成前就准备
       const advanceTime = Math.min(200, playbackInterval * 0.2); // 提前20%的时间
       const actualInterval = Math.max(50, playbackInterval - advanceTime);
-      console.log(`连续模式：提前${advanceTime}ms启动下一帧，实际间隔${actualInterval}ms`);
+      // // console.log(`连续模式：提前${advanceTime}ms启动下一帧，实际间隔${actualInterval}ms`);
       
       playbackTimer = setTimeout(() => {
         if (isPlaying.value) {
@@ -739,7 +739,7 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
     // 播放时主动更新时间轴位置，确保视觉同步
     if (timelineControlRef && timelineControlRef.viewer && timelineControlRef.viewer.forceSetFrame) {
       timelineControlRef.viewer.forceSetFrame(nextTimeFrame);
-      console.log(`播放模式：更新时间轴到帧 ${nextTimeFrame}`);
+      // console.log(`播放模式：更新时间轴到帧 ${nextTimeFrame}`);
     }
     
     // 最后触发数据加载和动画
@@ -749,7 +749,7 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
   }
 
   function cleanup() {
-    console.log('清理动画资源...');
+    // console.log('清理动画资源...');
     
     // 设置强制停止标志
     forceStopAnimation = true;
@@ -778,7 +778,7 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
     // 重置强制停止标志
     forceStopAnimation = false;
     
-    console.log('动画资源清理完成');
+    // console.log('动画资源清理完成');
   }
 
   return {
@@ -794,12 +794,12 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
     setPreviousFrameData: (data) => { previousFrameData = data; },
     getPreviousFrameData: () => previousFrameData,
     clearEntityPositionCache: () => {
-      console.log('清除动画系统位置缓存');
+      // // console.log('清除动画系统位置缓存');
       entityPositionCache.clear();
     },
     setEntityPositionCache: (entityId, cacheData) => {
       entityPositionCache.set(entityId, cacheData);
-      console.log(`设置实体 ${entityId} 的位置缓存`);
+      // // console.log(`设置实体 ${entityId} 的位置缓存`);
     }
   };
 }

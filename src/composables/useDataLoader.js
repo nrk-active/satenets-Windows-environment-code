@@ -29,7 +29,7 @@ export function useDataLoader() {
     selectedDataFolder.value = folderName;
     // 保存到本地存储
     localStorage.setItem('selectedDataFolder', folderName);
-    console.log(`数据文件夹已设置为: ${folderName}`);
+    // console.log(`数据文件夹已设置为: ${folderName}`);
   }
 
   // 从本地存储恢复文件夹设置
@@ -37,9 +37,9 @@ export function useDataLoader() {
     const savedFolder = localStorage.getItem('selectedDataFolder');
     if (savedFolder) {
       selectedDataFolder.value = savedFolder;
-      console.log(`从本地存储恢复数据文件夹设置: ${savedFolder}`);
+      // console.log(`从本地存储恢复数据文件夹设置: ${savedFolder}`);
     } else {
-      console.log('未找到保存的文件夹设置');
+      // console.log('未找到保存的文件夹设置');
     }
   }
 
@@ -71,29 +71,29 @@ export function useDataLoader() {
   async function loadGraphDataFromAPI(simulatorId, timestamp) {
     // 检查登录状态，如果未登录则从本地文件加载
     const loginStatus = isLoggedIn();
-    console.log(`=== loadGraphDataFromAPI 被调用 ===`);
-    console.log(`登录状态: ${loginStatus}`);
-    console.log(`进程ID: ${simulatorId}, 时间戳: ${timestamp}`);
+    // console.log(`=== loadGraphDataFromAPI 被调用 ===`);
+    // console.log(`登录状态: ${loginStatus}`);
+    // console.log(`进程ID: ${simulatorId}, 时间戳: ${timestamp}`);
     
     if (!loginStatus) {
-      console.log('用户未登录，从本地文件加载数据');
+      // console.log('用户未登录，从本地文件加载数据');
       
       // 检查是否已选择文件夹
       if (!selectedDataFolder.value) {
-        console.warn('未选择数据文件夹，请先选择文件夹');
+        // console.warn('未选择数据文件夹，请先选择文件夹');
         return null;
       }
       
       // 将时间戳转换为文件名格式，使用当前选择的文件夹
       const filename = `./data/${selectedDataFolder.value}/network_state_${timestamp}.00.json`;
-      console.log(`从本地文件加载: ${filename}`);
+      // // console.log(`从本地文件加载: ${filename}`);
       
       // 使用本地文件加载方法
       return await loadGraphData(filename);
     }
     
     // 用户已登录，使用API加载
-    console.log('用户已登录，从API加载数据');
+    // console.log('用户已登录，从API加载数据');
     return await loadGraphDataFromAPIInternal(simulatorId, timestamp);
   }
 
@@ -101,24 +101,24 @@ export function useDataLoader() {
   async function loadGraphDataFromAPIInternal(simulatorId, timestamp) {
     try {
       const cacheKey = `api_${simulatorId}_${timestamp}`;
-      console.log(`=== 开始加载API数据 ===`);
-      console.log(`进程ID: ${simulatorId}, 时间戳: ${timestamp}`);
+      // console.log(`=== 开始加载API数据 ===`);
+      // console.log(`进程ID: ${simulatorId}, 时间戳: ${timestamp}`);
       console.time(`加载API数据:${cacheKey}`);
       
       if (dataCache.has(cacheKey)) {
-        console.log("使用缓存的API数据");
+        // console.log("使用缓存的API数据");
         return dataCache.get(cacheKey);
       }
 
       // 获取CSRF Token
-      console.log('正在获取CSRF Token...')
+      // console.log('正在获取CSRF Token...')
       const csrfToken = await getCsrfToken();
-      console.log('CSRF Token获取成功');
+      // console.log('CSRF Token获取成功');
       
       // 获取认证信息
       const tokens = getTokens();
       const userCredentials = JSON.parse(localStorage.getItem('userCredentials') || '{}');
-      console.log('认证tokens:', tokens);
+      // console.log('认证tokens:', tokens);
       
       // 准备请求头
       const headers = {
@@ -130,7 +130,7 @@ export function useDataLoader() {
       // 如果有Authorization token，添加到请求头
       if (tokens.access) {
         headers['Authorization'] = `Bearer ${tokens.access}`;
-        console.log('已添加Authorization头');
+        // console.log('已添加Authorization头');
       } else {
         console.warn('没有access token，可能会导致认证失败');
       }
@@ -139,22 +139,22 @@ export function useDataLoader() {
       // const url = `http://127.0.0.1:8000/api/simulations/simulators/${simulatorId}/data/network-state/?timestamp=${timestamp}`;
       const url = `http://127.0.0.1:8000/api/simulations/simulators/${simulatorId}/data/snapshot/?timestamp=${timestamp}`;
       
-      console.log('请求URL:', url);
-      console.log('请求头:', headers);
+      // console.log('请求URL:', url);
+      // console.log('请求头:', headers);
       
-      console.log('发送API请求...');
+      // console.log('发送API请求...');
       const response = await fetch(url, {
         method: 'GET',
         credentials: 'include',
         headers: headers,
       });
       
-      console.log('API响应状态:', response.status);
+      // console.log('API响应状态:', response.status);
       
       // 检查特定的错误响应
       if (!response.ok) {
         const errorData = await response.json();
-        console.log('API错误响应:', errorData);
+        // console.log('API错误响应:', errorData);
         
         if (errorData.detail === "No ControlSimulator matches the given query.") {
           // 弹出特定提示
@@ -166,7 +166,7 @@ export function useDataLoader() {
       }
       
       const rawData = await response.json();
-      console.log('API数据加载成功:', rawData);
+      // console.log('API数据加载成功:', rawData);
       console.timeEnd(`加载API数据:${cacheKey}`);
       
       console.time('处理API数据');
@@ -195,10 +195,9 @@ export function useDataLoader() {
 
   async function loadGraphData(filename) {
     try {
-      console.time(`加载文件:${filename}`);
       
       if (dataCache.has(filename)) {
-        console.log("使用缓存的数据");
+        // console.log("使用缓存的数据");
         return dataCache.get(filename);
       }
       
@@ -208,11 +207,9 @@ export function useDataLoader() {
       }
       
       const rawData = await response.json();
-      console.timeEnd(`加载文件:${filename}`);
-      
-      console.time('处理数据');
+
+  
       const processedData = processGraphData(rawData);
-      console.timeEnd('处理数据');
       
       // 更新节点和边的计数
       nodeCount.value = processedData.nodes.length;

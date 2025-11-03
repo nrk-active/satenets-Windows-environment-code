@@ -87,7 +87,7 @@ export function useRegister() {
       }
       
       const data = await response.json();
-      console.log('获取到CSRF Token:', data);
+      // console.log('获取到CSRF Token:', data);
       return data.csrfToken;
     } catch (error) {
       console.error('获取CSRF Token失败:', error);
@@ -105,7 +105,7 @@ export function useRegister() {
         password2: confirmPassword.value
       };
       
-      console.log('发送注册数据:', registerData);
+      // console.log('发送注册数据:', registerData);
       
       const response = await fetch('http://127.0.0.1:8000/api/accounts/register/', {
         method: 'POST',
@@ -118,7 +118,7 @@ export function useRegister() {
       });
       
       const responseData = await response.json();
-      console.log('注册响应:', responseData);
+      // console.log('注册响应:', responseData);
       
       if (!response.ok) {
         if (response.status === 400) {
@@ -156,7 +156,7 @@ export function useRegister() {
         password: password.value
       };
       
-      console.log('注册成功后自动登录:', loginData);
+      // console.log('注册成功后自动登录:', loginData);
       
       const response = await fetch('http://127.0.0.1:8000/api/token/', {
         method: 'POST',
@@ -167,7 +167,7 @@ export function useRegister() {
       });
       
       const responseData = await response.json();
-      console.log('自动登录响应:', responseData);
+      // console.log('自动登录响应:', responseData);
       
       if (!response.ok) {
         throw new Error(`自动登录失败: ${response.status} ${response.statusText}`);
@@ -198,19 +198,19 @@ export function useRegister() {
   // 执行注册流程
   async function performRegister() {
     try {
-      console.log('开始获取CSRF Token...');
+      // console.log('开始获取CSRF Token...');
       const csrfToken = await getCsrfToken();
       
-      console.log('开始发送注册请求...');
+      // console.log('开始发送注册请求...');
       const registerResult = await registerUser(csrfToken);
       
-      console.log('注册成功:', registerResult);
+      // console.log('注册成功:', registerResult);
       
       // 注册成功后自动登录
-      console.log('开始自动登录...');
+      // console.log('开始自动登录...');
       const loginResult = await performAutoLogin();
       
-      console.log('自动登录成功:', loginResult);
+      // console.log('自动登录成功:', loginResult);
       
       return {
         success: true,

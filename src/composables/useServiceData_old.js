@@ -17,12 +17,12 @@ export function useServiceData() {
     try {
       const filename = `./data/service_state_${frame * 60}.00.json`;
       
-      console.log(`正在加载业务数据文件: ${filename}`);
+      // console.log(`正在加载业务数据文件: ${filename}`);
       
       if (serviceCache.has(filename)) {
         const cachedData = serviceCache.get(filename);
         serviceData.value = cachedData;
-        console.log("使用缓存的业务数据:", cachedData);
+        // console.log("使用缓存的业务数据:", cachedData);
         return cachedData;
       }
       
@@ -48,7 +48,7 @@ export function useServiceData() {
       serviceData.value = processedData;
       serviceCache.set(filename, processedData);
       
-      console.log(`业务数据加载成功 (${filename}):`, {
+      // console.log(`业务数据加载成功 (${filename}):`, {
         active: processedData.active_requests.length,
         pending: processedData.pending_requests.length,
         ended: processedData.ended_requests.length,
@@ -85,7 +85,7 @@ export function useServiceData() {
 
   function selectService(service, type) {
     selectedService.value = { data: service, type };
-    console.log("选择业务:", service);
+    // console.log("选择业务:", service);
   }
 
   function closeServiceDetail() {

@@ -209,7 +209,7 @@ async function startSimulation() {
     })
     .then(res => res.json())
     .then(data => {
-      console.log("Token:", data);
+      // console.log("Token:", data);
       return data.csrfToken;
     });
 
@@ -220,7 +220,7 @@ async function startSimulation() {
     });
     const simulatorData = await simulatorResponse.json();
     const id = simulatorData.simulators[simulatorData.simulators.length - 1].id;
-    console.log("ID2:", id);
+    // console.log("ID2:", id);
 
     const event = new CustomEvent('start-satellite-polling', { detail: { message: '开始轮询' } });
     window.dispatchEvent(event);
@@ -239,7 +239,7 @@ async function startSimulation() {
     }
 
     const result = await response.json();
-    console.log('仿真完成:', result);
+    // console.log('仿真完成:', result);
     alert('仿真完成！');
     
   } catch (error) {
@@ -338,7 +338,7 @@ const handleDataSelected = (data) => {
 
 const handleBusinessSettings = (settings) => {
   emit('business-settings-confirmed', settings);
-  console.log('业务设计设置:', settings);
+  // console.log('业务设计设置:', settings);
 };
 
 // 添加当前视图状态
@@ -364,7 +364,7 @@ const switchToSatView = () => {
 
 const switchToTopographyView = () => {
   if (currentView.value === 'topography') return; // 如果已经是天地一体化视图则不处理
-  console.log('切换到天地一体化', currentView.value);
+  // console.log('切换到天地一体化', currentView.value);
   currentView.value = 'topography';
   // 清理三维场景
   const satElement = document.getElementById('satContainer');
@@ -384,7 +384,7 @@ const showSettingDropdown = ref(false)
 const showSceneDropdown = ref(false)
 function selectModel(model) {
   // 这里可以根据需要处理选中逻辑
-  console.log('选择模型:', model)
+  // console.log('选择模型:', model)
   showModelDropdown.value = false
   showSettingDropdown.value = false
   showSceneDropdown.value = false

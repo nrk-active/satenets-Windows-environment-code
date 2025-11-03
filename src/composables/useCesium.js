@@ -91,7 +91,7 @@ export function useCesium() {
       });
     }
     
-    console.log(`经纬线网格已生成，经度间隔: ${lonInterval}°, 纬度间隔: ${latInterval}°`);
+    // console.log(`经纬线网格已生成，经度间隔: ${lonInterval}°, 纬度间隔: ${latInterval}°`);
   }
   
   // 更新网格密度函数 10.28新增 - 修复旋转地球时经纬线消失问题
@@ -122,7 +122,7 @@ export function useCesium() {
     // 不再需要Cesium Ion访问令牌，完全使用本地资源
     // Cesium.Ion.defaultAccessToken = CESIUM_CONFIG.ACCESS_TOKEN;
     
-    console.log('初始化Cesium (仅本地资源模式)...');
+    // console.log('初始化Cesium (仅本地资源模式)...');
     
     // 添加全局错误处理，抑制瓦片加载错误
     const originalConsoleError = console.error;
@@ -147,18 +147,18 @@ export function useCesium() {
       baseLayerPicker: false, // 禁用地图选择按钮，只使用本地资源
       selectionIndicator: false, // 禁用原生选择指示器，使用自定义的
       infoBox: false, // 禁用默认信息框
-      requestRenderMode: false, // 改为连续渲染以获得更好的视觉效果
+      requestRenderMode: true, // 改为按需渲染以提高性能
       maximumRenderTimeChange: Infinity,
       targetFrameRate: 60, // 提高帧率以获得更流畅的体验
       automaticallyTrackDataSourceClocks: false,
       shouldAnimate: false,
-      // 启用超高分辨率渲染以支持8K星空
-      resolutionScale: Math.min(window.devicePixelRatio * 2, 3.0), // 最高3倍分辨率
-      // 优化WebGL设置以支持高分辨率纹理
+      // 优化渲染分辨率以提高性能
+      resolutionScale: window.devicePixelRatio, // 使用原生分辨率
+      // 优化WebGL设置
       contextOptions: {
         webgl: {
           powerPreference: "high-performance",
-          antialias: true,
+          antialias: false, // 关闭抗锯齿以提高性能
           preserveDrawingBuffer: false,
           failIfMajorPerformanceCaveat: false
         }
@@ -175,7 +175,7 @@ export function useCesium() {
       // 直接使用本地图片文件，不通过复杂的Provider
       // 创建一个简单的纹理URL
       const textureUrl = window.location.origin + '/texture/earth.jpg';
-      console.log('尝试加载纹理URL:', textureUrl);
+      // console.log('尝试加载纹理URL:', textureUrl);
       
       // 使用最简单的方式：UrlTemplateImageryProvider配置为单张图片
       const earthImageryProvider = new Cesium.UrlTemplateImageryProvider({
@@ -191,7 +191,7 @@ export function useCesium() {
       
       viewer.imageryLayers.addImageryProvider(earthImageryProvider);
       
-      console.log('Cesium: 正在加载本地地球纹理...');
+      // console.log('Cesium: 正在加载本地地球纹理...');
     } catch (error) {
       console.warn('Cesium: 本地底图配置失败', error);
       useBackupEarthRendering();
@@ -215,7 +215,7 @@ export function useCesium() {
       //   updateGridDensity(gridEntities);
       // });
       
-      console.log('Cesium: 经纬线网格初始化完成');
+      // console.log('Cesium: 经纬线网格初始化完成');
     } catch (error) {
       console.warn('Cesium: 经纬线网格初始化失败', error);
     }
@@ -278,12 +278,12 @@ export function useCesium() {
     viewer.clock.multiplier = 1; // 默认1倍速度
     viewer.clock.shouldAnimate = false; // 默认不自动播放，等待仿真控制
     
-    console.log('Cesium时钟已配置为仿真同步模式，从0:00:00开始');
+    // console.log('Cesium时钟已配置为仿真同步模式，从0:00:00开始');
     
     // 移除有问题的闪烁定时器，改用事件拦截方法
     setTimeout(() => {
       if (viewer.timeline) {
-        console.log('时间轴初始化完成，设置全范围拖拽事件');
+        // console.log('时间轴初始化完成，设置全范围拖拽事件');
         
         // 拦截时间轴的鼠标事件，允许点击任意位置
         const timelineElement = document.querySelector('.cesium-timeline-main');
@@ -303,14 +303,14 @@ export function useCesium() {
             // 直接设置时间
             viewer.clock.currentTime = targetTime;
             
-            console.log(`时间轴点击跳转: ${percentage.toFixed(2)}% -> ${targetSeconds.toFixed(1)}秒`);
+            // console.log(`时间轴点击跳转: ${percentage.toFixed(2)}% -> ${targetSeconds.toFixed(1)}秒`);
             
             // 阻止默认行为
             event.preventDefault();
             event.stopPropagation();
           }, true); // 使用capture模式确保事件被拦截
           
-          console.log('时间轴全范围点击已启用');
+          // console.log('时间轴全范围点击已启用');
         }
       }
     }, 1000);
@@ -354,7 +354,7 @@ export function useCesium() {
     
     // 定义自定义时间轴函数
       window.createSimulationTimeline = function() {
-        console.log('创建仿真时间轴...');
+        // console.log('创建仿真时间轴...');
         
         // 移除现有的时间轴（包括Cesium原生和自定义的）
         const existingCesiumTimeline = document.querySelector('.cesium-timeline-main');
@@ -574,7 +574,7 @@ export function useCesium() {
         const cesiumContainer = document.getElementById('cesiumContainer');
         if (cesiumContainer) {
           cesiumContainer.appendChild(simulationTimeline);
-          console.log('仿真时间轴已添加到页面');
+          // console.log('仿真时间轴已添加到页面');
         }
         
         // 动态调整时间轴位置以避免遮挡底部面板
@@ -584,7 +584,7 @@ export function useCesium() {
         function adjustTimelinePosition() {
           // 防止循环调用
           if (isAdjusting) {
-            console.log('位置调整进行中，跳过重复调用');
+            // console.log('位置调整进行中，跳过重复调用');
             return;
           }
           
@@ -606,13 +606,6 @@ export function useCesium() {
                                 getComputedStyle(panel).display !== 'none' &&
                                 getComputedStyle(panel).visibility !== 'hidden';
                 
-                console.log(`检测面板:`, {
-                  className: panel.className,
-                  visible: isVisible,
-                  height: rect.height,
-                  top: rect.top,
-                  bottom: rect.bottom
-                });
                 
                 if (isVisible && rect.height > 50) {
                   // 面板可见且有合理高度
@@ -625,7 +618,7 @@ export function useCesium() {
                   
                   if (isFullScreenPanel) {
                     // 全屏面板：不调整进度条位置，保持默认的 60px
-                    console.log(`检测到全屏面板 (${panel.className}) - 不调整进度条位置`);
+                    // console.log(`检测到全屏面板 (${panel.className}) - 不调整进度条位置`);
                   } else {
                     // 普通底部面板：计算合理的进度条位置
                     const panelTopY = rect.top;
@@ -633,7 +626,7 @@ export function useCesium() {
                     // 移除高度限制，让进度条能正确显示在任何高度的面板上方
                     const bottomDistance = occupiedHeight + 5;
                     maxBottomHeight = Math.max(maxBottomHeight, bottomDistance);
-                    console.log(`普通底部面板 (${panel.className}) - panelTopY: ${panelTopY}px, occupiedHeight: ${occupiedHeight}px, bottom: ${bottomDistance}px`);
+                    // console.log(`普通底部面板 (${panel.className}) - panelTopY: ${panelTopY}px, occupiedHeight: ${occupiedHeight}px, bottom: ${bottomDistance}px`);
                   }
                 }
               }
@@ -654,7 +647,7 @@ export function useCesium() {
                   // 修改间距：从 +37 改为 +5，使进度条更靠近底部（30px左右）
                   const bottomDistance = occupiedHeight + 5;
                   maxBottomHeight = Math.max(maxBottomHeight, bottomDistance);
-                  console.log(`收起面板 - 顶部Y: ${panelTopY}px, 占据高度: ${occupiedHeight}px, 进度条bottom: ${bottomDistance}px`);
+                  // console.log(`收起面板 - 顶部Y: ${panelTopY}px, 占据高度: ${occupiedHeight}px, 进度条bottom: ${bottomDistance}px`);
                 }
               }
             }
@@ -687,16 +680,16 @@ export function useCesium() {
             }
             const isRightPanelOpen = rightWidth > 50; // 大于50px视为展开
             
-            console.log('边栏宽度检测:', {
-              leftWidth,
-              rightWidth,
-              isLeftPanelOpen,
-              isRightPanelOpen,
-              objectViewer: objectViewer ? 'found' : 'not found',
-              leftCollapsedSidebar: leftCollapsedSidebar ? 'found' : 'not found',
-              rightPanelContainer: rightPanelContainer ? 'found' : 'not found',
-              rightCollapsedSidebar: rightCollapsedSidebar ? 'found' : 'not found'
-            });
+            // // console.log('边栏宽度检测:', {
+            //   leftWidth,
+            //   rightWidth,
+            //   isLeftPanelOpen,
+            //   isRightPanelOpen,
+            //   objectViewer: objectViewer ? 'found' : 'not found',
+            //   leftCollapsedSidebar: leftCollapsedSidebar ? 'found' : 'not found',
+            //   rightPanelContainer: rightPanelContainer ? 'found' : 'not found',
+            //   rightCollapsedSidebar: rightCollapsedSidebar ? 'found' : 'not found'
+            // });
             
             // 判断底部面板是否展开（任意一个底部面板展开即为true）
             const isBottomPanelOpen = bottomPanels.some(panel => {
@@ -709,22 +702,15 @@ export function useCesium() {
             // 简化的逻辑：
             let leftOffset, rightOffset;
             
-            console.log('📊 面板状态检测:', {
-              isBottomPanelOpen,
-              isLeftPanelOpen,
-              isRightPanelOpen
-            });
-            
             if (isBottomPanelOpen) {
               // 下边栏展开：无论左右边栏状态，间距都是20
               leftOffset = 20;
               rightOffset = 20;
-              console.log('下边栏展开 → left: 20, right: 20');
             } else {
               // 下边栏收起：哪一侧展开间距就是10，否则就是270
               leftOffset = isLeftPanelOpen ? 10 : 270;
               rightOffset = isRightPanelOpen ? 10 : 270;
-              console.log(`下边栏收起 → left: ${leftOffset}, right: ${rightOffset}`);
+              // // console.log(`下边栏收起 → left: ${leftOffset}, right: ${rightOffset}`);
             }
             
             // 只有当位置真正需要改变时才更新
@@ -784,7 +770,7 @@ export function useCesium() {
         
         // 监听自定义面板状态变化事件，而不是使用MutationObserver
         window.addEventListener('panel-state-changed', (event) => {
-          console.log('收到面板状态变化事件:', event.detail);
+          // console.log('收到面板状态变化事件:', event.detail);
           debouncedAdjustPosition();
         });
         
@@ -794,7 +780,7 @@ export function useCesium() {
           
           // 1. 监听面板状态变化的自定义事件（由面板组件派发）
           const handlePanelStateChange = (event) => {
-            console.log('📊 面板状态变化，调整时间轴位置:', event.detail);
+            // // console.log('📊 面板状态变化，调整时间轴位置:', event.detail);
             debouncedAdjustPosition();
           };
           window.addEventListener('panel-state-changed', handlePanelStateChange);
@@ -815,7 +801,7 @@ export function useCesium() {
               target.closest('.toggle-button');
             
             if (isPanelButton) {
-              console.log('🖱️ 检测到面板按钮点击');
+              // console.log('🖱️ 检测到面板按钮点击');
               // 延迟调整，等待面板动画完成
               setTimeout(() => {
                 debouncedAdjustPosition();
@@ -834,7 +820,7 @@ export function useCesium() {
                 target.classList.contains('chart-panel') ||
                 target.classList.contains('data-panel') ||
                 target.classList.contains('collapsed-bottom-panel')) {
-              console.log('✨ 面板动画完成，调整时间轴位置');
+              // console.log('✨ 面板动画完成，调整时间轴位置');
               debouncedAdjustPosition();
             }
           };
@@ -856,7 +842,7 @@ export function useCesium() {
                   
                   // 防抖：只有高度变化超过5px才触发
                   if (Math.abs(currentHeight - lastPanelHeight) > 5) {
-                    console.log(`📏 检测到ServicePanel高度变化: ${lastPanelHeight.toFixed(0)}px -> ${currentHeight.toFixed(0)}px`);
+                    // console.log(`📏 检测到ServicePanel高度变化: ${lastPanelHeight.toFixed(0)}px -> ${currentHeight.toFixed(0)}px`);
                     lastPanelHeight = currentHeight;
                     debouncedAdjustPosition();
                   }
@@ -876,12 +862,12 @@ export function useCesium() {
               attributeFilter: ['style']  // 只监听style属性
             });
             
-            console.log('✅ 已启动ServicePanel的MutationObserver监听（仅style属性）');
+            // console.log('✅ 已启动ServicePanel的MutationObserver监听（仅style属性）');
           }
           
           timelineCleanupFunctions.push(() => observer.disconnect());
           
-          console.log('✅ 时间轴位置调整：用户操作监听已启动（含MutationObserver）');
+          // console.log('✅ 时间轴位置调整：用户操作监听已启动（含MutationObserver）');
           
           // 统一保存清理函数
           window.cleanupTimelinePosition = function() {
@@ -890,14 +876,14 @@ export function useCesium() {
             }
             // 执行所有清理函数
             timelineCleanupFunctions.forEach(cleanup => cleanup());
-            console.log('时间轴位置调整系统已清理');
+            // console.log('时间轴位置调整系统已清理');
           };
         };
         
         // 启动DOM监听
         observeBottomPanels();
         
-        console.log('时间轴位置调整系统已初始化');
+        // console.log('时间轴位置调整系统已初始化');
         
         // 仿真状态管理
         let currentFrame = 1;
@@ -920,7 +906,7 @@ export function useCesium() {
           } else {
             totalFrames = getTotalFrames(); // 如果没有提供参数，重新计算
           }
-          console.log(`时间轴总帧数已更新: ${totalFrames} (文件夹: ${getCurrentDataFolder()})`);
+          // console.log(`时间轴总帧数已更新: ${totalFrames} (文件夹: ${getCurrentDataFolder()})`);
         };
         
         // 更新时间轴显示
@@ -990,17 +976,17 @@ export function useCesium() {
         function jumpToFrame(targetFrame, isDragging = false) {
           // 允许跳转到任何有效的帧，不限制于已运行的帧
           if (targetFrame < 1 || targetFrame > totalFrames) {
-            console.log(`无法跳转到帧${targetFrame}，有效范围是1-${totalFrames}`);
+            // console.log(`无法跳转到帧${targetFrame}，有效范围是1-${totalFrames}`);
             return false;
           }
           
           // 检查是否有动画正在进行中，如果有则跳过这次跳转
           if (window.animationInProgress) {
-            console.log(`动画进行中，跳过帧切换到${targetFrame}`);
+            // console.log(`动画进行中，跳过帧切换到${targetFrame}`);
             return false;
           }
           
-          console.log(`跳转到帧: ${targetFrame}, 拖拽模式: ${isDragging}`);
+          // console.log(`跳转到帧: ${targetFrame}, 拖拽模式: ${isDragging}`);
           
           // 更新currentFrame状态
           currentFrame = targetFrame;
@@ -1009,7 +995,7 @@ export function useCesium() {
           // 这样用户可以从跳转的位置开始播放
           if (targetFrame > maxRunFrame) {
             maxRunFrame = targetFrame;
-            console.log(`更新最大运行帧到: ${maxRunFrame}`);
+            // console.log(`更新最大运行帧到: ${maxRunFrame}`);
           }
           
           // 关键修复：同步更新动画系统的timeFrame状态
@@ -1022,7 +1008,7 @@ export function useCesium() {
             }
           });
           window.dispatchEvent(frameUpdateEvent);
-          console.log(`已通知动画系统更新到帧 ${targetFrame}`);
+          // console.log(`已通知动画系统更新到帧 ${targetFrame}`);
           
           // 只有在非拖拽状态下才触发数据加载事件
           if (!isDragging) {
@@ -1172,7 +1158,7 @@ export function useCesium() {
               lastDragFrame = null;
             } else if (window.animationInProgress) {
               // 如果动画还在进行，等待动画完成后再切换
-              console.log('动画进行中，等待完成后切换帧');
+              // console.log('动画进行中，等待完成后切换帧');
               const waitForAnimation = () => {
                 if (!window.animationInProgress && lastDragFrame !== null) {
                   jumpToFrame(lastDragFrame, false); // 拖拽结束时触发数据加载
@@ -1259,7 +1245,7 @@ export function useCesium() {
           updateFrame: updateTimelineDisplay,
           setTotalFrames: function(frames) {
             totalFrames = frames;
-            console.log(`时间轴总帧数设置为: ${frames}`);
+            // console.log(`时间轴总帧数设置为: ${frames}`);
           },
           setSimulationRunning: function(running) {
             isSimulationRunning = running;
@@ -1270,13 +1256,13 @@ export function useCesium() {
               needle.style.transition = 'none';
               runTrack.style.transition = 'none';
               simulationTimeline.style.boxShadow = '0 0 8px rgba(0, 255, 0, 0.3)';
-              console.log('仿真开始，禁用时间轴位置调整');
+              // console.log('仿真开始，禁用时间轴位置调整');
             } else {
               // 退出运行状态：恢复过渡动画
               needle.style.transition = 'left 0.1s ease-out';
               runTrack.style.transition = 'width 0.1s ease-out';
               simulationTimeline.style.boxShadow = 'none';
-              console.log('仿真停止，重新启用时间轴位置调整');
+              // console.log('仿真停止，重新启用时间轴位置调整');
               
               // 仿真停止后重新调整位置，确保时间轴在正确位置
               setTimeout(() => {
@@ -1287,7 +1273,7 @@ export function useCesium() {
             // 保持完全可操作
             simulationTimeline.style.opacity = '1';
             
-            console.log(`仿真运行状态: ${running ? '运行中（流畅模式）' : '已停止（过渡模式）'}`);
+            // console.log(`仿真运行状态: ${running ? '运行中（流畅模式）' : '已停止（过渡模式）'}`);
           },
           getCurrentFrame: function() {
             return currentFrame;
@@ -1299,11 +1285,11 @@ export function useCesium() {
             currentFrame = 1;
             maxRunFrame = 1;
             updateTimelineDisplay(1, 1);
-            console.log('时间轴已重置');
+            // console.log('时间轴已重置');
           }
         };
         
-        console.log('仿真时间轴创建完成，可通过 window.simulationTimelineControl 控制');
+        // console.log('仿真时间轴创建完成，可通过 window.simulationTimelineControl 控制');
       return simulationTimeline;
     };
     
@@ -1320,7 +1306,7 @@ export function useCesium() {
     try {
       // 创建高分辨率canvas作为星空纹理
       // const createHighResStarTexture = (size = 2048) => { // 降低到2K以减少内存使用
-      const createHighResStarTexture = (size = 4096) => {
+      const createHighResStarTexture = (size = 2048) => { // 降低到2K以显著提高性能
         const canvas = document.createElement('canvas');
         canvas.width = size;
         canvas.height = size;
@@ -1395,15 +1381,15 @@ export function useCesium() {
       
       faces.forEach(face => {
         // sources[face] = createHighResStarTexture(2048); // 2K分辨率每面以减少内存
-        sources[face] = createHighResStarTexture(4096); // 2K分辨率每面以减少内存
+        sources[face] = createHighResStarTexture(2048); // 2K分辨率以提升性能
       });
       
-      // 应用8K星空背景
+
       viewer.scene.skyBox = new Cesium.SkyBox({
         sources: sources
       });
       
-      console.log('8K分辨率星空背景创建成功');
+      // console.log('8K分辨率星空背景创建成功');
       
     } catch (error) {
       console.warn('8K星空背景创建失败，使用备用方案:', error);
@@ -1417,7 +1403,7 @@ export function useCesium() {
       try {
         viewer.scene.sun.glowFactor = 2.0; // 增强太阳光晕
         viewer.scene.sun.size = 1.5; // 增大太阳大小
-        console.log('太阳视觉增强成功');
+        // console.log('太阳视觉增强成功');
       } catch (error) {
         console.warn('太阳增强设置失败:', error);
       }
@@ -1429,7 +1415,7 @@ export function useCesium() {
     // 禁用雾化效果，让远处物体更清晰
     viewer.scene.fog.enabled = false;
     
-    console.log('8K分辨率星空背景设置完成');
+    // console.log('8K分辨率星空背景设置完成');
     
     // 设置专门的地球照明增强
     setTimeout(() => {
@@ -1442,7 +1428,7 @@ export function useCesium() {
         viewer.scene.globe.dynamicAtmosphereLighting = true;
         viewer.scene.globe.dynamicAtmosphereLightingFromSun = true;
         
-        console.log('地球照明增强已启用');
+        // console.log('地球照明增强已启用');
       }
     }, 1000); // 延迟设置确保globe已初始化
     
@@ -1462,7 +1448,7 @@ export function useCesium() {
         viewer.scene.context._gl.LINEAR_MIPMAP_LINEAR
       );
       
-      console.log('8K纹理优化应用成功');
+      // console.log('8K纹理优化应用成功');
     } catch (error) {
       console.warn('高级纹理优化失败，但不影响基本功能:', error);
     }
@@ -1478,7 +1464,7 @@ export function useCesium() {
     // 调整地球表面反射率
     try {
       viewer.scene.globe._surface._tileProvider._material = undefined;
-      console.log('地球亮度增强设置完成');
+      // console.log('地球亮度增强设置完成');
     } catch (error) {
       console.warn('部分地球亮度设置失败，但不影响主要效果:', error);
     }
@@ -1495,7 +1481,7 @@ export function useCesium() {
     
     viewer.cesiumWidget.creditContainer.style.display = "none";
     
-    console.log('Cesium viewer初始化完成，仅使用本地地图资源');
+    // console.log('Cesium viewer初始化完成，仅使用本地地图资源');
     
     // 添加场景模式变化监听，处理2D模式的实体位置问题
     setupSceneModeHandling(viewer);
@@ -1503,7 +1489,7 @@ export function useCesium() {
     // 延迟加载国界线数据，确保地球纹理先加载完成
     setTimeout(() => {
       if (viewer && borderEnabled.value) {
-        console.log('开始延迟加载国界线...');
+        // console.log('开始延迟加载国界线...');
         loadLocalCountryBorders().catch(error => {
           console.error('延迟加载国界线失败:', error);
         });
@@ -1515,7 +1501,7 @@ export function useCesium() {
       if (viewer && viewer.scene && viewer.scene.globe) {
         viewer.scene.globe.enableLighting = enabled;
         lightingEnabled.value = enabled;
-        console.log(`光照效果已${enabled ? '开启' : '关闭'}`);
+        // console.log(`光照效果已${enabled ? '开启' : '关闭'}`);
       }
     }; //新增结束
     
@@ -1541,7 +1527,7 @@ export function useCesium() {
           // 添加新图层
           viewer.imageryLayers.addImageryProvider(earthImageryProvider);
           
-          console.log(`地球纹理已切换为: ${texturePath}`);
+          // console.log(`地球纹理已切换为: ${texturePath}`);
           
           // 强制刷新场景
           viewer.scene.requestRender();
@@ -1558,12 +1544,12 @@ export function useCesium() {
   function testSimpleEarthTexture() {
     if (!viewer) return;
     
-    console.log('🌍 开始简单地球纹理测试...');
+    // console.log('🌍 开始简单地球纹理测试...');
     
     // 尝试最直接的方法
     const img = new Image();
     img.onload = function() {
-      console.log('图片可以直接访问，尺寸:', img.width, 'x', img.height);
+      // console.log('图片可以直接访问，尺寸:', img.width, 'x', img.height);
       
       // 创建canvas
       const canvas = document.createElement('canvas');
@@ -1589,7 +1575,7 @@ export function useCesium() {
         
         viewer.imageryLayers.addImageryProvider(provider);
         
-        console.log('🎉 地球纹理通过canvas加载成功！');
+        // console.log('🎉 地球纹理通过canvas加载成功！');
         viewer.scene.requestRender();
         
       } catch (error) {
@@ -1612,7 +1598,7 @@ export function useCesium() {
   function useBackupEarthRendering() {
     if (!viewer) return;
     
-    console.log('应用备用地球渲染方案...');
+    // console.log('应用备用地球渲染方案...');
     
     // 移除所有图层
     viewer.imageryLayers.removeAll();
@@ -1632,7 +1618,7 @@ export function useCesium() {
   async function testAndLoadEarthTexture() {
     if (!viewer) return;
     
-    console.log('🌍 开始测试地球纹理加载...');
+    // console.log('🌍 开始测试地球纹理加载...');
     
     // 尝试最简单直接的方法：创建canvas纹理
     try {
@@ -1641,11 +1627,11 @@ export function useCesium() {
       
       const imageLoadPromise = new Promise((resolve, reject) => {
         img.onload = () => {
-          console.log(`图片加载成功 (尺寸: ${img.width}x${img.height})`);
+          // console.log(`图片加载成功 (尺寸: ${img.width}x${img.height})`);
           resolve(img);
         };
         img.onerror = (error) => {
-          console.log(`图片加载失败:`, error);
+          // console.log(`图片加载失败:`, error);
           reject(error);
         };
       });
@@ -1663,13 +1649,13 @@ export function useCesium() {
       
       for (const path of texturePaths) {
         try {
-          console.log(`尝试路径: ${path}`);
+          // console.log(`尝试路径: ${path}`);
           img.src = path;
           loadedImage = await imageLoadPromise;
           successPath = path;
           break;
         } catch (error) {
-          console.log(`路径 ${path} 失败`);
+          // console.log(`路径 ${path} 失败`);
           continue;
         }
       }
@@ -1702,8 +1688,8 @@ export function useCesium() {
       
       const layer = viewer.imageryLayers.addImageryProvider(earthImageryProvider);
       
-      console.log(`🎉 地球纹理加载成功! 使用路径: ${successPath}`);
-      console.log(`Canvas纹理尺寸: ${canvas.width}x${canvas.height}`);
+      // console.log(`🎉 地球纹理加载成功! 使用路径: ${successPath}`);
+      // console.log(`Canvas纹理尺寸: ${canvas.width}x${canvas.height}`);
       
       // 强制刷新场景
       viewer.scene.requestRender();
@@ -1720,7 +1706,7 @@ export function useCesium() {
   
   // 原始纹理加载方法
   async function tryOriginalTextureMethod() {
-    console.log('尝试原始纹理加载方法...');
+    // console.log('尝试原始纹理加载方法...');
     
     // 可能的纹理路径
     const texturePaths = [
@@ -1731,7 +1717,7 @@ export function useCesium() {
     
     for (const path of texturePaths) {
       try {
-        console.log(`尝试加载纹理路径: ${path}`);
+        // console.log(`尝试加载纹理路径: ${path}`);
         
         // 移除现有图层
         viewer.imageryLayers.removeAll();
@@ -1747,7 +1733,7 @@ export function useCesium() {
             credit: 'Natural Earth - Local'
           });
         } catch (tmsError) {
-          console.log('TileMapService方法失败，尝试UrlTemplateImageryProvider:', tmsError);
+          // console.log('TileMapService方法失败，尝试UrlTemplateImageryProvider:', tmsError);
           
           // 方法2: 使用UrlTemplateImageryProvider
           earthImageryProvider = new Cesium.UrlTemplateImageryProvider({
@@ -1763,7 +1749,7 @@ export function useCesium() {
         // 等待图层准备就绪
         await layer.readyPromise;
         
-        console.log(`🎉 地球纹理加载成功! 使用路径: ${path}`);
+        // console.log(`🎉 地球纹理加载成功! 使用路径: ${path}`);
         
         // 强制刷新场景
         viewer.scene.requestRender();
@@ -1771,7 +1757,7 @@ export function useCesium() {
         return; // 成功加载，退出循环
         
       } catch (error) {
-        console.log(`纹理路径 ${path} 加载失败:`, error);
+        // console.log(`纹理路径 ${path} 加载失败:`, error);
         continue; // 尝试下一个路径
       }
     }
@@ -1785,7 +1771,7 @@ export function useCesium() {
   function useBackupEarthRendering() {
     if (!viewer) return;
     
-    console.log('应用备用地球渲染方案...');
+    // console.log('应用备用地球渲染方案...');
     
     // 移除所有图层
     viewer.imageryLayers.removeAll();
@@ -1810,7 +1796,7 @@ export function useCesium() {
       });
       
       viewer.scene.globe.material = earthMaterial;
-      console.log('备用地球材质应用成功');
+      // console.log('备用地球材质应用成功');
       
     } catch (error) {
       console.warn('备用材质创建失败:', error);
@@ -1824,7 +1810,7 @@ export function useCesium() {
     if (!viewer) return;
     
     try {
-      console.log('开始加载本地国界线数据...');
+      // console.log('开始加载本地国界线数据...');
       
       // 加载本地GeoJSON文件
       const dataSource = await Cesium.GeoJsonDataSource.load('/maps/countries.geo.json', {
@@ -1843,7 +1829,7 @@ export function useCesium() {
       // 添加到viewer
       await viewer.dataSources.add(dataSource);
       
-      console.log(`国界线数据源已添加，当前显示状态: ${dataSource.show}`);
+      // console.log(`国界线数据源已添加，当前显示状态: ${dataSource.show}`);
       
       // 设置显示样式  
       const entities = dataSource.entities.values;
@@ -1869,15 +1855,15 @@ export function useCesium() {
       }
       // 9月28日国界线修改到此结束👆
 
-      console.log(`本地国界线数据加载成功，共加载 ${entities.length} 个国家/地区边界`);
+      // console.log(`本地国界线数据加载成功，共加载 ${entities.length} 个国家/地区边界`);
       
       // 强制刷新场景以确保国界线显示
       viewer.scene.requestRender();
       
       // 输出第一个实体的详细信息用于调试
       if (entities.length > 0) {
-        console.log('第一个国界线实体:', entities[0]);
-        console.log('实体显示状态:', entities[0].show);
+        // console.log('第一个国界线实体:', entities[0]);
+        // console.log('实体显示状态:', entities[0].show);
       }
       
     } catch (error) {
@@ -1895,7 +1881,7 @@ export function useCesium() {
   function forceShowTimelineControls() {
     if (!viewer) return;
     
-    // console.log('隐藏原生时间轴控件...');
+    // // console.log('隐藏原生时间轴控件...');
     
     // 隐藏原生时间轴控件
     if (viewer.timeline) {
@@ -1917,7 +1903,7 @@ export function useCesium() {
         element.style.display = 'none !important';
         element.style.visibility = 'hidden !important';
         element.style.opacity = '0 !important';
-        // console.log(`隐藏原生时间轴元素 ${selector}`);
+        // // console.log(`隐藏原生时间轴元素 ${selector}`);
       });
     });
     
@@ -1928,14 +1914,14 @@ export function useCesium() {
   function setupTimelineStyles() {
     if (!viewer) return;
     
-    console.log('正在设置时间轴样式...');
+    // console.log('正在设置时间轴样式...');
     
     // 隐藏原生时间轴容器，我们使用自定义时间轴
     const timelineContainer = viewer.timeline?.container;
     if (timelineContainer) {
       timelineContainer.style.display = 'none';
       timelineContainer.style.visibility = 'hidden';
-      console.log('原生时间轴容器已隐藏');
+      // console.log('原生时间轴容器已隐藏');
     }
     
     // 查找并设置动画控件容器
@@ -1949,7 +1935,7 @@ export function useCesium() {
       animationContainer.style.width = '169px';
       animationContainer.style.height = '112px';
       animationContainer.style.zIndex = '1000';
-      console.log('动画控件容器样式已设置');
+      // console.log('动画控件容器样式已设置');
     }
     
     // 通过DOM查找并设置样式（备用方案）
@@ -1958,14 +1944,14 @@ export function useCesium() {
       timelineElements.forEach(element => {
         element.style.display = 'none';
         element.style.visibility = 'hidden';
-        console.log('通过DOM隐藏了原生时间轴');
+        // console.log('通过DOM隐藏了原生时间轴');
       });
       
       const animationElements = document.querySelectorAll('.cesium-animation-container');
       animationElements.forEach(element => {
         element.style.display = 'block';
         element.style.visibility = 'visible';
-        console.log('通过DOM设置了动画控件样式');
+        // console.log('通过DOM设置了动画控件样式');
       });
     }, 100);
   }
@@ -1974,13 +1960,13 @@ export function useCesium() {
   function setTimelinePosition(bottomOffset = 10) {
     if (!viewer) return;
     
-    // console.log(`设置时间轴位置，底部偏移: ${bottomOffset}px`);
+    // // console.log(`设置时间轴位置，底部偏移: ${bottomOffset}px`);
     
     // 调整自定义时间轴位置
     const simulationTimeline = document.querySelector('.simulation-timeline');
     if (simulationTimeline) {
       simulationTimeline.style.bottom = `${bottomOffset}px`;
-      // console.log('自定义时间轴位置已设置到:', bottomOffset);
+      // // console.log('自定义时间轴位置已设置到:', bottomOffset);
     }
     
     // 原生时间轴容器已隐藏，不需要调整位置
@@ -2005,7 +1991,7 @@ export function useCesium() {
       element.style.visibility = 'hidden';
     });
     
-    // console.log(`时间轴位置已调整到底部 ${bottomOffset}px，并确保可见性`);
+    // // console.log(`时间轴位置已调整到底部 ${bottomOffset}px，并确保可见性`);
   }
 
   function setupTimelineControl(onTimeChange) {
@@ -2019,7 +2005,7 @@ export function useCesium() {
     // 延迟启用监听器，避免初始化时的自动触发
     setTimeout(() => {
       isInitialized = true;
-      console.log('时间轴控制已初始化，使用事件驱动模式');
+      // console.log('时间轴控制已初始化，使用事件驱动模式');
     }, 2000);
     
     // 简化时间轴监听逻辑 - 支持任何状态下的拖拽
@@ -2050,7 +2036,7 @@ export function useCesium() {
         lastFrame = clampedFrame;
         lastProcessedTime = Cesium.JulianDate.clone(currentTime);
         
-        // console.log(`🎯 时间轴变化到帧: ${clampedFrame} (播放状态: ${clock.shouldAnimate}, 经过时间: ${elapsed.toFixed(1)}s)`);
+        // // console.log(`🎯 时间轴变化到帧: ${clampedFrame} (播放状态: ${clock.shouldAnimate}, 经过时间: ${elapsed.toFixed(1)}s)`);
         onTimeChange(clampedFrame);
       }
     });
@@ -2072,7 +2058,7 @@ export function useCesium() {
       viewer.clock.currentTime = targetTime;
       lastFrame = clampedFrame;
       
-      console.log(`强制设置到帧: ${clampedFrame} (${currentFolder}文件夹)`);
+      // console.log(`强制设置到帧: ${clampedFrame} (${currentFolder}文件夹)`);
       
       // 立即触发数据加载
       if (onTimeChange) {
@@ -2080,7 +2066,7 @@ export function useCesium() {
       }
     };
     
-    console.log('时间轴控制设置完成，支持强制帧设置接口');
+    // console.log('时间轴控制设置完成，支持强制帧设置接口');
   }
 
   // 设置时间轴样式的函数
@@ -2093,7 +2079,7 @@ export function useCesium() {
       if (timelineContainer) {
         timelineContainer.style.display = 'none';
         timelineContainer.style.visibility = 'hidden';
-        console.log('原生时间轴容器已隐藏（延迟设置）');
+        // console.log('原生时间轴容器已隐藏（延迟设置）');
       } else {
         console.warn('时间轴容器未找到, viewer.timeline:', viewer.timeline);
       }
@@ -2106,7 +2092,7 @@ export function useCesium() {
         animationContainer.style.zIndex = '1000';
         animationContainer.style.visibility = 'visible';
         animationContainer.style.position = 'absolute';
-        console.log('动画控件容器样式已设置:', animationContainer);
+        // console.log('动画控件容器样式已设置:', animationContainer);
       } else {
         console.warn('动画控件容器未找到, viewer.animation:', viewer.animation);
       }
@@ -2117,7 +2103,7 @@ export function useCesium() {
         if (timelineDiv) {
           timelineDiv.style.display = 'block';
           timelineDiv.style.visibility = 'visible';
-          console.log('通过DOM选择器找到并设置了时间轴');
+          // console.log('通过DOM选择器找到并设置了时间轴');
         }
       }
       
@@ -2126,7 +2112,7 @@ export function useCesium() {
         if (animationDiv) {
           animationDiv.style.display = 'block';
           animationDiv.style.visibility = 'visible';
-          console.log('通过DOM选择器找到并设置了动画控件');
+          // console.log('通过DOM选择器找到并设置了动画控件');
         }
       }
     }, 1000); // 增加延迟确保DOM完全加载
@@ -2158,7 +2144,7 @@ export function useCesium() {
         }, 100); // 短暂延迟后恢复播放
       }
       
-      console.log(`手动跳转到帧 ${frame} (时间: ${frameSeconds}s, 间隔: ${timeInterval}s)`);
+      // console.log(`手动跳转到帧 ${frame} (时间: ${frameSeconds}s, 间隔: ${timeInterval}s)`);
     } else {
       console.warn(`跳转帧 ${frame} 超出范围，最大帧数: ${Math.floor(Cesium.JulianDate.secondsDifference(viewer.clock.stopTime, viewer.clock.startTime) / timeInterval) + 1}`);
     }
@@ -2178,7 +2164,7 @@ export function useCesium() {
       viewer.clock.shouldAnimate = true;
       viewer.clock.multiplier = 1; // 恢复正常播放速度
       viewer.clock.canAnimate = true; // 确保可以动画
-      console.log(`时间轴动画启用，当前帧时间: ${Cesium.JulianDate.toIso8601(viewer.clock.currentTime)}`);
+      // console.log(`时间轴动画启用，当前帧时间: ${Cesium.JulianDate.toIso8601(viewer.clock.currentTime)}`);
     } else {
       // 暂停时的强制停止措施
       const currentTime = Cesium.JulianDate.clone(viewer.clock.currentTime);
@@ -2194,7 +2180,7 @@ export function useCesium() {
         viewer.clock.multiplier = 0;
       }, 50);
       
-      console.log(`时间轴动画暂停，时间已完全冻结，当前帧时间: ${Cesium.JulianDate.toIso8601(currentTime)}`);
+      // console.log(`时间轴动画暂停，当前帧时间: ${Cesium.JulianDate.toIso8601(currentTime)}`);
     }
     
     // 强制更新时间轴显示
@@ -2206,14 +2192,14 @@ export function useCesium() {
   }
 
   function createEntities(frameData) {
-    console.log('createEntities 开始创建实体，数据:', frameData);
+    // // console.log('createEntities 开始创建实体，数据:', frameData);
     
     if (!frameData?.nodes?.length) {
       console.error('没有有效的节点数据');
       return;
     }
     
-    console.log(`节点数据数量: ${frameData.nodes.length}`);
+    // // console.log(`节点数据数量: ${frameData.nodes.length}`);
     
     // 确保viewer可用
     if (!viewer) {
@@ -2221,12 +2207,12 @@ export function useCesium() {
       return;
     }
     
-    console.log('Cesium viewer可用，开始创建节点实体...');
+    // // console.log('Cesium viewer可用，开始创建节点实体...');
     
     let createdCount = 0;
     frameData.nodes.forEach((node, index) => {
       if (viewer.entities.getById(node.id)) {
-        console.log(`节点 ${node.id} 已存在，跳过`);
+        // // console.log(`节点 ${node.id} 已存在，跳过`);
         return;
       }
       
@@ -2242,7 +2228,7 @@ export function useCesium() {
           entityConfig = createRoadmEntity(node, showRoadm.value);
           break;
         default:
-          console.log(`未知节点类型: ${node.type} (节点ID: ${node.id})`);
+          // // console.log(`未知节点类型: ${node.type} (节点ID: ${node.id})`);
           return;
       }
       
@@ -2261,14 +2247,14 @@ export function useCesium() {
         
         createdCount++;
         if (index < 5) { // 只打印前5个实体的详细信息
-          console.log(`创建节点 ${node.id} (${node.type}) 成功:`, entity);
+          // // console.log(`创建节点 ${node.id} (${node.type}) 成功:`, entity);
         }
       } catch (error) {
         console.error(`创建节点 ${node.id} 失败:`, error);
       }
     });
     
-    console.log(`当前场景中实体总数: ${viewer.entities.values.length}`);
+    // // console.log(`当前场景中实体总数: ${viewer.entities.values.length}`);
   }
   
   // 9月28日新增代码片段，地面链路显示
@@ -2488,7 +2474,7 @@ export function useCesium() {
             // 检查是否点击了卫星
             if (entity.id && entity.id.startsWith('satellite')) {
               // 绘制卫星轨道
-              console.log(`点击卫星: ${entity.id}，准备绘制轨道`);
+              // console.log(`点击卫星: ${entity.id}，准备绘制轨道`);
               drawSatelliteOrbit(entity.id);
             }
             // 点击其他实体(地面站、ROADM等)时，不清除轨道
@@ -2654,7 +2640,7 @@ export function useCesium() {
     if (!edges) {
       // 如果新帧没有edges数据,清除所有高亮链路
       if (highlightedLinks.length > 0) {
-        console.log(`⚠️ 帧数据中没有edges,清除卫星 ${currentHighlightedSatellite} 的高亮链路`);
+        // console.log(`⚠️ 帧数据中没有edges,清除卫星 ${currentHighlightedSatellite} 的高亮链路`);
         highlightedLinks.forEach(entity => viewer.entities.remove(entity));
         highlightedLinks = [];
         selectedLinkEntity = null;
@@ -2671,7 +2657,7 @@ export function useCesium() {
     
     // 如果当前卫星在新帧中没有链路了,清除高亮
     if (currentFrameEdges.length === 0) {
-      console.log(`⚠️ 卫星 ${currentHighlightedSatellite} 在新帧中没有链路,清除高亮`);
+      // console.log(`⚠️ 卫星 ${currentHighlightedSatellite} 在新帧中没有链路,清除高亮`);
       highlightedLinks.forEach(entity => viewer.entities.remove(entity));
       highlightedLinks = [];
       selectedLinkEntity = null;
@@ -2697,7 +2683,7 @@ export function useCesium() {
     
     // 移除不再存在的链路
     if (linksToRemove.length > 0) {
-      console.log(`🗑️ 移除 ${linksToRemove.length} 条不存在的链路`);
+      // console.log(`🗑️ 移除 ${linksToRemove.length} 条不存在的链路`);
       linksToRemove.forEach(entity => {
         viewer.entities.remove(entity);
         const index = highlightedLinks.indexOf(entity);
@@ -2725,7 +2711,7 @@ export function useCesium() {
         currentOrbitEntity = null;
       }
       
-      console.log('卫星轨道已清除');
+      // console.log('卫星轨道已清除');
     } catch (error) {
       console.error('清除卫星轨道时出错', error);
     }
@@ -2764,7 +2750,7 @@ export function useCesium() {
       return;
     }
     
-    console.log(`✅ 开始绘制卫星 ${satelliteId} 的轨道，使用文件夹: ${currentFolder}`);
+    // console.log(`✅ 开始绘制卫星 ${satelliteId} 的轨道，使用文件夹: ${currentFolder}`);
     
     try {
       // 读取轨道点
@@ -2778,7 +2764,7 @@ export function useCesium() {
       // 将位置转换为Cesium坐标
       const positions = orbitPoints.map(point => convertToCartesian3(point));
       
-      console.log(`🎨 准备绘制轨道线，点数: ${positions.length}`);
+      // console.log(`🎨 准备绘制轨道线，点数: ${positions.length}`);
       
       // 详细输出每个点的坐标
       positions.forEach((pos, index) => {
@@ -2801,23 +2787,23 @@ export function useCesium() {
         return;
       }
       
-      console.log(`✅ 有效坐标点数: ${validPositions.length}`);
+      // console.log(`✅ 有效坐标点数: ${validPositions.length}`);
       
       // 计算相邻点之间的距离，确保点之间有足够的距离
       for (let i = 1; i < validPositions.length; i++) {
         const distance = Cesium.Cartesian3.distance(validPositions[i-1], validPositions[i]);
-        console.log(`  点${i}到点${i+1}的距离: ${(distance/1000).toFixed(2)} km`);
+        // console.log(`  点${i}到点${i+1}的距离: ${(distance/1000).toFixed(2)} km`);
       }
       
       // 检查当前场景模式
       const sceneMode = viewer.scene.mode;
       const is2DMode = sceneMode === Cesium.SceneMode.SCENE2D || sceneMode === Cesium.SceneMode.COLUMBUS_VIEW;
-      console.log(`当前场景模式: ${sceneMode === Cesium.SceneMode.SCENE3D ? '3D' : sceneMode === Cesium.SceneMode.SCENE2D ? '2D' : 'Columbus'}`);
+      // console.log(`当前场景模式: ${sceneMode === Cesium.SceneMode.SCENE3D ? '3D' : sceneMode === Cesium.SceneMode.SCENE2D ? '2D' : 'Columbus'}`);
       
       // 在2D模式下，可能需要调整坐标高度
       let adjustedPositions = validPositions;
       if (is2DMode) {
-        console.log('⚠️ 检测到2D模式，调整轨道线高度以确保可见性');
+        // console.log('⚠️ 检测到2D模式，调整轨道线高度以确保可见性');
         // 在2D模式下，将轨道线提升到一定高度
         adjustedPositions = validPositions.map(pos => {
           const cartographic = Cesium.Cartographic.fromCartesian(pos);
@@ -2854,19 +2840,19 @@ export function useCesium() {
         entityType: 'satellite-orbit'
       });
       
-      console.log(`轨道线实体已创建:`, currentOrbitEntity);
-      console.log(`轨道线ID: ${currentOrbitEntity.id}`);
-      console.log(`轨道线可见性:`, currentOrbitEntity.show, currentOrbitEntity.polyline.show);
+      // console.log(`轨道线实体已创建:`, currentOrbitEntity);
+      // console.log(`轨道线ID: ${currentOrbitEntity.id}`);
+      // console.log(`轨道线可见性:`, currentOrbitEntity.show, currentOrbitEntity.polyline.show);
       
       // 模仿地面链路的渲染方式
       viewer.scene.requestRenderMode = false;
       viewer.scene.maximumRenderTimeChange = 0.0;
       viewer.scene.requestRender();
       
-      console.log(`轨道线实体已创建:`, currentOrbitEntity);
-      console.log(`轨道线可见性:`, currentOrbitEntity.show, currentOrbitEntity.polyline.show);
+      // console.log(`轨道线实体已创建:`, currentOrbitEntity);
+      // console.log(`轨道线可见性:`, currentOrbitEntity.show, currentOrbitEntity.polyline.show);
       
-      console.log(`成功绘制卫星 ${satelliteId} 的轨道，包含 ${orbitPoints.length} 个点`);
+      // console.log(`成功绘制卫星 ${satelliteId} 的轨道，包含 ${orbitPoints.length} 个点`);
       
     } catch (error) {
       console.error('绘制卫星轨道时出错', error);
@@ -2947,7 +2933,7 @@ export function useCesium() {
       }
     });
     
-    console.log('实体统计:', entityCount);
+    // // console.log('实体统计:', entityCount);
     viewer.scene.requestRender();
   }
 
@@ -3016,7 +3002,7 @@ export function useCesium() {
             // 检查是否点击了卫星
             if (entity.id && entity.id.startsWith('satellite')) {
               // 绘制卫星轨道
-              console.log(`点击卫星: ${entity.id}，准备绘制轨道`);
+              // console.log(`点击卫星: ${entity.id}，准备绘制轨道`);
               drawSatelliteOrbit(entity.id);
             }
             // 点击其他实体(地面站、ROADM等)时，不清除轨道
@@ -3045,12 +3031,12 @@ export function useCesium() {
 
   // 处理场景模式变化，修复2D模式下实体位置问题
   function setupSceneModeHandling(viewer) {
-    console.log('设置场景模式变化监听');
+    // console.log('设置场景模式变化监听');
     
     // 监听场景模式变化
     viewer.scene.morphComplete.addEventListener(() => {
       const sceneMode = viewer.scene.mode;
-      console.log(`场景模式切换完成: ${getSceneModeName(sceneMode)}`);
+      // console.log(`场景模式切换完成: ${getSceneModeName(sceneMode)}`);
       
       if (sceneMode === Cesium.SceneMode.SCENE2D || 
           sceneMode === Cesium.SceneMode.COLUMBUS_VIEW) {
@@ -3065,7 +3051,7 @@ export function useCesium() {
         setTimeout(() => {
           if (viewer.scene.skyBox && skyEnabled.value) {
             viewer.scene.skyBox.show = true;
-            console.log('3D模式下恢复星空背景显示');
+            // console.log('3D模式下恢复星空背景显示');
           }
         }, 100);
         //新增结束
@@ -3075,7 +3061,7 @@ export function useCesium() {
     // 也监听开始切换事件，用于调试
     viewer.scene.morphStart.addEventListener(() => {
       const fromMode = viewer.scene.mode;
-      console.log(`开始切换场景模式，当前模式: ${getSceneModeName(fromMode)}`);
+      // console.log(`开始切换场景模式，当前模式: ${getSceneModeName(fromMode)}`);
     });
   }
 
@@ -3093,7 +3079,7 @@ export function useCesium() {
   }
 
   function recalculateEntityPositionsFor2D(viewer) {
-    console.log('重新计算2D模式下的实体位置');
+    // console.log('重新计算2D模式下的实体位置');
     const entities = viewer.entities.values;
     let updatedCount = 0;
     let satelliteCount = 0;
@@ -3113,7 +3099,7 @@ export function useCesium() {
         satelliteCount++;
         // 对于卫星，检查其position是否为CallbackProperty
         if (entity.position && typeof entity.position.getValue === 'function') {
-          console.log(`卫星 ${entity.id} 保持动态位置属性 (CallbackProperty)`);
+          // console.log(`卫星 ${entity.id} 保持动态位置属性 (CallbackProperty)`);
         } else {
           console.warn(`卫星 ${entity.id} 没有动态位置属性，可能已被静态化`);
         }
@@ -3124,7 +3110,7 @@ export function useCesium() {
       if (entity.originalLatLon) {
         const { longitude, latitude, height = 0 } = entity.originalLatLon;
         
-        console.log(`更新地面站/ROADM ${entity.id} 位置: ${longitude}, ${latitude}`);
+        // console.log(`更新地面站/ROADM ${entity.id} 位置: ${longitude}, ${latitude}`);
         
         // 在2D模式下，需要完全重新创建位置属性
         const newPosition = Cesium.Cartesian3.fromDegrees(longitude, latitude, height);
@@ -3143,13 +3129,13 @@ export function useCesium() {
         }
         
         updatedCount++;
-        console.log(`${entity.id} 位置已更新为 (${longitude.toFixed(2)}, ${latitude.toFixed(2)})`);
+        // console.log(`${entity.id} 位置已更新为 (${longitude.toFixed(2)}, ${latitude.toFixed(2)})`);
       }
       // 处理卫星（有原始笛卡尔坐标）
       else if (entity.originalCartesian) {
         // 对于卫星，不要重写动态位置属性，因为它们需要保持动态更新
         // 卫星位置由动画系统管理，在2D模式下应该继续动态更新
-        console.log(`跳过卫星 ${entity.id} 位置重写，保持动态位置属性`);
+        // console.log(`跳过卫星 ${entity.id} 位置重写，保持动态位置属性`);
       }
       // 如果没有原始坐标但是地面站或ROADM，尝试从当前位置提取
       else if (entity.id && (entity.id.startsWith('ROADM') || entity.id.includes('station') || entity.id.startsWith('station')) 
@@ -3174,7 +3160,7 @@ export function useCesium() {
               const longitude = Cesium.Math.toDegrees(cartographic.longitude);
               const latitude = Cesium.Math.toDegrees(cartographic.latitude);
               
-              console.log(`从当前位置提取 ${entity.id} 坐标: ${longitude}, ${latitude}`);
+              // console.log(`从当前位置提取 ${entity.id} 坐标: ${longitude}, ${latitude}`);
               
               // 保存原始坐标并重新设置位置
               entity.originalLatLon = { longitude, latitude, height: 10 };
@@ -3193,7 +3179,7 @@ export function useCesium() {
               }
               
               updatedCount++;
-              console.log(`${entity.id} 位置已重新设置为 (${longitude.toFixed(2)}, ${latitude.toFixed(2)})`);
+              // console.log(`${entity.id} 位置已重新设置为 (${longitude.toFixed(2)}, ${latitude.toFixed(2)})`);
             }
           }
         } catch (error) {
@@ -3202,17 +3188,17 @@ export function useCesium() {
       }
     }
     
-    console.log(`已更新 ${updatedCount} 个实体的2D位置`);
-    console.log(`保持 ${satelliteCount} 个卫星的动态位置属性`);
+    // console.log(`已更新 ${updatedCount} 个实体的2D位置`);
+    // console.log(`保持 ${satelliteCount} 个卫星的动态位置属性`);
     
     // 强制场景重新渲染
     viewer.scene.requestRender();
     
-    console.log('场景重新渲染已请求');
+    // console.log('场景重新渲染已请求');
   }
 
   function optimize2DMode(viewer) {
-    console.log('优化2D模式显示');
+    // console.log('优化2D模式显示');
     
     if (viewer.scene.mode === Cesium.SceneMode.SCENE2D) {
       // 设置2D模式的最佳视图
@@ -3278,16 +3264,16 @@ export function useCesium() {
 
   // 手动触发2D模式位置重计算（用于测试）
   function manuallyFixEntitiesFor2D() {
-    console.log('手动修复2D模式实体位置');
+    // console.log('手动修复2D模式实体位置');
     if (!viewer.current) {
-      console.log('viewer 不可用');
+      // console.log('viewer 不可用');
       return;
     }
     
     const entities = viewer.current.entities.values;
     let fixedCount = 0;
     
-    console.log(`🔍 找到 ${entities.length} 个实体`);
+    // console.log(`🔍 找到 ${entities.length} 个实体`);
     
     // 先移除所有地面站和ROADM，然后重新创建
     const toRecreate = [];
@@ -3325,7 +3311,7 @@ export function useCesium() {
       }
     });
     
-    console.log(`移除了 ${toRecreate.length} 个实体，准备重新创建`);
+    // console.log(`移除了 ${toRecreate.length} 个实体，准备重新创建`);
     
     // 重新创建所有实体
     toRecreate.forEach(entityInfo => {
@@ -3364,7 +3350,7 @@ export function useCesium() {
       }
       
       fixedCount++;
-      console.log(`重新创建 ${entityInfo.id}: (${longitude.toFixed(2)}, ${latitude.toFixed(2)})`);
+      // console.log(`重新创建 ${entityInfo.id}: (${longitude.toFixed(2)}, ${latitude.toFixed(2)})`);
     });
     
     // 强制重新渲染和布局
@@ -3375,7 +3361,7 @@ export function useCesium() {
       viewer.current.scene.morphTo2D(0);
     }, 100);
     
-    console.log(`手动修复完成，共重新创建 ${fixedCount} 个实体`);
+    // console.log(`手动修复完成，共重新创建 ${fixedCount} 个实体`);
     
     return fixedCount;
   }
@@ -3431,22 +3417,22 @@ export function useCesium() {
     viewer.clock.canAnimate = true; // 允许动画，这样时间轴才能正常交互
     viewer.clock.shouldAnimate = false; // 但默认不播放
     
-    console.log(`时钟重置完成 - 文件夹: ${folderName}, 时间间隔: ${timeInterval}秒, 总时长: ${totalDuration}秒, 总帧数: ${calculatedTotalFrames}`);
-    console.log(`时间范围: ${Cesium.JulianDate.toIso8601(startTime)} 到 ${Cesium.JulianDate.toIso8601(endTime)}`);
+    // console.log(`时钟重置完成 - 文件夹: ${folderName}, 时间间隔: ${timeInterval}秒, 总时长: ${totalDuration}秒, 总帧数: ${calculatedTotalFrames}`);
+    // console.log(`时间范围: ${Cesium.JulianDate.toIso8601(startTime)} 到 ${Cesium.JulianDate.toIso8601(endTime)}`);
     
     // 更新自定义时间轴的总时间显示
     const totalTimeDisplay = document.querySelector('#custom-total-time-display');
     if (totalTimeDisplay) {
       if (config.isDefault) {
         totalTimeDisplay.textContent = '--:--:--';
-        console.log(`总时间显示已更新为默认状态: ${totalTimeDisplay.textContent}`);
+        // console.log(`总时间显示已更新为默认状态: ${totalTimeDisplay.textContent}`);
       } else {
         const totalMinutes = Math.floor(totalDuration / 60);
         const remainingSeconds = totalDuration % 60;
         const totalHours = Math.floor(totalMinutes / 60);
         const displayMinutes = totalMinutes % 60;
         totalTimeDisplay.textContent = `${totalHours.toString().padStart(2, '0')}:${displayMinutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-        console.log(`总时间显示已更新: ${totalTimeDisplay.textContent}`);
+        // console.log(`总时间显示已更新: ${totalTimeDisplay.textContent}`);
       }
     }
     
@@ -3467,7 +3453,7 @@ export function useCesium() {
         timelineElement.style.display = 'block';
         timelineElement.style.visibility = 'visible';
         timelineElement.style.pointerEvents = 'auto'; // 确保可以交互
-        console.log('Cesium原生时间轴已启用交互');
+        // console.log('Cesium原生时间轴已启用交互');
       }
     }, 200);
   }
@@ -3508,7 +3494,7 @@ export function useCesium() {
       if (viewer && viewer.scene && viewer.scene.globe) {
         viewer.scene.globe.enableLighting = enabled;
         lightingEnabled.value = enabled;
-        console.log(`光照效果已${enabled ? '开启' : '关闭'}`);
+        // console.log(`光照效果已${enabled ? '开启' : '关闭'}`);
       }
     },
     // 获取光照状态
@@ -3530,7 +3516,7 @@ export function useCesium() {
           if (dataSource._isCountryBorderDataSource) {
             dataSource.show = enabled;
             found = true;
-            console.log(`国界线显示已${enabled ? '开启' : '关闭'}`);
+            // console.log(`国界线显示已${enabled ? '开启' : '关闭'}`);
             break;
           }
           
@@ -3544,7 +3530,7 @@ export function useCesium() {
               dataSource._isCountryBorderDataSource = true;
               dataSource.show = enabled;
               found = true;
-              console.log(`识别到国界线数据源，显示已${enabled ? '开启' : '关闭'}`);
+              // console.log(`识别到国界线数据源，显示已${enabled ? '开启' : '关闭'}`);
               break;
             }
           }
@@ -3557,7 +3543,7 @@ export function useCesium() {
             console.error('重新加载国界线失败:', error);
           });
         } else if (!found && !enabled) {
-          console.log('国界线数据源未加载，无需关闭');
+          // console.log('国界线数据源未加载，无需关闭');
         }
         
         // 强制刷新场景
@@ -3578,7 +3564,7 @@ export function useCesium() {
             // 设置显示状态
             dataSource.show = enabled;
             gridEnabled.value = enabled;
-            console.log(`经纬线网格显示已${enabled ? '开启' : '关闭'}`);
+            // console.log(`经纬线网格显示已${enabled ? '开启' : '关闭'}`);
             
             // 如果开启网格且没有实体，重新生成网格线
             if (enabled && dataSource.entities.values.length === 0) {
@@ -3601,7 +3587,7 @@ export function useCesium() {
       if (viewer && viewer.scene) {
         viewer.scene.skyBox.show = enabled;
         skyEnabled.value = enabled;
-        console.log(`星空背景显示已${enabled ? '开启' : '关闭'}`);
+        // console.log(`星空背景显示已${enabled ? '开启' : '关闭'}`);
         // 强制刷新场景
         viewer.scene.requestRender();
       }
@@ -3632,7 +3618,7 @@ export function useCesium() {
           // 添加新图层
           viewer.imageryLayers.addImageryProvider(earthImageryProvider);
           
-          console.log(`地球纹理已切换为: ${texturePath}`);
+          // console.log(`地球纹理已切换为: ${texturePath}`);
           
           // 强制刷新场景
           viewer.scene.requestRender();

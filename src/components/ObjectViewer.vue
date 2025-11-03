@@ -309,12 +309,12 @@ async function loadLocalData(timeFrame = 60) {
   
   try {
     const filename = `./data/network_state_${timeFrame}.00.json`;
-    console.log(`ObjectViewer: 正在加载本地文件 ${filename}`);
+    // console.log(`ObjectViewer: 正在加载本地文件 ${filename}`);
     
     const localData = await dataLoader.loadGraphData(filename);
     if (localData) {
       updateData(localData);
-      console.log('ObjectViewer: 本地数据加载成功');
+      // console.log('ObjectViewer: 本地数据加载成功');
       return localData;
     }
   } catch (error) {
@@ -337,14 +337,14 @@ onMounted(async () => {
   
   // 添加文件夹变更事件监听器
   const handleDataFolderChange = (event) => {
-    console.log('ObjectViewer: 检测到文件夹变更事件');
+    // console.log('ObjectViewer: 检测到文件夹变更事件');
     updateCurrentFolderDisplay();
   };
   
   window.addEventListener('data-folder-changed', handleDataFolderChange);
   
   // 移除自动加载逻辑，等待用户选择文件夹或进程
-  console.log('ObjectViewer: 等待用户选择数据源...');
+  // console.log('ObjectViewer: 等待用户选择数据源...');
 });
 </script>
 

@@ -251,7 +251,7 @@ const gridControlRef = ref(null);
 
 // 处理经纬线网格切换事件
 function onToggleGrid(enabled) {
-  console.log(`切换经纬线网格状态: ${enabled}`);
+  // console.log(`切换经纬线网格状态: ${enabled}`);
   if (toggleGrid) {
     toggleGrid(enabled);
   } else {
@@ -264,7 +264,7 @@ const skyControlRef = ref(null);
 
 // 处理星空背景切换事件
 function onToggleSky(enabled) {
-  console.log(`切换星空背景状态: ${enabled}`);
+  // console.log(`切换星空背景状态: ${enabled}`);
   if (toggleSky) {
     toggleSky(enabled);
   } else {
@@ -277,7 +277,7 @@ const earthTextureControlRef = ref(null);
 
 // 处理地球纹理切换事件
 function onToggleEarthTexture(textureType) {
-  console.log(`切换地球纹理类型: ${textureType}`);
+  // console.log(`切换地球纹理类型: ${textureType}`);
   if (window.toggleEarthTexture) {
     window.toggleEarthTexture(textureType);
   } else {
@@ -316,7 +316,7 @@ const selectedEntity = computed(() => {
 function handleDataSelection(data) {
   selectedSimulationData.value = data;
   showDataPanel.value = true;
-  console.log('选择的仿真数据:', data);
+  // console.log('选择的仿真数据:', data);
   
   // 关闭其他面板，确保图表面板独占右侧
   showRightPanel.value = false;
@@ -332,7 +332,7 @@ function handleDataSelection(data) {
 // 处理图表面板关闭
 function handleChartPanelClose() {
   showDataPanel.value = false;
-  console.log('图表面板已关闭');
+  // console.log('图表面板已关闭');
 }
 
 // 自定义选择指示器
@@ -391,7 +391,7 @@ function getSelectionIndicatorStyle(entityId) {
         parseFloat(entity.position[1]) * 1000,
         parseFloat(entity.position[2]) * 1000
       );
-      console.log(`选择指示器：使用卫星 ${entityId} 的数据位置（回退）`);
+      // console.log(`选择指示器：使用卫星 ${entityId} 的数据位置（回退）`);
     } else {
       position = Cesium.Cartesian3.fromDegrees(
         parseFloat(entity.position[0]),
@@ -504,7 +504,7 @@ function synchronizeIndicatorAnimations() {
     indicator.style.animationDelay = '0s';
   });
   
-  console.log(`已同步 ${indicators.length} 个选择指示器的动画`);
+  // console.log(`已同步 ${indicators.length} 个选择指示器的动画`);
 }
 
 // 初始化所有composables
@@ -599,17 +599,17 @@ function increaseSpeed() {
     const oldSpeed = playbackSpeed.value;
     playbackSpeed.value = speedOptions[currentIndex + 1];
     setPlaybackRate(playbackSpeed.value);
-    console.log(`播放速度从 ${oldSpeed}x 增加到: ${playbackSpeed.value}x`);
+    // console.log(`播放速度从 ${oldSpeed}x 增加到: ${playbackSpeed.value}x`);
     
     // 如果当前正在播放，立即应用新速度到Cesium时钟
     if (isPlaying.value && viewer()) {
       viewer().clock.multiplier = playbackSpeed.value;
-      console.log(`已应用Cesium时钟倍率: ${playbackSpeed.value}x`);
+      // console.log(`已应用Cesium时钟倍率: ${playbackSpeed.value}x`);
     }
     
     // 速度变化会在下一次播放循环时自动生效（通过getPlaybackSpeed函数）
   } else {
-    console.log(`已达到最大播放速度: ${playbackSpeed.value}x`);
+    // console.log(`已达到最大播放速度: ${playbackSpeed.value}x`);
   }
 }
 
@@ -620,17 +620,17 @@ function decreaseSpeed() {
     const oldSpeed = playbackSpeed.value;
     playbackSpeed.value = speedOptions[currentIndex - 1];
     setPlaybackRate(playbackSpeed.value);
-    console.log(`播放速度从 ${oldSpeed}x 减少到: ${playbackSpeed.value}x`);
+    // console.log(`播放速度从 ${oldSpeed}x 减少到: ${playbackSpeed.value}x`);
     
     // 如果当前正在播放，立即应用新速度到Cesium时钟
     if (isPlaying.value && viewer()) {
       viewer().clock.multiplier = playbackSpeed.value;
-      console.log(`已应用Cesium时钟倍率: ${playbackSpeed.value}x`);
+      // console.log(`已应用Cesium时钟倍率: ${playbackSpeed.value}x`);
     }
     
     // 速度变化会在下一次播放循环时自动生效（通过getPlaybackSpeed函数）
   } else {
-    console.log(`已达到最小播放速度: ${playbackSpeed.value}x`);
+    // console.log(`已达到最小播放速度: ${playbackSpeed.value}x`);
   }
 }
 
@@ -638,7 +638,7 @@ function decreaseSpeed() {
 function resetSpeed() {
   playbackSpeed.value = 1;
   setPlaybackRate(1);
-  console.log('播放速度重置到: 1x');
+  // console.log('播放速度重置到: 1x');
   
   // 如果当前正在播放，立即应用新速度到Cesium时钟
   if (isPlaying.value && viewer()) {
@@ -659,7 +659,7 @@ function handleDecreaseSpeed() {
 
 // 处理光照控制切换事件 10.27新增
 function onToggleLighting(enabled) {
-  console.log(`切换光照状态: ${enabled}`);
+  // console.log(`切换光照状态: ${enabled}`);
   if (window.toggleLighting) {
     window.toggleLighting(enabled);
   } else {
@@ -696,7 +696,7 @@ watch([showRightPanel, showDataPanel, selectedService], () => {
 function handleLocalPlayback() {
   if (!isLoggedIn.value) {
     // 未登录状态下，启动本地数据的顺序播放
-    console.log('开始本地仿真播放');
+    // console.log('开始本地仿真播放');
     togglePlayback(loadTimeFrame, viewer());
   }
 }
@@ -713,7 +713,7 @@ function toggleLocalSimulation() {
 // 处理开始本地仿真
 function handleStartLocalSimulation() {
   if (!isLoggedIn.value) {
-    console.log('开始本地仿真播放');
+    // console.log('开始本地仿真播放');
     togglePlayback(loadTimeFrame, viewer());
   }
 }
@@ -721,20 +721,20 @@ function handleStartLocalSimulation() {
 // 处理暂停本地仿真
 function handlePauseLocalSimulation() {
   if (!isLoggedIn.value) {
-    console.log('暂停本地仿真播放');
+    // console.log('暂停本地仿真播放');
     togglePlayback(loadTimeFrame, viewer());
   }
 }
 
 // 处理停止仿真 - 清除所有缓存和状态
 function handleStopSimulation() {
-  console.log('=== SatelliteViewer: 处理停止仿真 ===');
+  // console.log('=== SatelliteViewer: 处理停止仿真 ===');
   
   try {
     // 1. 停止当前正在进行的动画和播放
     if (!isLoggedIn.value) {
       // 停止本地仿真播放
-      console.log('停止本地仿真播放');
+      // console.log('停止本地仿真播放');
       if (isPlaying.value) {
         togglePlayback(loadTimeFrame, viewer());
       }
@@ -746,9 +746,9 @@ function handleStopSimulation() {
     playbackSpeed.value = 1;
     
     // 3. 清除所有缓存
-    console.log('清除网络数据缓存...');
+    // console.log('清除网络数据缓存...');
     clearCache();
-    console.log('清除服务数据缓存...');  
+    // console.log('清除服务数据缓存...');  
     clearServiceCache();
     
     // 4. 重置所有数据状态
@@ -766,7 +766,7 @@ function handleStopSimulation() {
     // 6. 清除Cesium场景中的所有实体
     const cesiumViewer = viewer();
     if (cesiumViewer) {
-      console.log('清除Cesium场景实体...');
+      // console.log('清除Cesium场景实体...');
       cesiumViewer.entities.removeAll();
       cesiumViewer.scene.primitives.removeAll();
       
@@ -782,7 +782,7 @@ function handleStopSimulation() {
     showRoadm.value = true;
     showLinks.value = true;
     
-    console.log('SatelliteViewer: 停止仿真完成，所有状态已重置');
+    // console.log('SatelliteViewer: 停止仿真完成，所有状态已重置');
     
   } catch (error) {
     console.error('SatelliteViewer: 停止仿真时发生错误:', error);
@@ -791,21 +791,21 @@ function handleStopSimulation() {
 
 // 监听进程ID变化，当选择新进程时立即加载数据
 watch(selectedProcessId, async (newProcessId, oldProcessId) => {
-  console.log('=== 进程ID监听器触发 ===');
-  console.log('新进程ID:', newProcessId);
-  console.log('旧进程ID:', oldProcessId);
-  console.log('登录状态:', isLoggedIn.value);
-  console.log('条件检查:', newProcessId, newProcessId !== oldProcessId, isLoggedIn.value);
+  // console.log('=== 进程ID监听器触发 ===');
+  // console.log('新进程ID:', newProcessId);
+  // console.log('旧进程ID:', oldProcessId);
+  // console.log('登录状态:', isLoggedIn.value);
+  // console.log('条件检查:', newProcessId, newProcessId !== oldProcessId, isLoggedIn.value);
   
   if (newProcessId && newProcessId !== oldProcessId && isLoggedIn.value) {
-    console.log(`进程ID发生变化，从 ${oldProcessId} 变为 ${newProcessId}`);
-    console.log('清理旧进程的缓存数据...');
+    // console.log(`进程ID发生变化，从 ${oldProcessId} 变为 ${newProcessId}`);
+    // console.log('清理旧进程的缓存数据...');
     
     // 清理缓存以防止内存占用过大
     clearCache();
     clearServiceCache();
     
-    console.log('立即加载新进程的数据...');
+    // console.log('立即加载新进程的数据...');
     
     try {
       // 加载新进程的初始数据（60秒时间戳）
@@ -828,7 +828,7 @@ watch(selectedProcessId, async (newProcessId, oldProcessId) => {
           objectViewerRef.value.updateData(data);
         }
         
-        console.log('新进程数据加载完成');
+        // console.log('新进程数据加载完成');
       } else {
         console.warn('API返回的数据为空或格式不正确');
       }
@@ -836,18 +836,18 @@ watch(selectedProcessId, async (newProcessId, oldProcessId) => {
       console.error('加载新进程数据失败:', error);
     }
   } else {
-    console.log('不满足数据加载条件，跳过加载');
+    // console.log('不满足数据加载条件，跳过加载');
   }
 }, { immediate: false });
 
 // 监听登录状态变化
 watch(isLoggedIn, async (newLoginStatus) => {
   if (newLoginStatus) {
-    console.log('用户登录成功，检查是否有缓存的进程ID');
+    // console.log('用户登录成功，检查是否有缓存的进程ID');
     const cachedProcessId = selectedProcessId.value || localStorage.getItem('selectedProcessId');
     
     if (cachedProcessId) {
-      console.log(`发现缓存的进程ID: ${cachedProcessId}，立即加载数据`);
+      // console.log(`发现缓存的进程ID: ${cachedProcessId}，立即加载数据`);
       try {
         const data = await loadGraphDataFromAPI(cachedProcessId, 60);
         
@@ -865,7 +865,7 @@ watch(isLoggedIn, async (newLoginStatus) => {
             objectViewerRef.value.updateData(data);
           }
           
-          console.log('登录后数据加载完成');
+          // console.log('登录后数据加载完成');
         }
       } catch (error) {
         console.error('登录后加载数据失败:', error);
@@ -873,10 +873,10 @@ watch(isLoggedIn, async (newLoginStatus) => {
     }
   } else {
     // 用户登出时切换到本地数据
-    console.log('用户登出，切换到本地数据');
+    // console.log('用户登出，切换到本地数据');
     
     // 清理API相关的缓存，但保留本地数据缓存
-    console.log('清理API缓存，保留本地数据缓存...');
+    // console.log('清理API缓存，保留本地数据缓存...');
     // 可以选择部分清理或全部清理
     // clearCache(); // 如果要全部清理
     // clearServiceCache();
@@ -889,7 +889,7 @@ watch(isLoggedIn, async (newLoginStatus) => {
         const networkData = await loadGraphData(filename);
         
         if (networkData) {
-          console.log('登出后本地数据加载成功');
+          // console.log('登出后本地数据加载成功');
           if (viewer() && viewer().entities) {
             viewer().entities.removeAll();
           }
@@ -936,7 +936,7 @@ async function loadBusinessDataForFrame(frameNumber) {
     const formattedNumber = String(frameNumber * 10).padStart(2, '0');
     const filePath = `${folderPath}/network_state_${formattedNumber}.00.json`;
     
-    console.log(`预加载业务数据: ${filePath}`);
+    // console.log(`预加载业务数据: ${filePath}`);
     
     const response = await fetch(filePath);
     if (!response.ok) {
@@ -947,7 +947,7 @@ async function loadBusinessDataForFrame(frameNumber) {
     
     // 预加载数据到缓存
     if (data.business_services) {
-      console.log(`预加载完成，业务服务数量: ${data.business_services.length}`);
+      // console.log(`预加载完成，业务服务数量: ${data.business_services.length}`);
     }
     
     return data;
@@ -958,19 +958,19 @@ async function loadBusinessDataForFrame(frameNumber) {
 }
 
 async function loadTimeFrame(frame, isFrameJump = false) {
-  console.log(`强制加载帧: ${frame}, 时间跳转: ${isFrameJump}`);
+  // console.log(`强制加载帧: ${frame}, 时间跳转: ${isFrameJump}`);
   
   try {
     timeFrame.value = frame;
     
     // 检查登录状态
     if (!isLoggedIn.value) {
-      console.log('用户未登录，从本地文件强制加载数据');
+      // console.log('用户未登录，从本地文件强制加载数据');
       
       // 检查是否已选择文件夹
       const currentFolder = getCurrentDataFolder();
       if (!currentFolder) {
-        console.warn('未选择数据文件夹，无法加载数据');
+        // console.warn('未选择数据文件夹，无法加载数据');
         return;
       }
       
@@ -985,32 +985,32 @@ async function loadTimeFrame(frame, isFrameJump = false) {
       
       // 直接构建文件名，不依赖时间计算
       const filename = `./data/${currentFolder}/network_state_${fileTimeValue}.00.json`;
-      console.log(`强制加载文件: ${filename} (文件夹: ${currentFolder}, 帧索引: ${frame}, 文件时间值: ${fileTimeValue}秒)`);
+      // // console.log(`强制加载文件: ${filename} (文件夹: ${currentFolder}, 帧索引: ${frame}, 文件时间值: ${fileTimeValue}秒)`);
       
       try {
         let networkData = null;
         
         // 首先检查是否有预加载的数据
         if (window.preloadedFrame === frame && window.preloadedData) {
-          console.log(`使用预加载的帧 ${frame} 数据`);
+          // // console.log(`使用预加载的帧 ${frame} 数据`);
           networkData = window.preloadedData;
           // 清除预加载缓存
           window.preloadedData = null;
           window.preloadedFrame = null;
         } else {
-          console.log(`实时加载帧 ${frame} 数据`);
+          // // console.log(`实时加载帧 ${frame} 数据`);
           networkData = await loadGraphData(filename);
         }
         
         if (networkData) {
-          console.log('本地网络数据加载成功:', networkData);
+          // // console.log('本地网络数据加载成功:', networkData);
           
           // 重要修复：确保业务数据在网络数据处理之前同步加载
           let serviceDataResult = null;
           try {
-            console.log('同步加载业务数据...');
+            // // console.log('同步加载业务数据...');
             serviceDataResult = await loadServiceData(frame, isFrameJump);
-            console.log('本地业务数据加载成功:', serviceDataResult);
+            // // console.log('本地业务数据加载成功:', serviceDataResult);
           } catch (serviceError) {
             console.warn('本地业务数据加载失败:', serviceError);
           }
@@ -1054,7 +1054,7 @@ async function loadTimeFrame(frame, isFrameJump = false) {
     // 使用API加载数据，直接基于帧数计算时间戳
     const config = parseFolderName(getCurrentDataFolder());
     const timeStamp = frame * config.interval; // 使用动态间隔
-    console.log(`使用API强制加载数据，进程ID: ${currentProcessId}, 帧: ${frame}, 时间戳: ${timeStamp}`);
+    // console.log(`使用API强制加载数据，进程ID: ${currentProcessId}, 帧: ${frame}, 时间戳: ${timeStamp}`);
     
     const [networkData, serviceDataResult] = await Promise.all([
       loadGraphDataFromAPI(currentProcessId, timeStamp),
@@ -1066,8 +1066,8 @@ async function loadTimeFrame(frame, isFrameJump = false) {
       return;
     }
     
-    console.log('API网络数据加载成功:', networkData);
-    console.log('业务数据加载成功:', serviceDataResult);
+    // console.log('API网络数据加载成功:', networkData);
+    // console.log('业务数据加载成功:', serviceDataResult);
     
     currentGraphData = networkData;
     processNetworkData(networkData);
@@ -1084,7 +1084,7 @@ async function loadTimeFrame(frame, isFrameJump = false) {
 
 // 处理网络数据的通用函数
 function processNetworkData(networkData) {
-  console.log('processNetworkData 开始处理数据:', networkData);
+  // // console.log('processNetworkData 开始处理数据:', networkData);
   
   // 检查viewer是否可用
   if (!viewer() || !viewer().entities) {
@@ -1092,7 +1092,7 @@ function processNetworkData(networkData) {
     return;
   }
   
-  console.log('Cesium viewer可用，当前实体数量:', viewer().entities.values.length);
+  // // console.log('Cesium viewer可用，当前实体数量:', viewer().entities.values.length);
   
   // 验证并更新当前高亮的卫星链路
   validateHighlightedLinks(networkData);
@@ -1101,25 +1101,25 @@ function processNetworkData(networkData) {
   // updateNetworkDataAndRedraw(networkData, viewer()); // 移除立即调用
   
   if (getPreviousFrameData() === null) {
-    console.log('这是第一帧数据，清空现有实体并创建新实体');
+    // console.log('这是第一帧数据，清空现有实体并创建新实体');
     viewer().entities.removeAll();
-    console.log('已清空所有实体，开始创建新实体...');
+    // console.log('已清空所有实体，开始创建新实体...');
     
     createEntities(networkData);
-    console.log('实体创建完成，当前实体数量:', viewer().entities.values.length);
+    // console.log('实体创建完成，当前实体数量:', viewer().entities.values.length);
     
     // 关键修复：为新创建的卫星实体建立与动画系统的连接
     rebuildEntityAnimationBindings(networkData);
     
     addRoadmLinks(networkData);
-    console.log('链路创建完成，最终实体数量:', viewer().entities.values.length);
+    // console.log('链路创建完成，最终实体数量:', viewer().entities.values.length);
     
     setPreviousFrameData(networkData);
     updateVisibility();
     
     // 初始化帧跟踪
     lastProcessedFrame = timeFrame.value;
-    console.log(`初始化帧跟踪: ${lastProcessedFrame}`);
+    // // console.log(`初始化帧跟踪: ${lastProcessedFrame}`);
     
     // 更新ObjectViewer的数据
     if (objectViewerRef.value) {
@@ -1129,28 +1129,28 @@ function processNetworkData(networkData) {
     // 重要修复：第一帧也需要在最后更新业务数据，确保业务路径与网络数据同步
     // 注释掉自动重绘，避免性能问题 - 只有用户手动绘制业务路径时才重绘
     // setTimeout(() => {
-    //   console.log('第一帧数据处理完成，现在更新业务数据和路径');
+    //   // console.log('第一帧数据处理完成，现在更新业务数据和路径');
     //   updateNetworkDataAndRedraw(networkData, viewer(), false);
     // }, 100);
     
     return;
   }
   
-  console.log('这不是第一帧，检查帧跳跃距离');
+  // // console.log('这不是第一帧，检查帧跳跃距离');
   
   // 检查帧跳跃距离，决定是否使用动画
   const currentFrame = timeFrame.value;
   const previousFrame = lastProcessedFrame || 1;
   const frameJumpDistance = Math.abs(currentFrame - previousFrame);
   
-  console.log(`帧跳跃检测: 上一帧=${previousFrame}, 当前帧=${currentFrame}, 跳跃距离=${frameJumpDistance}`);
+  // // console.log(`帧跳跃检测: 上一帧=${previousFrame}, 当前帧=${currentFrame}, 跳跃距离=${frameJumpDistance}`);
   
   // 定义跳跃阈值：如果跨越超过10个时间片，就不播放动画
   const FRAME_JUMP_THRESHOLD = 10;
   const shouldUseInstantMode = frameJumpDistance > FRAME_JUMP_THRESHOLD;
   
   if (shouldUseInstantMode) {
-    console.log(`帧跳跃距离${frameJumpDistance}超过阈值${FRAME_JUMP_THRESHOLD}，启用瞬间模式避免穿越动画`);
+    // // console.log(`帧跳跃距离${frameJumpDistance}超过阈值${FRAME_JUMP_THRESHOLD}，启用瞬间模式避免穿越动画`);
     
     // 大跨度跳转时先清除所有业务路径，避免显示错误的路径
     clearAllServicePaths();
@@ -1162,7 +1162,7 @@ function processNetworkData(networkData) {
     // 执行瞬间切换动画
     animateTransition(viewer(), getPreviousFrameData(), networkData, (satelliteIds) => {
       // 动画完成回调
-      console.log('瞬间切换完成，更新的卫星:', satelliteIds);
+      // console.log('瞬间切换完成，更新的卫星:', satelliteIds);
       
       // 恢复原来的模式
       instantMode.value = wasInstantMode;
@@ -1174,14 +1174,14 @@ function processNetworkData(networkData) {
       
       // 重要修复：立即重新加载业务数据以确保时间同步
       const frameToLoad = timeFrame.value;
-      console.log(`大跨度跳转后重新加载业务数据，当前帧: ${frameToLoad}`);
+      // console.log(`大跨度跳转后重新加载业务数据，当前帧: ${frameToLoad}`);
       
       // 使用异步函数确保业务数据完全加载后再处理
       (async () => {
         try {
-          console.log('开始同步重新加载业务数据...');
+          // console.log('开始同步重新加载业务数据...');
           await loadServiceData(frameToLoad, true); // 传递时间跳转标识
-          console.log('业务数据重新加载完成，现在更新网络数据和重绘路径');
+          // console.log('业务数据重新加载完成，现在更新网络数据和重绘路径');
           
           // 业务数据加载完成后立即更新网络数据
           updateNetworkDataAndRedraw(networkData, viewer(), true); // 传递帧跳转标识
@@ -1193,12 +1193,12 @@ function processNetworkData(networkData) {
       })();
     });
   } else {
-    console.log(`帧跳跃距离${frameJumpDistance}在正常范围内，使用常规动画过渡`);
+    // // console.log(`帧跳跃距离${frameJumpDistance}在正常范围内，使用常规动画过渡`);
     
     // 执行常规动画过渡
     animateTransition(viewer(), getPreviousFrameData(), networkData, (satelliteIds) => {
       // 动画完成回调
-      console.log('动画完成，更新的卫星:', satelliteIds);
+      // // console.log('动画完成，更新的卫星:', satelliteIds);
       // 更新ObjectViewer的数据
       if (objectViewerRef.value) {
         objectViewerRef.value.updateData(networkData);
@@ -1216,7 +1216,7 @@ function processNetworkData(networkData) {
 
 // 重新建立实体与动画系统的绑定连接
 function rebuildEntityAnimationBindings(networkData) {
-  console.log('开始重新建立实体与动画系统的绑定连接');
+  // // console.log('开始重新建立实体与动画系统的绑定连接');
   
   if (!viewer() || !viewer().entities) {
     console.warn('Cesium viewer未准备好，跳过绑定重建');
@@ -1256,12 +1256,12 @@ function rebuildEntityAnimationBindings(networkData) {
         entity.position = callbackProperty;
         
         reboundCount++;
-        console.log(`重新绑定卫星 ${satelliteNode.id} 到动画系统`);
+        // // console.log(`重新绑定卫星 ${satelliteNode.id} 到动画系统`);
       }
     }
   });
   
-  console.log(`实体绑定重建完成，共重新绑定 ${reboundCount} 个卫星实体`);
+  // // console.log(`实体绑定重建完成，共重新绑定 ${reboundCount} 个卫星实体`);
 }
 
 function handleSatelliteClick(entityId) {
@@ -1271,7 +1271,7 @@ function handleSatelliteClick(entityId) {
 
 // 为handleSatelliteClick添加清除所有选择的方法
 handleSatelliteClick.clearAllSelections = function() {
-  console.log('点击空白区域，清除所有站点选择');
+  // console.log('点击空白区域，清除所有站点选择');
   // 清除所有选中的实体
   selectedEntities.value = [];
   selectedEntityRawData.value = null;
@@ -1283,7 +1283,7 @@ handleSatelliteClick.clearAllSelections = function() {
 
 function handleEntitySelect(entityId) {
   try {
-    console.log('选择了实体:', entityId);
+    // console.log('选择了实体:', entityId);
     
     if (!entityId) {
       console.warn('选择实体: 提供的ID无效');
@@ -1323,11 +1323,11 @@ function handleEntitySelect(entityId) {
         if (existingIndex !== -1) {
           // 如果已选中，则取消选中（从数组中移除）
           selectedEntities.value.splice(existingIndex, 1);
-          console.log(`取消选择实体: ${idStr}`);
+          // console.log(`取消选择实体: ${idStr}`);
         } else {
           // 如果未选中，则添加到选中数组
           selectedEntities.value.push(entity);
-          console.log(`选择实体: ${idStr}`);
+          // console.log(`选择实体: ${idStr}`);
         }
         
         // 更新原始数据（用于右侧面板显示，显示最后选中的实体）
@@ -1361,7 +1361,7 @@ function handleEntitySelect(entityId) {
 // 处理时间跳转
 async function handleTimeJump(frame) {
   try {
-    console.log(`时间跳转到第${frame}帧`);
+    // console.log(`时间跳转到第${frame}帧`);
     
     // 确保帧是有效的数字
     const frameNumber = Number(frame);
@@ -1387,7 +1387,7 @@ async function handleTimeJump(frame) {
     }
     
     // 重要修复：时间跳转时先清除业务路径，避免显示错误连接
-    console.log('时间跳转前先清除业务路径');
+    // console.log('时间跳转前先清除业务路径');
     const cesiumViewer = viewer();
     if (cesiumViewer) {
       clearAllServicePaths(cesiumViewer);
@@ -1395,7 +1395,7 @@ async function handleTimeJump(frame) {
     
     // 预加载业务数据以确保数据同步
     try {
-      console.log('预加载业务数据');
+      // console.log('预加载业务数据');
       await loadBusinessDataForFrame(safeFrame);
     } catch (error) {
       console.warn('业务数据预加载失败，继续执行:', error);
@@ -1437,7 +1437,7 @@ function handleBottomPanelClose() {
 }
 
 function handleServiceDataUpdate(newServiceData) {
-  console.log('更新业务数据:', newServiceData);
+  // console.log('更新业务数据:', newServiceData);
   
   // 更新serviceData对象
   Object.assign(serviceData.value, newServiceData);
@@ -1445,7 +1445,7 @@ function handleServiceDataUpdate(newServiceData) {
   // 触发响应式更新
   serviceData.value = { ...serviceData.value };
   
-  console.log('业务数据已更新');
+  // console.log('业务数据已更新');
 }
 
 function reopenLeftPanel() {
@@ -1533,29 +1533,29 @@ function handleCloseServiceDetail() {
 // 调整时间轴位置的函数（已禁用，因为现在使用自定义时间轴）
 function adjustTimelinePositionForPanel() {
   // 不再调整原生时间轴位置，因为已经隐藏了原生时间轴
-  // console.log('时间轴位置调整已禁用（使用自定义时间轴）');
+  // // console.log('时间轴位置调整已禁用（使用自定义时间轴）');
 }
 
 onMounted(async () => {
   try {
-    console.log('=== SatelliteViewer 初始化 ===');
-    console.log('初始化Cesium...');
-    console.log('当前登录状态:', isLoggedIn.value, '用户名:', username.value);
-    console.log('当前选择的进程ID:', selectedProcessId.value);
-    console.log('localStorage中的进程ID:', localStorage.getItem('selectedProcessId'));
-    console.log('初始播放状态:', isPlaying.value);
-    console.log('初始时间帧:', timeFrame.value);
+    // console.log('=== SatelliteViewer 初始化 ===');
+    // console.log('初始化Cesium...');
+    // console.log('当前登录状态:', isLoggedIn.value, '用户名:', username.value);
+    // console.log('当前选择的进程ID:', selectedProcessId.value);
+    // console.log('localStorage中的进程ID:', localStorage.getItem('selectedProcessId'));
+    // console.log('初始播放状态:', isPlaying.value);
+    // console.log('初始时间帧:', timeFrame.value);
     
     // 检查是否为首次访问（没有用户主动选择过文件夹）
     const isFirstVisit = localStorage.getItem('hasUserSelectedFolder') !== 'true';
     if (isFirstVisit && !selectedProcessId.value) {
-      console.log('首次访问：清除可能的默认文件夹设置');
+      // console.log('首次访问：清除可能的默认文件夹设置');
       // 不清除localStorage，但确保ObjectViewer不显示默认信息
     }
     
     // 恢复数据文件夹设置
     restoreDataFolderSetting();
-    console.log('当前数据文件夹:', getCurrentDataFolder());
+    // console.log('当前数据文件夹:', getCurrentDataFolder());
     
     const cesiumViewer = initializeCesium("cesiumContainer");
     setupClickHandler(handleSatelliteClick);
@@ -1563,7 +1563,7 @@ onMounted(async () => {
     
     // 关键修复：设置时间轴控制，传入数据加载回调
     setupTimelineControl((frame) => {
-      console.log(`时间轴拖拽触发数据加载: 帧${frame}`);
+      // console.log(`时间轴拖拽触发数据加载: 帧${frame}`);
       timeFrame.value = frame;
       
       // 拖拽时使用瞬间模式，避免动画插值导致的位置错误
@@ -1578,11 +1578,11 @@ onMounted(async () => {
     
     // 添加播放状态监听器用于调试
     watch(isPlaying, (newValue, oldValue) => {
-      console.log(`播放状态变化: ${oldValue} → ${newValue}`);
+      // // console.log(`播放状态变化: ${oldValue} → ${newValue}`);
     });
     
     watch(timeFrame, (newValue, oldValue) => {
-      console.log(`时间帧变化: ${oldValue} → ${newValue}`);
+      // // console.log(`时间帧变化: ${oldValue} → ${newValue}`);
     });
     
     // 设置仿真时间轴控制
@@ -1593,7 +1593,7 @@ onMounted(async () => {
     const handleTimelineFrameChange = (event) => {
       const targetFrame = event.detail.frame;
       const forceUpdate = event.detail.forceUpdate === true;
-      console.log(`左侧时间跳转到帧: ${targetFrame}, 强制更新: ${forceUpdate}`);
+      // // console.log(`左侧时间跳转到帧: ${targetFrame}, 强制更新: ${forceUpdate}`);
       
       // 即使在播放中也允许跳转
       if (targetFrame !== timeFrame.value || forceUpdate) {
@@ -1608,7 +1608,7 @@ onMounted(async () => {
         // 手动更新自定义时间轴显示
         if (window.simulationTimelineControl) {
           window.simulationTimelineControl.updateFrame(targetFrame, targetFrame);
-          console.log(`手动更新时间轴显示到帧 ${targetFrame}`);
+          // console.log(`手动更新时间轴显示到帧 ${targetFrame}`);
         }
         
         // 跳转时使用瞬间模式，避免动画插值
@@ -1623,7 +1623,7 @@ onMounted(async () => {
           
           // 如果是在播放状态下跳转，从新位置继续播放
           if (isPlaying.value) {
-            console.log(`从帧 ${targetFrame} 继续播放`);
+            // console.log(`从帧 ${targetFrame} 继续播放`);
             // 确保Cesium时钟立即开始动画
             nextTick(() => {
               if (viewer && viewer.clock) {
@@ -1658,14 +1658,14 @@ onMounted(async () => {
         } else {
           window.simulationTimelineControl.updateFrame(newFrame);
         }
-        console.log(`时间轴同步更新: ${oldFrame} -> ${newFrame}`);
+        // // console.log(`时间轴同步更新: ${oldFrame} -> ${newFrame}`);
       }
     });
     
     // 3秒后结束初始设置阶段
     setTimeout(() => {
       isInitialSetup = false;
-      console.log('初始设置阶段结束，仿真时间轴控制现在生效');
+      // console.log('初始设置阶段结束，仿真时间轴控制现在生效');
       
       // 根据当前数据文件夹设置时间轴总帧数
       const currentFolder = getCurrentDataFolder();
@@ -1673,7 +1673,7 @@ onMounted(async () => {
         const config = parseFolderName(currentFolder);
         const totalFrames = config.totalFrames; // 完全依赖配置解析
         window.simulationTimelineControl.setTotalFrames(totalFrames);
-        console.log(`时间轴设置完成：文件夹 ${currentFolder}，总帧数 ${totalFrames}`);
+        // console.log(`时间轴设置完成：文件夹 ${currentFolder}，总帧数 ${totalFrames}`);
         
         // 初始化时间轴到第1帧
         window.simulationTimelineControl.updateFrame(timeFrame.value, timeFrame.value);
@@ -1686,11 +1686,11 @@ onMounted(async () => {
     // 设置全局预加载函数，供动画系统调用
     window.preloadNextFrame = async (nextFrame) => {
       try {
-        console.log(`开始预加载帧 ${nextFrame}`);
+        // // console.log(`开始预加载帧 ${nextFrame}`);
         
         // 检查是否已经预加载过这一帧
         if (window.preloadedFrame === nextFrame) {
-          console.log(`帧 ${nextFrame} 已经预加载过，跳过`);
+          // // console.log(`帧 ${nextFrame} 已经预加载过，跳过`);
           return;
         }
         
@@ -1711,7 +1711,7 @@ onMounted(async () => {
         if (networkData) {
           window.preloadedData = networkData;
           window.preloadedFrame = nextFrame;
-          console.log(`帧 ${nextFrame} 预加载完成`);
+          // // console.log(`帧 ${nextFrame} 预加载完成`);
         } else {
           console.warn(`帧 ${nextFrame} 预加载失败`);
         }
@@ -1720,15 +1720,15 @@ onMounted(async () => {
       }
     };
     
-    console.log('预加载系统已初始化');
-    console.log('已启用动画模式，支持流畅的时间轴拖拽');
+    // console.log('预加载系统已初始化');
+    // console.log('已启用动画模式，支持流畅的时间轴拖拽');
     
     // 启动选择指示器更新器
     startSelectionIndicatorUpdater();
     
     // 强制显示时间轴控件（注释掉，因为现在要隐藏原生时间轴）
     // setTimeout(() => {
-    //   console.log('强制显示时间轴控件...');
+    //   // console.log('强制显示时间轴控件...');
     //   forceShowTimelineControls();
     // }, 500);
     
@@ -1741,19 +1741,19 @@ onMounted(async () => {
     // 添加文件夹变更事件监听器
     const handleDataFolderChange = async (event) => {
       const { folderName, folderInfo } = event.detail;
-      console.log(`数据文件夹已更改为: ${folderName}`, folderInfo);
+      // console.log(`数据文件夹已更改为: ${folderName}`, folderInfo);
       
       // 解析文件夹配置
       const config = parseFolderName(folderName);
-      console.log('解析的文件夹配置:', config);
+      // console.log('解析的文件夹配置:', config);
       
       // 重置前一帧数据，确保新文件夹的第一帧被当作初始帧处理
       setPreviousFrameData(null);
-      console.log('已重置前一帧数据，新文件夹的第一帧将创建新实体');
+      // console.log('已重置前一帧数据，新文件夹的第一帧将创建新实体');
       
       // 清理实体位置缓存，确保新文件夹的实体能够正确绑定到动画系统
       clearEntityPositionCache();
-      console.log('已清理实体位置缓存，新实体将重新建立动画绑定');
+      // console.log('已清理实体位置缓存，新实体将重新建立动画绑定');
       
       // 更新useDataLoader中的文件夹设置
       setDataFolder(folderName);
@@ -1767,12 +1767,12 @@ onMounted(async () => {
         
         // 根据解析的配置设置总帧数
         window.simulationTimelineControl.setTotalFrames(config.totalFrames);
-        console.log(`时间轴已重置并配置为${folderName}文件夹，总帧数: ${config.totalFrames}，时间间隔: ${config.interval}秒`);
+        // console.log(`时间轴已重置并配置为${folderName}文件夹，总帧数: ${config.totalFrames}，时间间隔: ${config.interval}秒`);
       }
       
       // 如果当前是未登录状态，立即加载新文件夹的数据
       if (!isLoggedIn.value) {
-        console.log('重新加载新文件夹的数据...');
+        // console.log('重新加载新文件夹的数据...');
         
         // 检查viewer是否可用
         if (!viewer() || !viewer().entities) {
@@ -1821,7 +1821,7 @@ onMounted(async () => {
     
     // 定期检查并修复时间轴显示 - 已禁用以减少后台日志
     // const timelineCheckInterval = setInterval(() => {
-    //   console.log('定期检查时间轴状态...');
+    //   // console.log('定期检查时间轴状态...');
     //   
     //   // 检查时间轴是否可见
     //   const timelineElement = document.querySelector('.cesium-timeline-main');
@@ -1829,7 +1829,7 @@ onMounted(async () => {
     //   
     //   if (!timelineElement || timelineElement.style.display === 'none' || 
     //       !animationElement || animationElement.style.display === 'none') {
-    //     console.log('时间轴控件不可见，强制显示...');
+    //     // console.log('时间轴控件不可见，强制显示...');
     //     forceShowTimelineControls();
     //   }
     //   
@@ -1846,21 +1846,21 @@ onMounted(async () => {
     // 添加相机移动监听器以更新选择指示器位置
     viewer().scene.postRender.addEventListener(updateSelectionIndicator);
     
-    console.log('Cesium初始化完成，时间轴控制已启用');
+    // console.log('Cesium初始化完成，时间轴控制已启用');
     
     // 检查是否有已保存的文件夹设置，如果有则立即设置时钟范围
     const savedFolder = getCurrentDataFolder();
     if (savedFolder && savedFolder !== 'new') { // 'new'是默认值，说明没有真正选择过
-      console.log(`检测到已保存的文件夹设置: ${savedFolder}，立即配置时钟范围`);
+      // console.log(`检测到已保存的文件夹设置: ${savedFolder}，立即配置时钟范围`);
       resetClockRange(savedFolder);
     }
     
     // 不再自动加载默认数据，等待用户选择文件夹
     if (!isLoggedIn.value) {
-      console.log('用户未登录，等待用户选择数据文件夹...');
+      // console.log('用户未登录，等待用户选择数据文件夹...');
       // 移除自动加载逻辑，让用户主动选择文件夹
     } else {
-      console.log('用户已登录，等待用户选择进程');
+      // console.log('用户已登录，等待用户选择进程');
     }
     
     // 定期检查进程ID变化（调试用）- 已禁用以减少后台日志
@@ -1868,7 +1868,7 @@ onMounted(async () => {
     //   const currentId = selectedProcessId.value;
     //   const localStorageId = localStorage.getItem('selectedProcessId');
     //   if (currentId || localStorageId) {
-    //     console.log('定期检查 - 当前进程ID:', currentId, '本地存储:', localStorageId);
+    //     // console.log('定期检查 - 当前进程ID:', currentId, '本地存储:', localStorageId);
     //     clearInterval(debugInterval);
     //   }
     // }, 2000);
@@ -1877,23 +1877,23 @@ onMounted(async () => {
     window.debugCache = () => {
       const networkCache = getCacheInfo();
       const serviceCache = getServiceCacheInfo();
-      console.log('=== 缓存状态调试 ===');
-      console.log('网络数据缓存:', networkCache);
-      console.log('业务数据缓存:', serviceCache);
-      console.log('总缓存项目数:', networkCache.size + serviceCache.size);
+      // console.log('=== 缓存状态调试 ===');
+      // console.log('网络数据缓存:', networkCache);
+      // console.log('业务数据缓存:', serviceCache);
+      // console.log('总缓存项目数:', networkCache.size + serviceCache.size);
     };
     
     window.clearAllCache = () => {
       clearCache();
       clearServiceCache();
-      console.log('所有缓存已清理');
+      // console.log('所有缓存已清理');
     };
     
     // 暴露光照控制方法给window对象 10.27新增
     window.toggleLighting = (enabled) => {
       try {
         toggleLighting(enabled);
-        console.log(`光照状态已切换为: ${enabled}`);
+        // console.log(`光照状态已切换为: ${enabled}`);
       } catch (error) {
         console.error('切换光照状态失败:', error);
       }
@@ -1903,43 +1903,43 @@ onMounted(async () => {
     window.toggleBorder = (enabled) => {
       try {
         toggleBorder(enabled);
-        console.log(`国界线显示状态已切换为: ${enabled}`);
+        // console.log(`国界线显示状态已切换为: ${enabled}`);
       } catch (error) {
         console.error('切换国界线显示状态失败:', error);
       }
     };
     
-    console.log('缓存调试功能已添加：');
-    console.log('- 使用 window.debugCache() 查看缓存状态');
-    console.log('- 使用 window.clearAllCache() 清理所有缓存');
-    console.log('显示控制功能已添加：');
-    console.log('- 使用 window.toggleLighting(enabled) 控制光照显示');
-    console.log('- 使用 window.toggleBorder(enabled) 控制国界线显示');
+    // // console.log('缓存调试功能已添加：');
+    // // console.log('- 使用 window.debugCache() 查看缓存状态');
+    // // console.log('- 使用 window.clearAllCache() 清理所有缓存');
+    // // console.log('显示控制功能已添加：');
+    // // console.log('- 使用 window.toggleLighting(enabled) 控制光照显示');
+    // // console.log('- 使用 window.toggleBorder(enabled) 控制国界线显示');
     
     // 临时调试：清除用户选择标记，模拟首次访问
     window.clearUserSelection = () => {
       localStorage.removeItem('hasUserSelectedFolder');
       localStorage.removeItem('selectedDataFolder');
-      console.log('已清除用户选择标记，刷新页面查看效果');
+      // // console.log('已清除用户选择标记，刷新页面查看效果');
     };
     
     // 检查是否有已保存的数据源，如果有则显示左侧面板
     const hasProcessId = selectedProcessId.value || localStorage.getItem('selectedProcessId');
     const userHasSelectedFolder = localStorage.getItem('hasUserSelectedFolder') === 'true';
     
-    console.log('=== 数据源检查 ===');
-    console.log('- localStorage.hasUserSelectedFolder:', localStorage.getItem('hasUserSelectedFolder'));
-    console.log('- localStorage.selectedDataFolder:', localStorage.getItem('selectedDataFolder'));
-    console.log('- hasProcessId:', hasProcessId);
-    console.log('- userHasSelectedFolder:', userHasSelectedFolder);
+    // console.log('=== 数据源检查 ===');
+    // console.log('- localStorage.hasUserSelectedFolder:', localStorage.getItem('hasUserSelectedFolder'));
+    // console.log('- localStorage.selectedDataFolder:', localStorage.getItem('selectedDataFolder'));
+    // console.log('- hasProcessId:', hasProcessId);
+    // console.log('- userHasSelectedFolder:', userHasSelectedFolder);
     
     if (hasProcessId || userHasSelectedFolder) {
       showLeftPanel.value = false;
-      console.log('检测到已保存的数据源，显示ObjectViewer面板');
-      console.log('- 进程ID:', hasProcessId);
-      console.log('- 用户主动选择文件夹:', userHasSelectedFolder);
+      // console.log('检测到已保存的数据源，显示ObjectViewer面板');
+      // console.log('- 进程ID:', hasProcessId);
+      // console.log('- 用户主动选择文件夹:', userHasSelectedFolder);
     } else {
-      console.log('未检测到数据源，ObjectViewer面板保持隐藏');
+      // console.log('未检测到数据源，ObjectViewer面板保持隐藏');
     }
     
     // 添加全局停止事件监听器
@@ -1973,7 +1973,7 @@ onUnmounted(() => {
   if (window.preloadedFrame) {
     delete window.preloadedFrame;
   }
-  console.log('预加载系统已清理');
+  // console.log('预加载系统已清理');
   
   // 清理窗口调整大小监听器
   if (window.currentHandleResize) {

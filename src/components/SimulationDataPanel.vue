@@ -84,7 +84,7 @@ const loadResultData = async () => {
     }
 
     const id = simulatorData.simulators[simulatorData.simulators.length - 1].id;
-    console.log("当前模拟器ID:", id);
+    // console.log("当前模拟器ID:", id);
 
     // 请求仿真数据
     const response = await fetch(`/api/simulators/${id}/average-latency/`, {
@@ -97,7 +97,7 @@ const loadResultData = async () => {
     }
 
     const data = await response.json();
-    console.log('成功获取仿真数据:', data);
+    // console.log('成功获取仿真数据:', data);
 
     // 初始化或更新 resultData
     if (!resultData.value) {
@@ -228,7 +228,7 @@ watch(() => props.visible, (newValue) => {
       .catch(error => console.error('首次数据加载失败:', error));
     
     timer = setInterval(() => {
-      console.log('执行定时轮询...');
+      // console.log('执行定时轮询...');
       loadResultData()
         .then(() => updateDisplayData())
         .catch(error => console.error('轮询获取数据失败:', error));

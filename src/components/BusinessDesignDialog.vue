@@ -78,7 +78,7 @@ async function sendData(businessDesignData) {
   })
   .then(res => res.json())
   .then(data => {
-    console.log("Token:", data);
+    // console.log("Token:", data);
     return data.csrfToken;
   });
 
@@ -93,7 +93,7 @@ async function sendData(businessDesignData) {
   })
   .then(res => res.json())
   .then(data => {
-    console.log("ID:", data.id);
+    // console.log("ID:", data.id);
     return data.id;
   });
 
@@ -108,7 +108,7 @@ async function sendData(businessDesignData) {
     });
     
     const instanizeData = await instanizeResponse.json();
-    console.log("Instanize Response:", instanizeData);
+    // console.log("Instanize Response:", instanizeData);
   } catch (instanizeError) {
     console.warn("Instanize已经完成，继续执行:", instanizeError);
   }
@@ -131,7 +131,7 @@ async function sendData(businessDesignData) {
   }
 
   const result = await response.json();
-  console.log(result);
+  // console.log(result);
   return result;
 }
 
@@ -194,7 +194,7 @@ watch(() => satelliteToGround.ratio, updateSatelliteRatio);
 //     // 确保每次请求前重新获取token
 //     const token = await fetchCSRFToken();
     
-//     console.log('发送请求使用的token:', token);
+//     // console.log('发送请求使用的token:', token);
 
 //     const response = await fetch('/api/simulators/38/service-settings/', {
 //       method: 'POST',

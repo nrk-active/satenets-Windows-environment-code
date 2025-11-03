@@ -169,7 +169,7 @@ const loadLinkLengthData = async (frame) => {
     const orbitNumber = String(frame).padStart(6, '0');
     const filename = `./data/${currentFolder}/link_length/isl_inter_stats_orbit_${orbitNumber}.json`;
     
-    console.log(`ChartPanel: 从文件夹 ${currentFolder} 加载链路长度数据:`, filename);
+    // // console.log(`ChartPanel: 从文件夹 ${currentFolder} 加载链路长度数据:`, filename);
     
     const response = await fetch(filename);
     if (!response.ok) {
@@ -178,7 +178,7 @@ const loadLinkLengthData = async (frame) => {
     }
     
     const data = await response.json();
-    console.log('ChartPanel: 链路长度数据加载成功', data);
+    // console.log('ChartPanel: 链路长度数据加载成功', data);
     
     // 提取各大洲的三个指标：业务数量、最大距离、最小距离
     const areaStats = data.area_interorbit_statistics || {};
@@ -195,10 +195,10 @@ const loadLinkLengthData = async (frame) => {
       linkLengthData.minDistance[area] = stats.min_distance || 0;
     });
     
-    console.log('ChartPanel: 处理后的链路长度数据', linkLengthData);
+    // // console.log('ChartPanel: 处理后的链路长度数据', linkLengthData);
     return linkLengthData;
   } catch (error) {
-    console.error('ChartPanel: 加载链路长度数据失败', error);
+    // console.error('ChartPanel: 加载链路长度数据失败', error);
     return null;
   }
 };
@@ -214,12 +214,12 @@ const calculateMetricsFromData = (networkData) => {
     };
   }
 
-  console.log('ChartPanel: 处理网络数据', networkData);
+  // // console.log('ChartPanel: 处理网络数据', networkData);
 
   // 优先从服务数据文件的network_statistics字段读取真实指标
   const stats = networkData.network_statistics;
   if (stats) {
-    console.log('ChartPanel: 使用network_statistics数据', stats);
+    // // console.log('ChartPanel: 使用network_statistics数据', stats);
     
     const latency = parseFloat(stats.average_latency) || 0;
     const hop = parseFloat(stats.average_hop_count) || 0;
@@ -235,11 +235,11 @@ const calculateMetricsFromData = (networkData) => {
       backbone: parseFloat(bandwidthData.BACKBONE || 0) * 100      // 骨干网
     };
     
-    console.log('ChartPanel: 带宽利用率详细数据', {
-      原始带宽数据: bandwidthData,
-      转换后: bandwidthUtil,
-      时间戳: networkData.timestamp
-    });
+    // // console.log('ChartPanel: 带宽利用率详细数据', {
+    //   原始带宽数据: bandwidthData,
+    //   转换后: bandwidthUtil,
+    //   时间戳: networkData.timestamp
+    // });
     
     const result = {
       latency: latency,
@@ -247,18 +247,18 @@ const calculateMetricsFromData = (networkData) => {
       hop: hop
     };
     
-    console.log('ChartPanel: 从network_statistics计算结果', {
-      原始数据: { 
-        平均时延: latency, 
-        带宽利用率原始数据: bandwidthData, 
-        平均跳数: hop 
-      },
-      转换结果: { 
-        平均时延: result.latency + 'ms', 
-        带宽利用率: bandwidthUtil, 
-        平均跳数: result.hop 
-      }
-    });
+    // // console.log('ChartPanel: 从network_statistics计算结果', {
+    //   原始数据: { 
+    //     平均时延: latency, 
+    //     带宽利用率原始数据: bandwidthData, 
+    //     平均跳数: hop 
+    //   },
+    //   转换结果: { 
+    //     平均时延: result.latency + 'ms', 
+    //     带宽利用率: bandwidthUtil, 
+    //     平均跳数: result.hop 
+    //   }
+    // });
     
     return result;
   }
@@ -286,7 +286,7 @@ const calculateMetricsFromData = (networkData) => {
     edges = networkData.edges;
   }
 
-  console.log('ChartPanel: 节点数量', nodes.length, '边数量', edges.length);
+  // // console.log('ChartPanel: 节点数量', nodes.length, '边数量', edges.length);
 
   // 计算平均延迟
   let totalLatency = 0;
@@ -330,14 +330,14 @@ const calculateMetricsFromData = (networkData) => {
     hop: Math.max(1, avgHop)
   };
 
-  console.log('ChartPanel: 从图数据计算结果', result);
+  // // console.log('ChartPanel: 从图数据计算结果', result);
   return result;
 };
 
 // 添加新的数据点
 const addDataPoint = async (frame, networkData) => {
   try {
-    console.log('ChartPanel: addDataPoint调用', { frame, hasData: !!networkData });
+    // // console.log('ChartPanel: addDataPoint调用', { frame, hasData: !!networkData });
     
     if (!networkData) {
       console.warn('ChartPanel: 网络数据为空，跳过添加数据点');
@@ -389,7 +389,7 @@ const addDataPoint = async (frame, networkData) => {
         historyData.value.linkLength.minDistance[area][existingIndex] = linkLengthData.minDistance[area] || 0;
       });
     }
-    console.log('ChartPanel: 更新现有数据点', { timestamp, metrics, linkLengthData });
+    // // console.log('ChartPanel: 更新现有数据点', { timestamp, metrics, linkLengthData });
   } else {
     // 添加新数据
     historyData.value.timestamps.push(timestamp);
@@ -420,7 +420,7 @@ const addDataPoint = async (frame, networkData) => {
         historyData.value.linkLength.minDistance[area].push(0);
       });
     }
-    console.log('ChartPanel: 添加新数据点', { timestamp, metrics, linkLengthData });
+    // // console.log('ChartPanel: 添加新数据点', { timestamp, metrics, linkLengthData });
     
     // 按时间戳排序所有数据
     const combined = historyData.value.timestamps.map((ts, index) => ({
@@ -524,13 +524,13 @@ const addDataPoint = async (frame, networkData) => {
       historyData.value.linkLength.maxDistance[area] = historyData.value.linkLength.maxDistance[area].slice(-maxPoints);
       historyData.value.linkLength.minDistance[area] = historyData.value.linkLength.minDistance[area].slice(-maxPoints);
     });
-    console.log('ChartPanel: 截取最新10个数据点');
+    ('ChartPanel: 截取最新10个数据点');
   }
 
-  console.log('ChartPanel: 当前历史数据', {
-    timestamps: historyData.value.timestamps,
-    dataLength: historyData.value.timestamps.length
-  });
+  // // console.log('ChartPanel: 当前历史数据', {
+  //   timestamps: historyData.value.timestamps,
+  //   dataLength: historyData.value.timestamps.length
+  // });
 
   // 更新图表
   updateCharts();
@@ -941,7 +941,7 @@ watch(() => props.currentFrameData, (newData, oldData) => {
   });
   
   if (newData) {
-    console.log('ChartPanel: 完整的新数据', newData);
+    // // console.log('ChartPanel: 完整的新数据', newData);
     addDataPoint(props.timeFrame, newData);
   }
 }, { immediate: true });
@@ -958,46 +958,46 @@ watch(() => props.selectedData, (newSelection, oldSelection) => {
     
     // 平均延迟图表
     if (newSelection.averageLatency && !oldSelection?.averageLatency) {
-      console.log('初始化平均延迟图表');
+      // console.log('初始化平均延迟图表');
       if (latencyChart.value && !latencyChartInstance) {
         latencyChartInstance = echarts.init(latencyChart.value);
         latencyChartInstance.setOption(createChartOption('latency'));
       }
     } else if (!newSelection.averageLatency && latencyChartInstance) {
-      console.log('销毁平均延迟图表');
+      // console.log('销毁平均延迟图表');
       latencyChartInstance.dispose();
       latencyChartInstance = null;
     }
     
     // 带宽利用率图表
     if (newSelection.bandwidthUtil && !oldSelection?.bandwidthUtil) {
-      console.log('初始化带宽利用率图表');
+      // console.log('初始化带宽利用率图表');
       if (bandwidthChart.value && !bandwidthChartInstance) {
         bandwidthChartInstance = echarts.init(bandwidthChart.value);
         bandwidthChartInstance.setOption(createChartOption('bandwidth'));
       }
     } else if (!newSelection.bandwidthUtil && bandwidthChartInstance) {
-      console.log('销毁带宽利用率图表');
+      // console.log('销毁带宽利用率图表');
       bandwidthChartInstance.dispose();
       bandwidthChartInstance = null;
     }
     
     // 平均跳数图表
     if (newSelection.hopCounts && !oldSelection?.hopCounts) {
-      console.log('初始化平均跳数图表');
+      // console.log('初始化平均跳数图表');
       if (hopChart.value && !hopChartInstance) {
         hopChartInstance = echarts.init(hopChart.value);
         hopChartInstance.setOption(createChartOption('hop'));
       }
     } else if (!newSelection.hopCounts && hopChartInstance) {
-      console.log('销毁平均跳数图表');
+      // console.log('销毁平均跳数图表');
       hopChartInstance.dispose();
       hopChartInstance = null;
     }
     
     // 链路长度图表
     if (newSelection.linkLength && !oldSelection?.linkLength) {
-      console.log('初始化链路长度图表');
+      // console.log('初始化链路长度图表');
       if (linkLengthServiceCountChart.value && !linkLengthServiceCountChartInstance) {
         linkLengthServiceCountChartInstance = echarts.init(linkLengthServiceCountChart.value);
         linkLengthServiceCountChartInstance.setOption(createChartOption('linkLength_serviceCount'));
@@ -1012,17 +1012,17 @@ watch(() => props.selectedData, (newSelection, oldSelection) => {
       }
     } else if (!newSelection.linkLength) {
       if (linkLengthServiceCountChartInstance) {
-        console.log('销毁链路长度-业务数量图表');
+        // console.log('销毁链路长度-业务数量图表');
         linkLengthServiceCountChartInstance.dispose();
         linkLengthServiceCountChartInstance = null;
       }
       if (linkLengthMaxDistanceChartInstance) {
-        console.log('销毁链路长度-最大距离图表');
+        // console.log('销毁链路长度-最大距离图表');
         linkLengthMaxDistanceChartInstance.dispose();
         linkLengthMaxDistanceChartInstance = null;
       }
       if (linkLengthMinDistanceChartInstance) {
-        console.log('销毁链路长度-最小距离图表');
+        // console.log('销毁链路长度-最小距离图表');
         linkLengthMinDistanceChartInstance.dispose();
         linkLengthMinDistanceChartInstance = null;
       }
@@ -1037,7 +1037,7 @@ watch(() => props.selectedData, (newSelection, oldSelection) => {
 
 // 也监听timeFrame变化
 watch(() => props.timeFrame, (newFrame, oldFrame) => {
-  console.log('ChartPanel: timeFrame变化', { newFrame, oldFrame, hasCurrentData: !!props.currentFrameData });
+  // console.log('ChartPanel: timeFrame变化', { newFrame, oldFrame, hasCurrentData: !!props.currentFrameData });
   
   if (props.currentFrameData && newFrame !== oldFrame) {
     addDataPoint(newFrame, props.currentFrameData);
@@ -1056,7 +1056,7 @@ onMounted(async () => {
   
   // 如果挂载时就有数据，立即添加
   if (props.currentFrameData) {
-    console.log('ChartPanel: 挂载时立即添加数据');
+    // console.log('ChartPanel: 挂载时立即添加数据');
     addDataPoint(props.timeFrame, props.currentFrameData);
   }
   
@@ -1076,7 +1076,7 @@ defineExpose({
 
 // 加载历史数据以显示更多数据点
 const loadHistoricalData = async () => {
-  console.log('ChartPanel: 开始加载历史数据');
+  // console.log('ChartPanel: 开始加载历史数据');
   
   try {
     const currentFolder = localStorage.getItem('selectedDataFolder') || 'new';
@@ -1086,14 +1086,14 @@ const loadHistoricalData = async () => {
     
     // 加载当前帧之前的几个数据点
     const framesToLoad = Math.min(5, currentFrame - 1); // 最多加载前5个帧
-    console.log(`ChartPanel: 计划加载 ${framesToLoad} 个历史帧`);
+    // console.log(`ChartPanel: 计划加载 ${framesToLoad} 个历史帧`);
     
     for (let i = Math.max(1, currentFrame - framesToLoad); i < currentFrame; i++) {
       const fileTimeValue = (i - 1) * timeInterval + timeInterval;
       const filename = `./data/${currentFolder}/network_state_${fileTimeValue}.00.json`;
       
       try {
-        console.log(`ChartPanel: 加载历史数据帧 ${i}, 文件: ${filename}`);
+        // console.log(`ChartPanel: 加载历史数据帧 ${i}, 文件: ${filename}`);
         const response = await fetch(filename);
         if (response.ok) {
           const rawData = await response.json();
@@ -1106,7 +1106,7 @@ const loadHistoricalData = async () => {
       }
     }
     
-    console.log('ChartPanel: 历史数据加载完成');
+    // console.log('ChartPanel: 历史数据加载完成');
   } catch (error) {
     console.error('ChartPanel: 加载历史数据时出错:', error);
   }

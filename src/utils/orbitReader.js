@@ -17,7 +17,7 @@ export async function readSatelliteOrbitPoints(folderName, satelliteId) {
     return [];
   }
   
-  // console.log('orbitReader: 开始读取轨道数据', { folderName, satelliteId });
+  // // console.log('orbitReader: 开始读取轨道数据', { folderName, satelliteId });
   
   // 解析文件夹名称获取配置
   const config = parseFolderName(folderName);
@@ -29,7 +29,7 @@ export async function readSatelliteOrbitPoints(folderName, satelliteId) {
   
   const { interval, totalDuration, totalFrames } = config;
   
-  // console.log('orbitReader: 文件夹配置', {
+  // // console.log('orbitReader: 文件夹配置', {
   //   folderName,
   //   interval,
   //   totalDuration,
@@ -51,7 +51,7 @@ export async function readSatelliteOrbitPoints(folderName, satelliteId) {
     }
   }
   
-  // console.log(`orbitReader: 读取卫星 ${satelliteId} 的轨道点`, {
+  // // console.log(`orbitReader: 读取卫星 ${satelliteId} 的轨道点`, {
   //   folderName,
   //   totalFrames,
   //   frameIndices,
@@ -96,7 +96,7 @@ export async function readSatelliteOrbitPoints(folderName, satelliteId) {
         frameIndex: frameIndex
       });
       
-      // console.log(`orbitReader: 读取帧 ${frameIndex} (时间戳 ${timestamp}s)`, pos);
+      // // console.log(`orbitReader: 读取帧 ${frameIndex} (时间戳 ${timestamp}s)`, pos);
       
     } catch (error) {
       console.error(`orbitReader: 读取帧 ${frameIndex} 时出错`, error);
@@ -108,7 +108,7 @@ export async function readSatelliteOrbitPoints(folderName, satelliteId) {
     return [];
   }
   
-  // console.log(`orbitReader: 成功读取 ${positions.length} 个轨道点`, positions);
+  // // console.log(`orbitReader: 成功读取 ${positions.length} 个轨道点`, positions);
   return positions;
 }
 
