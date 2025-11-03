@@ -1,7 +1,8 @@
 <template>
-  <div class="dialog-overlay" @click.self="$emit('close')">
-    <div class="dialog-content">
-      <div class="dialog-header">
+  <Teleport to="body">
+    <div class="dialog-overlay" @click.self="$emit('close')">
+      <div class="dialog-content">
+        <div class="dialog-header">
         <h3>业务设计</h3>
         <button class="close-btn" @click="$emit('close')">×</button>
       </div>
@@ -58,8 +59,9 @@
         <button class="btn cancel-btn" @click="$emit('close')">取消</button>
         <button class="btn confirm-btn" @click="confirmSettings" :disabled="isSubmitting">{{ isSubmitting ? '提交中...' : '确定' }}</button>
       </div>
+      </div>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <script setup>
@@ -307,11 +309,11 @@ const emit = defineEmits(['close', 'settings-confirmed']);
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.6);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 99999; /* 设置为最高层级 */
+  z-index: 100000;
 }
 
 .dialog-content {

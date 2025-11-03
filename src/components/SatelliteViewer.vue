@@ -302,7 +302,7 @@ let lastProcessedFrame = null; // 跟踪上一次处理的帧号，用于检测�
 // 侧边栏状态管理
 const showLeftPanel = ref(false);
 const showRightPanel = ref(false);
-const showBottomPanel = ref(true);
+const showBottomPanel = ref(false);
 
 // 选中的实体信息 - 改为数组以支持多选
 const selectedEntities = ref([]);

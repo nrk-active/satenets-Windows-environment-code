@@ -1,8 +1,9 @@
 <!-- filepath: d:\front end development\Git\salasim-frontend\src\components\simulation_setting.vue -->
 <template>
-  <div v-if="show" class="sim-setting-modal">
-    <div class="sim-setting-box">
-      <div class="sim-setting-title">仿真设置</div>
+  <Teleport to="body">
+    <div v-if="show" class="sim-setting-modal">
+      <div class="sim-setting-box">
+        <div class="sim-setting-title">仿真设置</div>
       <div class="sim-setting-divider"></div>
       <div class="sim-setting-form">
         <div class="sim-setting-row">
@@ -26,8 +27,9 @@
         <button class="sim-btn-cancel" @click="close">取消</button>
         <button class="sim-btn-confirm" @click="submit">确定</button>
       </div>
+      </div>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <script setup>
@@ -81,11 +83,11 @@ defineExpose({ open })
 .sim-setting-modal {
   position: fixed;
   left: 0; top: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.55);
+  background: rgba(0,0,0,0.6);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  z-index: 100000;
 }
 .sim-setting-box {
   background: #232323;

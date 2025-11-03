@@ -44,7 +44,7 @@ const emit = defineEmits(['reopen']);
 .sidebar-text {
   writing-mode: vertical-rl;
   text-orientation: mixed;
-  color: var(--theme-border);
+  color: var(--theme-main-text);
   font-size: 12px;
   margin-top: 16px;
   user-select: none;

@@ -1,7 +1,8 @@
 <template>
-  <div v-if="show" class="traffic-matrix-modal">
-    <div class="traffic-matrix-box">
-      <div class="traffic-matrix-title">流量矩阵设置</div>
+  <Teleport to="body">
+    <div v-if="show" class="traffic-matrix-modal">
+      <div class="traffic-matrix-box">
+        <div class="traffic-matrix-title">流量矩阵设置</div>
       <div class="traffic-matrix-divider"></div>
       <div class="traffic-matrix-table">
         <table>
@@ -30,8 +31,9 @@
         <button class="matrix-btn-cancel" @click="close">取消</button>
         <button class="matrix-btn-confirm" @click="submit">确定</button>
       </div>
+      </div>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <script setup>
@@ -172,11 +174,11 @@ defineExpose({ open })
 .traffic-matrix-modal {
   position: fixed;
   left: 0; top: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.55);
+  background: rgba(0,0,0,0.6);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  z-index: 100000;
 }
 .traffic-matrix-box {
   background: #232323;

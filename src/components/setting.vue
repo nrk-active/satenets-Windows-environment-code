@@ -1,32 +1,35 @@
 <!-- filepath: d:\front end development\Git\salasim-frontend\src\components\setting.vue -->
 <template>
-  <div v-if="show" class="setting-modal">
-    <div class="setting-box">
-      <h3>系统设置</h3>
-      <div class="setting-group">
-        <label>
-          <span>主题模式：</span>
-          <select v-model="theme">
-            <option value="light">浅色</option>
-            <option value="dark">深色</option>
-          </select>
-        </label>
-      </div>
-      <div class="setting-group">
-        <label>
-          <span>语言：</span>
-          <select v-model="language">
-            <option value="zh">中文</option>
-            <option value="en">English</option>
-          </select>
-        </label>
-      </div>
-      <div class="setting-actions">
-        <button @click="save">保存</button>
-        <button @click="close">取消</button>
+  <!-- 使用 Teleport 将弹窗传送到 body，脱离父组件的堆叠上下文 -->
+  <Teleport to="body">
+    <div v-if="show" class="setting-modal">
+      <div class="setting-box">
+        <h3>系统设置</h3>
+        <div class="setting-group">
+          <label>
+            <span>主题模式：</span>
+            <select v-model="theme">
+              <option value="light">浅色</option>
+              <option value="dark">深色</option>
+            </select>
+          </label>
+        </div>
+        <div class="setting-group">
+          <label>
+            <span>语言：</span>
+            <select v-model="language">
+              <option value="zh">中文</option>
+              <option value="en">English</option>
+            </select>
+          </label>
+        </div>
+        <div class="setting-actions">
+          <button @click="save">保存</button>
+          <button @click="close">取消</button>
+        </div>
       </div>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <script setup>
@@ -69,11 +72,11 @@ defineExpose({ open })
 .setting-modal {
   position: fixed;
   left: 0; top: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.5); /* 确保背景色透明度 */
+  background: rgba(0,0,0,0.6); /* 加深遮罩透明度，更明显 */
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100001; /* **修复 1: 提高 Z-index 以确保底板可见** */
+  z-index: 100000; /* 使用 Teleport 后，确保高于所有元素 */
 }
 .setting-box {
   background: var(--theme-secondary-bg); /* **弹窗背景使用次级背景 (浅色下为白色)** */
@@ -85,6 +88,7 @@ defineExpose({ open })
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  position: relative; /* 相对定位，不需要额外的 z-index */
 }
 .setting-box h3 {
   margin: 0 0 16px 0;

@@ -1,7 +1,8 @@
 <template>
-  <div v-if="show" class="constellation-setting-modal">
-    <div class="constellation-setting-box">
-      <div class="constellation-setting-title">星座设置</div>
+  <Teleport to="body">
+    <div v-if="show" class="constellation-setting-modal">
+      <div class="constellation-setting-box">
+        <div class="constellation-setting-title">星座设置</div>
       <div class="constellation-setting-divider"></div>
       <div class="constellation-setting-form">
         <div class="constellation-setting-row">
@@ -29,8 +30,9 @@
         <button class="constellation-btn-cancel" @click="close">取消</button>
         <button class="constellation-btn-confirm" @click="submit">确定</button>
       </div>
+      </div>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <script setup>
@@ -93,11 +95,11 @@ defineExpose({ open })
 .constellation-setting-modal {
   position: fixed;
   left: 0; top: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.55);
+  background: rgba(0,0,0,0.6);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  z-index: 100000;
 }
 
 .constellation-setting-box {

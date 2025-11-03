@@ -110,7 +110,7 @@ export function useCesium() {
   const showSatellite = ref(true);
   const showStation = ref(true);
   const showRoadm = ref(true);
-  const showLinks = ref(true);
+  const showLinks = ref(false);
   
   let highlightedLinks = [];
   let currentHighlightedSatellite = null; // 当前高亮的卫星ID

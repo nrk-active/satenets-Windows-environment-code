@@ -41,7 +41,7 @@ const emit = defineEmits(['reopen']);
 .arrow-icon {
   margin-right: 8px;
   font-size: 12px;
-  color: var(--theme-border);
+  color: var(--theme-main-text);
   transition: color 0.3s ease;
 }
 
@@ -51,7 +51,7 @@ const emit = defineEmits(['reopen']);
 
 .sidebar-text {
   font-size: 12px;
-  color: var(--theme-border);
+  color: var(--theme-main-text);
   transition: color 0.3s ease;
   white-space: nowrap;
 }

@@ -145,10 +145,10 @@
             </div>
             <div class="batch-right">
               <button class="action-btn draw-btn" @click="drawSelectedPaths" :disabled="selectedServices.length === 0">
-                批量绘制
+                <b>批量绘制</b>
               </button>
               <button class="action-btn clear-btn" @click="clearSelectedPaths" :disabled="selectedServices.length === 0">
-                批量清除
+                <b>批量清除</b>
               </button>
             </div>
           </div>
@@ -1005,7 +1005,7 @@ onUnmounted(() => {
 /* 统计文字颜色 */
 .service-stats {
   font-size: 12px;
-  color: var(--theme-border);
+  color: var(--theme-main-text);
   flex: 1;
   text-align: right;
 }
@@ -1135,7 +1135,7 @@ onUnmounted(() => {
 
 .chart-title {
   font-size: 10px;
-  color: var(--theme-border);
+  color: var(--theme-main-text);
   margin: 0;
   padding: 0;
   text-align: center;
@@ -1235,7 +1235,7 @@ onUnmounted(() => {
 .service-category h4 {
   margin: 0 0 10px 0;
   font-size: 14px;
-  color: var(--theme-border); 
+  color: var(--theme-main-text); 
   border-bottom: 1px solid var(--theme-border);
   padding-bottom: 5px;
 }
@@ -1391,7 +1391,7 @@ onUnmounted(() => {
 
 .service-route {
   font-size: 9px;
-  color: var(--theme-aux-text, #bbb); /* 使用辅助文字颜色变量 */
+  color: var(--theme-main-text); /* 使用辅助文字颜色变量 */
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
@@ -1419,22 +1419,22 @@ onUnmounted(() => {
 }
 
 .draw-btn {
-  border-color: #4CAF50;
-  color: #4CAF50;
+  border-color: #37be3b;
+  color: #377a23;
 }
 
 .draw-btn:hover:not(:disabled) {
-  background: #4CAF50;
+  background: #449b47;
   color: white;
 }
 
 .clear-btn {
-  border-color: #f44336;
-  color: #f44336;
+  border-color: #fd1100;
+  color: #ad1d1d;
 }
 
 .clear-btn:hover {
-  background: #f44336;
+  background: #c92216;
   color: white;
 }
 </style>
