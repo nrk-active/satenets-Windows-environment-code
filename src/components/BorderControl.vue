@@ -7,17 +7,17 @@
       @mouseenter="showTooltip"
       @mouseleave="hideTooltip"
     >
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <!-- 地图轮廓图标 -->
-        <path d="M3 3L21 3L21 21L3 21L3 3Z" stroke="currentColor" stroke-width="2" fill-opacity="0.1"/>
-        <path d="M7 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <path d="M11 7L11 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <path d="M15 7L15 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <path d="M19 7L19 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <path d="M7 7L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <path d="M7 11L19 11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <path d="M7 15L19 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <path d="M7 19L19 19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M3 3L21 3L21 21L3 21L3 3Z" stroke="currentColor" stroke-width="4" fill-opacity="0.1"/>
+        <path d="M7 7L7 17" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        <path d="M11 7L11 17" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        <path d="M15 7L15 17" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        <path d="M19 7L19 17" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        <path d="M7 7L19 7" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        <path d="M7 11L19 11" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        <path d="M7 15L19 15" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        <path d="M7 19L19 19" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
       </svg>
     </button>
     <div 
@@ -29,6 +29,7 @@
     </div>
   </div>
 </template>
+2. 经纬线网格控制 (src/components/G
 
 <script setup>
 import { ref, onMounted } from 'vue';
@@ -92,16 +93,16 @@ defineExpose({
 .border-icon {
   width: 40px;
   height: 40px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--theme-border);
+  background: var(--theme-dialog-bg);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  color: #fff;
+  box-shadow: 0 2px 8px var(--theme-shadow);
+  color: var(--theme-main-text);
   outline: none;
   padding: 0;
   overflow: hidden;
@@ -113,16 +114,18 @@ defineExpose({
 }
 
 .border-icon:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--theme-accent);
+  color: #fff;
   transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 4px 12px var(--theme-shadow);
+  border-color: var(--theme-accent);
 }
 
 .border-icon.active {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.8);
-  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.5);
+  background: var(--theme-accent);
+  border-color: var(--theme-accent);
+  color: #fff;
+  box-shadow: 0 4px 16px var(--theme-shadow);
   animation: borderGlow 2s infinite alternate;
 }
 

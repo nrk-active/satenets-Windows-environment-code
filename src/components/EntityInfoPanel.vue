@@ -399,11 +399,11 @@ function formatNumber(num) {
 
 <style scoped>
 .entity-info-panel {
-  background: #232323;
-  border-left: 1px solid #333;
+  background: var(--theme-bg-dark); /* 【修改】使用主题变量 */
+  border-left: 1px solid var(--theme-border); /* 【修改】使用主题变量 */
   height: 100%;
   width: 300px;
-  color: #f1f1f1;
+  color: var(--theme-text-dark); /* 【修改】使用主题变量 */
   display: flex;
   flex-direction: column;
 }
@@ -411,24 +411,24 @@ function formatNumber(num) {
 .header {
   font-weight: bold;
   padding: 10px 16px;
-  background: #181818;
+  background: var(--theme-secondary-bg);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #333;
-  color: #fff;
+  border-bottom: 1px solid var(--theme-border); /* 【修改】使用主题变量 */
+  color: var(--theme-text-dark); /* 【修改】使用主题变量 */
   letter-spacing: 1px;
 }
 
 .close-btn {
   cursor: pointer;
   font-size: 14px;
-  color: #aaa;
+  color: var(--theme-border); /* 使用边框色 */
   transition: color 0.2s;
 }
 
 .close-btn:hover {
-  color: #f39c12;
+  color: var(--theme-accent); /* 使用强调色 */
 }
 
 .content {
@@ -451,20 +451,21 @@ function formatNumber(num) {
 .info-label {
   width: 100px;
   font-weight: bold;
-  color: #aaa;
+  color: var(--theme-border);
 }
 
 .info-value {
   flex: 1;
   text-align: right;
+  color: var(--theme-main-text); /* 【修改】使用主题变量 */
 }
 
 .info-section-title {
   margin-top: 16px;
   margin-bottom: 8px;
   font-weight: bold;
-  color: #ffd700;
-  border-bottom: 1px solid #444;
+  color: var(--theme-accent);
+  border-bottom: 1px solid var(--theme-border); /* 【修改】使用主题变量 */
   padding-bottom: 4px;
 }
 
@@ -477,19 +478,21 @@ function formatNumber(num) {
 
 .connection-item {
   padding: 4px 8px;
-  background: #2a2a2a;
+  background: var(--theme-main-bg);
   border-radius: 4px;
   font-size: 12px;
+  color: var(--theme-text-dark); /* 【修改】使用主题变量 */
 }
 
 .empty-panel {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: var(--theme-dialog-bg);
 }
 
 .empty-message {
-  color: #888;
+  color: var(--theme-border);
   font-style: italic;
 }
 
@@ -505,13 +508,13 @@ function formatNumber(num) {
 }
 
 .service-item {
-  background: #2a2a2a;
+  background: var(--theme-main-bg);
   border-radius: 6px;
   padding: 10px;
 }
 
 .service-header {
-  color: #f39c12;
+  color: var(--theme-accent);
   font-weight: bold;
   margin-bottom: 8px;
 }
@@ -529,11 +532,11 @@ function formatNumber(num) {
 }
 
 .service-label {
-  color: #aaa;
+  color: var(--theme-border);
 }
 
 .service-value {
-  color: #fff;
+  color: var(--theme-main-text);
 }
 
 .status-active {
@@ -543,8 +546,8 @@ function formatNumber(num) {
 .no-services-message {
   padding: 12px;
   text-align: center;
-  color: #888;
-  background: #2a2a2a;
+  color: var(--theme-border);
+  background: var(--theme-main-bg);
   border-radius: 6px;
   font-size: 14px;
 }

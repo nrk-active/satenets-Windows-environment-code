@@ -919,10 +919,10 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   height: 300px;
-  background-color: rgba(30, 30, 30, 0.75);
+  background-color: var(--theme-main-bg); /* 修复：使用主背景 */
   backdrop-filter: blur(10px);
-  border-top: 1px solid rgba(85, 85, 85, 0.8);
-  color: white;
+  border-top: 1px solid var(--theme-border); /* 修复：使用主题边框 */
+  color: var(--theme-main-text); /* 修复：使用主文字 */
   z-index: 1000;
   overflow: hidden;
   display: flex;
@@ -935,14 +935,14 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   height: 4px;
-  background: #555;
+  background: var(--theme-border); /* 修复：使用主题边框 */
   cursor: ns-resize;
   z-index: 1001;
   transition: background-color 0.2s ease;
 }
 
 .resize-handle:hover {
-  background: #777;
+  background: var(--theme-accent); /* 修复：使用主题强调色 */
 }
 
 .resize-handle::before {
@@ -959,12 +959,13 @@ onUnmounted(() => {
 
 .service-header {
   padding: 10px 15px;
-  border-bottom: 1px solid rgba(85, 85, 85, 0.8);
-  background-color: rgba(40, 40, 40, 0.7);
+  border-bottom: 1px solid var(--theme-border); /* 【修改】使用主题变量 */
+  background-color: var(--theme-secondary-bg); /* 【修改】使用次级背景色 */
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-shrink: 0;
+  color: var(--theme-text-dark);
 }
 
 .service-header h3 {
@@ -981,9 +982,9 @@ onUnmounted(() => {
 
 .control-btn {
   padding: 4px 8px;
-  border: 1px solid rgba(85, 85, 85, 0.8);
-  background: rgba(64, 64, 64, 0.8);
-  color: #ccc;
+  border: 1px solid var(--theme-border);
+  background: var(--theme-dialog-bg); /* 使用对话框背景色 */
+  color: var(--theme-main-text);
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
@@ -991,8 +992,8 @@ onUnmounted(() => {
 }
 
 .control-btn:hover {
-  background: rgba(80, 80, 80, 0.9);
-  border-color: rgba(119, 119, 119, 0.9);
+  background: var(--theme-main-bg); 
+  border-color: var(--theme-accent); 
 }
 
 .control-btn.active {
@@ -1001,9 +1002,10 @@ onUnmounted(() => {
   color: white;
 }
 
+/* 统计文字颜色 */
 .service-stats {
   font-size: 12px;
-  color: #ccc;
+  color: var(--theme-border);
   flex: 1;
   text-align: right;
 }
@@ -1011,7 +1013,7 @@ onUnmounted(() => {
 .close-btn {
   cursor: pointer;
   font-size: 14px;
-  color: #aaa;
+  color: var(--theme-border);
   transition: color 0.2s;
   flex: 0 0 auto;
   padding: 2px 6px;
@@ -1019,8 +1021,8 @@ onUnmounted(() => {
 }
 
 .close-btn:hover {
-  color: #f39c12;
-  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--theme-accent);
+  background-color: var(--theme-dialog-bg);
 }
 
 /* ECharts 业务统计图表 */
@@ -1079,8 +1081,8 @@ onUnmounted(() => {
 /* 业务显示控制 */
 .service-display-controls {
   padding: 10px 15px;
-  border-bottom: 1px solid rgba(68, 68, 68, 0.8);
-  background: rgba(40, 40, 40, 0.6);
+  border-bottom: 1px solid var(--theme-border);
+  background: var(--theme-dialog-bg);
   flex-shrink: 0;
 }
 
@@ -1098,7 +1100,7 @@ onUnmounted(() => {
 .control-section h4 {
   margin: 0;
   font-size: 14px;
-  color: #ffd700;
+  background: var(--theme-main-bg);
   flex: 0 0 auto;
 }
 
@@ -1122,8 +1124,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: rgba(50, 50, 50, 0.4);
-  border: 1px solid rgba(68, 68, 68, 0.6);
+  background: var(--theme-secondary-bg); 
+  border: 1px solid var(--theme-border);
   border-radius: 4px;
   padding: 2px 6px;
   width: 400px;
@@ -1133,7 +1135,7 @@ onUnmounted(() => {
 
 .chart-title {
   font-size: 10px;
-  color: #ccc;
+  color: var(--theme-border);
   margin: 0;
   padding: 0;
   text-align: center;
@@ -1227,13 +1229,14 @@ onUnmounted(() => {
   flex: 1;
   overflow-y: auto;
   padding: 10px;
+  background: var(--theme-main-bg);
 }
 
 .service-category h4 {
   margin: 0 0 10px 0;
   font-size: 14px;
-  color: #999;
-  border-bottom: 1px solid #444;
+  color: var(--theme-border); 
+  border-bottom: 1px solid var(--theme-border);
   padding-bottom: 5px;
 }
 
@@ -1249,8 +1252,8 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: rgba(40, 40, 40, 0.7);
-  border: 1px solid rgba(68, 68, 68, 0.8);
+  background: var(--theme-secondary-bg);
+  border: 1px solid var(--theme-border);
   border-radius: 4px;
   margin-bottom: 8px;
 }
@@ -1268,16 +1271,16 @@ onUnmounted(() => {
 
 .selected-count {
   font-size: 11px;
-  color: #ccc;
+  color: var(--theme-border);
 }
 
 
 /* 业务组 */
 .business-group {
-  border: 1px solid rgba(68, 68, 68, 0.8);
+  border: 1px solid var(--theme-border); /* 【修改】使用主题变量 */
   border-radius: 4px;
   overflow: hidden;
-  background: rgba(40, 40, 40, 0.5);
+  background: var(--theme-secondary-bg);
 }
 
 .group-title {
@@ -1285,8 +1288,8 @@ onUnmounted(() => {
   padding: 6px 12px;
   font-size: 11px;
   font-weight: 600;
-  border-bottom: 1px solid rgba(68, 68, 68, 0.6);
-  background: rgba(30, 30, 30, 0.8);
+  border-bottom: 1px solid var(--theme-border);
+  background: var(--theme-dialog-bg);
 }
 
 .group-title.active {
@@ -1310,7 +1313,7 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 1px;
-  background: rgba(68, 68, 68, 0.6);
+  background: var(--theme-border);
 }
 
 /* 响应式调整 */
@@ -1339,12 +1342,12 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   font-size: 10px;
-  background: rgba(50, 50, 50, 0.4);
+  background: var(--theme-secondary-bg);
   position: relative;
 }
 
 .service-card:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--theme-dialog-bg);
 }
 
 .service-card.active {
@@ -1381,14 +1384,14 @@ onUnmounted(() => {
 
 .service-id {
   font-weight: bold;
-  color: #fff;
+  color: var(--theme-main-text); /* 【修改】使用主题变量 */
   font-size: 10px;
   line-height: 1.2;
 }
 
 .service-route {
   font-size: 9px;
-  color: #ccc;
+  color: var(--theme-border);
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
@@ -1397,9 +1400,9 @@ onUnmounted(() => {
 
 .action-btn {
   padding: 3px 8px;
-  border: 1px solid #666;
-  background: #444;
-  color: #ccc;
+  border: 1px solid var(--theme-border);
+  background: var(--theme-dialog-bg);
+  color: var(--theme-main-text);
   border-radius: 2px;
   cursor: pointer;
   font-size: 10px;
@@ -1407,7 +1410,7 @@ onUnmounted(() => {
 }
 
 .action-btn:hover {
-  background: #555;
+  background: var(--theme-main-bg);
 }
 
 .action-btn:disabled {

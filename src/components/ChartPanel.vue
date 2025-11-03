@@ -1117,8 +1117,8 @@ const loadHistoricalData = async () => {
 .chart-panel {
   width: 100%;
   height: 100%;
-  background: #000000;
-  border: 1px solid #333333;
+  background: var(--theme-dialog-bg);
+  border: 1px solid var(--theme-border);
   border-radius: 0;
   display: flex;
   flex-direction: column;
@@ -1130,22 +1130,22 @@ const loadHistoricalData = async () => {
   justify-content: space-between;
   align-items: center;
   padding: 10px 15px;
-  background: #1a1a1a;
+  background: var(--theme-secondary-bg);
   border-bottom: 1px solid #333333;
 }
 
 .panel-header h3 {
   margin: 0;
-  color: #ffffff;
+  color: var(--theme-main-text);
   font-size: 14px;
   font-weight: normal;
   font-family: Arial, sans-serif;
 }
 
 .close-btn {
-  background: #333333;
-  border: 1px solid #555555;
-  color: #ffffff;
+  background: var(--theme-border);
+  border: 1px solid var(--theme-border);
+  color: var(--theme-main-text);
   width: 22px;
   height: 22px;
   border-radius: 0;
@@ -1158,13 +1158,13 @@ const loadHistoricalData = async () => {
 }
 
 .close-btn:hover {
-  background: #555555;
+  background: var(--theme-accent);
 }
 
 .panel-content {
   flex: 1;
   padding: 10px;
-  background: #000000;
+  background: var(--theme-dialog-bg);
   overflow-y: auto;
   overflow-x: visible;  /* 水平方向允许溢出，避免tooltip被裁剪 */
 }
@@ -1177,8 +1177,8 @@ const loadHistoricalData = async () => {
 }
 
 .chart-item {
-  background: #000000;
-  border: 1px solid #333333;
+  background: var(--theme-dialog-bg);
+  border: 1px solid var(--theme-border);
   border-radius: 0;
   padding: 10px;
   position: relative;  /* 确保内部元素定位正确 */
@@ -1187,7 +1187,7 @@ const loadHistoricalData = async () => {
 
 .chart-item h4 {
   margin: 0 0 8px 0;
-  color: #ffffff;
+  color: var(--theme-main-text);
   font-size: 12px;
   font-weight: normal;
   font-family: Arial, sans-serif;
@@ -1196,7 +1196,7 @@ const loadHistoricalData = async () => {
 .chart {
   width: 100%;
   height: 300px;  /* 增加高度以避免标题和轴标签重叠 */
-  background: #000000;
+  background: var(--theme-dialog-bg);
   position: relative;  /* 确保tooltip定位正确 */
   overflow: visible;   /* 允许tooltip溢出容器 */
 }
@@ -1207,14 +1207,14 @@ const loadHistoricalData = async () => {
 }
 
 .panel-content::-webkit-scrollbar-track {
-  background: #1a1a1a;
+  background: var(--theme-secondary-bg);
 }
 
 .panel-content::-webkit-scrollbar-thumb {
-  background: #555555;
+  background: var(--theme-border);
 }
 
 .panel-content::-webkit-scrollbar-thumb:hover {
-  background: #777777;
+  background: var(--theme-accent);
 }
 </style>

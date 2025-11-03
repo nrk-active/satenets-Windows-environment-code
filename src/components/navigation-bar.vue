@@ -1,6 +1,8 @@
 <template>
-  <!-- 新增顶部细导航栏 -->
-  <div class="top-thin-navbar">
+  <!-- 顶部合并导航栏容器 -->
+  <div class="top-combined-navbar">
+    <!-- 原顶部细导航栏 -->
+    <div class="top-thin-navbar nav-menu-group">
     <div
       class="thin-nav-item dropdown"
       @click="toggleSceneDropdown"
@@ -70,8 +72,44 @@
     <div class="thin-nav-item">计算分析</div>
     <div class="thin-nav-item">信息显示</div>
     <div class="thin-nav-item">窗口</div>
+  </div>
+
+  <!-- 中间控制按钮区域，原仿真相关菜单 -->
+    <div class="nav-control-group">
+      <div class="nav-item-center nav-item-open"
+        @click="openActionMenu"
+        :class="{ 'nav-disabled': isSimulationDisabled }"
+      >
+        Open
+      </div>
+      <div class="nav-item-center nav-item-save" @click="saveActionMenu">
+        Save
+      </div>
+      <div class="nav-item-center nav-item-save-as" @click="saveAsActionMenu">
+        Save As
+      </div>
+      <div class="nav-item-center nav-item-start"
+        @click="handleStartSimulationClick"
+        :class="{ 'nav-disabled': isSimulationDisabled }"
+      >
+        {{ getSimulationButtonText() }}
+      </div>
+      <div class="nav-item-center nav-item-pause" @click="handlePauseSimulation">
+        暂停仿真
+      </div>
+      <div class="nav-item-center nav-item-speed-up" @click="increaseSpeed">
+        加速
+      </div>
+      <div class="nav-item-center nav-item-speed-down" @click="decreaseSpeed">
+        减速
+      </div>
+      <div class="nav-item-center nav-item-result-display" @click="showSimulationResultDialog">
+        仿真结果展示
+      </div>
+    </div>
+
     <!-- 顶部右侧 登录/注册 或 用户名/退出 -->
-    <div class="thin-nav-auth">
+    <div class="thin-nav-auth nav-auth-group">
       <template v-if="!isLoggedIn">
         <button class="thin-nav-signin" @click="openLoginDialog">登录</button>
         <button class="thin-nav-signup" @click="openRegisterDialog">注册</button>
@@ -81,50 +119,11 @@
         <button class="thin-nav-signout" @click="logout">退出</button>
       </template>
     </div>
+
     <login ref="loginRef" @login-success="handleLoginSuccess" />
     <setting ref="settingRef" />
   </div>
-  <div class="navigation-bar">
-    <div class="nav-left-group">
-      <!-- 左侧按钮 -->
-      <div class="nav-item-left" 
-        @click="openActionMenu"
-        :class="{ 'nav-disabled': isSimulationDisabled }"
-        >
-          Open
-      </div>
-      <div class="nav-item-left" @click="saveActionMenu">
-          Save
-      </div>
-      <div class="nav-item-left" @click="saveAsActionMenu">
-          Save As
-       </div>
 
-        <!-- 仿真相关菜单 -->
-      <div class="nav-item-left"
-        @click="handleStartSimulationClick" 
-        :class="{ 'nav-disabled': isSimulationDisabled }"
-        >
-          {{ getSimulationButtonText() }}
-      </div>
-      <div class="nav-item-left" @click="handlePauseSimulation">
-          暂停仿真
-      </div>
-      <!-- <div class="nav-item-left" @click="handleStopSimulation">
-          停止
-      </div> -->
-      <div class="nav-item-left" @click="increaseSpeed">
-          加速
-      </div>
-    
-      <div class="nav-item-left" @click="decreaseSpeed">
-        减速
-      </div>
-       <div class="nav-item-right" @click="showSimulationResultDialog">
-        仿真结果展示
-      </div>
-   
-    </div>
     <!-- <div class="nav-center-group">
       <div class="progress-bar-nav">
         <div class="progress-time">
@@ -141,7 +140,7 @@
         </div>
       </div>
     </div> -->
-    <div class="nav-right-group">
+    <!-- <div class="nav-right-group"> -->
       <!-- 右侧按钮 -->
       <!-- <div class="nav-item-right" @click="showBusinessDesignDialog">
         业务设置
@@ -159,8 +158,7 @@
             天地一体化展示
         </div>
       </div> -->
-    </div>
-  </div>
+    <!-- </div> -->
   
   <!-- 新建想定对话框 -->
   <ScenarioDialog v-if="showDialog" @close="showDialog = false" />
@@ -773,322 +771,230 @@ function logout() {
 </script>
 
 <style scoped>
-.top-thin-navbar {
+/* 顶级组合导航栏 (top-combined-navbar) */
+.top-combined-navbar {
+  /* 基础容器样式 */
   width: 100%;
-  height: 28px;
-  background: #232323;
+  height: 60px; 
+  background: var(--theme-secondary-bg); /* 修复：使用次级背景 */
+  border-bottom: 1px solid var(--theme-border); 
+  
+  /* 关键：使用 Flexbox 实现三段式布局 (左-中-右) */
+  display: flex;
+  justify-content: space-between; 
+  align-items: center;
+  padding: 0 10px;
+  box-sizing: border-box;
+  z-index: 10000; 
+  /* 修复：使用主题阴影 */
+  box-shadow: 0 2px 6px var(--theme-shadow);
+  position: fixed; 
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+/* 1. 左侧菜单组 (nav-menu-group) */
+.nav-menu-group {
   display: flex;
   align-items: center;
-  border-bottom: 1px solid #333;
-  font-size: 13px;
-  z-index: 10;
-  position: relative;
+  height: 100%;
+  flex-grow: 1; 
+  flex-shrink: 1; 
+  flex-basis: 0; 
+  justify-content: flex-start; 
+  min-width: 0;
 }
+
+/* 3. 右侧认证组 (nav-auth-group) */
+.nav-auth-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-grow: 1; 
+  flex-shrink: 1;
+  flex-basis: 0; 
+  justify-content: flex-end; 
+  min-width: 0;
+}
+
+/* 2. 中央功能按钮组 (nav-control-group) */
+.nav-control-group {
+  /* 核心：不伸缩，不收缩，只占据内容所需的宽度 */
+  display: flex;
+  justify-content: center; 
+  align-items: center;
+  flex-grow: 0; 
+  flex-shrink: 0; 
+  gap: 12px;
+  padding: 0 20px;
+  background: var(--theme-dialog-bg); /* **修复：使用对话框背景** */
+  border-radius: 6px;
+  box-shadow: inset 0 0 10px var(--theme-shadow);
+}
+
+/* ==========================================================
+ * 按钮和菜单项的通用样式 (Spacemap 风格)
+ * ========================================================== */
+
+/* 顶部下拉菜单项样式 */
 .thin-nav-item {
-  color: #eee;
-  padding: 0 18px;
+  color: var(--theme-main-text); /* **修复：使用主文字** */
+  padding: 0 12px;
   height: 100%;
   display: flex;
   align-items: center;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s;
+  transition: all 0.3s ease;
+  position: relative;
+  font-size: 14px;
 }
 .thin-nav-item:hover {
-  background: #333;
-  color: #ffd700;
+  background: var(--theme-dialog-bg); /* **修复：悬停背景** */
+  color: var(--theme-accent); /* 保持强调色 */
+  box-shadow: inset 0 -3px 0 var(--theme-accent);
 }
-
-.nav-spacer {
-  flex: 1;  /* 添加这个样式让空间占位器占据所有剩余空间 */
-}
-
-.header-buttons {
-  padding: 0 15px;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  font-size: 14px;
-  white-space: nowrap;
-  position: relative  /* 添加右侧边距 */
-}
-
-.simulation-btn {
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  padding: 8px 16px;  /* 稍微增加按钮大小 */
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  height: 36px;  /* 固定按钮高度 */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.simulation-btn:disabled {
-  background-color: #cccccc;
-  cursor: not-allowed;
-}
-
-.simulation-btn:hover:not(:disabled) {
-  background-color: #45a049;
-}
-
-.navigation-bar {
-  position: relative; 
-  /* justify-content: center; */
-  display: flex;
-  align-items: center;
-  width: 100%;
-  height: 80px;
-  background: #1a1a1a;
-  border-bottom: 1px solid #fffbfb;
-  justify-content: space-between; /* 关键：三栏分布两端和中间 */
-}
-
-.nav-left-group {
-  width: 7%;
-  display: flex;
-  align-items: center;
-  /* flex: 0 1 auto; 关键：宽度自适应内容 */
-  min-width: 0;
-}
-
-.nav-center-group {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  min-width: 0;
-}
-
-.nav-right-group {
-  display: flex;
-  align-items: center;
-  margin-left: auto;
-}
-
-.nav-left-group,
-.nav-right-group {
-  color: #fff; /* 新增：让字体变亮 */
-  display: flex;
-  height: 100%;
-  align-items: center;
-  flex: 1 1 auto;
-  min-width: 0;
-  
-}
-
-.nav-item-left {
-  width: 10%;
-  padding: 0 10px;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  font-size: 14px;
-  white-space: nowrap;
-  justify-content: center;
-  color: #fff; /* 确保正常状态下显示白色 */
-}
-.nav-item-left:hover {
-  background-color: #333;
-}
-.nav-item-left.active {
-  background-color: #444;
-}
-
-.nav-item-left.active:hover {
-  background-color: #555;
-}
-
-.nav-item-left.nav-disabled {
-  color: #666;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.nav-item-left.nav-disabled:hover {
-  background-color: transparent;
-}
-.nav-item-right {
-  width: 14%;
-  /* padding: 0 10px; */
-  height: 100%;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  font-size: 14px;
-  white-space: nowrap;
-  justify-content: center;
-}
-.nav-item-right:hover {
-  background-color: #333;
-}
-.nav-item-right.active {
-  background-color: #444;
-}
-
-.nav-item-:right:hover {
-  background-color: #555;
-}
-
-.progress-bar-nav {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  background: #232323;
-  color: #fff;
-  border: none;
-  border-radius: 0 4px 4px 0;
-  padding: 6px 14px 6px 14px;
-  margin-left: 0;
-  min-width: 220px;
-  max-width: 300px;
-  height: 56px;
-  box-sizing: border-box;
-  font-size: 12px;
-  margin-top: 0;
-  margin-bottom: 0;
-  box-shadow: none;
-}
-
-.progress-time,
-.progress-bar-row{
-  display: flex;
-  align-items: center;
-  margin-bottom: 2px;
-}
-
-.progress-label {
-  min-width: 48px;
-  font-size: 12px;
-  color: #fff;
-  font-weight: bold;
-}
-
-.time-input {
-  background-color: #181818;
-  color: #fff;
-  border: 1px solid #444;
-  border-radius: 6px;
-  width: 60px;
-  text-align: center;
-  margin: 0 2px;
-  height: 20px;
-  font-size: 12px;
-  padding: 0 4px;
-}
-
-.progress-bar-row {
-  margin-bottom: 2px;
-}
-
-.progress-bar-outer {
-  flex: 1;
-  height: 10px;
-  background-color: #444;
-  border-radius: 6px;
-  overflow: hidden;
-  margin-left: 8px;
-  border: 1px solid #222;
-  min-width: 80px;
-  max-width: 140px;
-}
-
-.progress-bar-inner {
-  height: 100%;
-  background: linear-gradient(90deg, #f39c12, #ffd700);
-  transition: width 0.3s;
-}
-
-ul {
-  list-style: disc inside;
-  padding: 0;
-  margin: 0;
-}
-li {
-  margin: 12px 0;
-  font-size: 15px;
-  color: #e0e0e0;
-  letter-spacing: 1px;
-}
-
-.dropdown {
-  position: relative;
-}
+/* 下拉菜单 */
 .dropdown-menu {
   position: absolute;
   top: 100%;
   left: 0;
-  background: #232323;
-  border: 1px solid #333;
-  min-width: 100px;
-  z-index: 100;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  background: var(--theme-main-bg); /* 修复：使用主背景 */
+  min-width: 150px;
+  z-index: 10005; 
+  box-shadow: 0 4px 12px var(--theme-shadow);
+  padding: 0;
+  margin: 0;
 }
 .dropdown-item {
-  color: #eee;
-  padding: 8px 18px;
-  cursor: pointer;
-  white-space: nowrap;
+  color: var(--theme-main-text); /* 修复：使用主文字 */
+  padding: 10px 20px;
   transition: background 0.2s, color 0.2s;
+  font-size: 13px;
+  line-height: 1;
 }
 .dropdown-item:hover {
-  background: #333;
-  color: #ffd700;
+  background: var(--theme-dialog-bg); /* 修复：悬停背景 */
+  color: var(--theme-accent);
 }
 
-.thin-nav-auth {
-  margin-left: auto;
+/* Auth 按钮和用户名样式 */
+.thin-nav-username {
+  color: var(--theme-accent); /* 保持强调色 */
+  font-size: 14px;
+  font-weight: bold;
+}
+.thin-nav-signin,
+.thin-nav-signup,
+.thin-nav-signout {
+  border: 1px solid var(--theme-border); 
+  background: var(--theme-dialog-bg); /* **修复：按钮背景** */
+  color: var(--theme-main-text); /* **修复：按钮文字** */
+  padding: 3px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  height: 24px;
+  line-height: 24px;
+  font-weight: 500;
+}
+.thin-nav-signin:hover,
+.thin-nav-signup:hover,
+.thin-nav-signout:hover {
+  background: var(--theme-accent); /* 悬停使用强调色 */
+  color: #fff; /* 悬停文字保持白色 */
+}
+
+/* 统一控制项样式：基础深色按钮 */
+.nav-item-center {
+  height: 36px;
+  padding: 0 16px;
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-/* 登录/注册按钮：绿色风格 */
-.thin-nav-signin,
-.thin-nav-signup {
-  border: none;
-  background: #27ae60;
-  color: #fff;
-  padding: 3px 16px;
-  border-radius: 4px;
-  font-size: 13px;
+  justify-content: center;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s;
-  height: 24px;
-  line-height: 24px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: bold;
+  white-space: nowrap;
+  color: var(--theme-main-text); /* **修复：使用主文字** */
+  background: var(--theme-dialog-bg); /* **修复：使用对话框背景** */
+  border: 1px solid var(--theme-border); 
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px var(--theme-shadow);
+  box-sizing: border-box;
 }
 
-.thin-nav-signin:hover,
-.thin-nav-signup:hover {
-  background: #219150;
-  color: #fff;
+/* 统一 Hover/Active 效果 */
+.nav-item-center:hover:not(.nav-disabled) {
+  background-color: var(--theme-main-bg); /* **修复：悬停使用主背景** */
+  border-color: var(--theme-accent);
+  color: var(--theme-accent);
+  box-shadow: 0 0 5px var(--theme-accent);
+  transform: translateY(-1px);
 }
 
-.thin-nav-username {
-  color: #fff;
-  font-size: 14px;
-  margin-right: 8px;
+/* Start Simulation (突出绿色) - 保持特殊色 */
+.nav-item-start { 
+  background: #00ff88;
+  color: #101010;
+  border-color: #00e077;
+  min-width: 90px;
+  box-shadow: 0 2px 6px #00ff8850;
 }
-.thin-nav-signout {
-  border: none;
+.nav-item-start:hover:not(.nav-disabled) {
+  background: #00e077;
+  box-shadow: 0 0 8px #00ff88;
+  color: #101010;
+  border-color: #00ff88;
+}
+
+/* Pause Simulation (突出红色) - 保持特殊色 */
+.nav-item-pause {
   background: #e74c3c;
   color: #fff;
-  padding: 3px 16px;
-  border-radius: 4px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s;
-  height: 24px;
-  line-height: 24px;
-  font-weight: 500;
+  border-color: #c0392b;
+  box-shadow: 0 2px 6px #e74c3c50;
 }
-.thin-nav-signout:hover {
+.nav-item-pause:hover:not(.nav-disabled) {
   background: #c0392b;
+  box-shadow: 0 0 8px #e74c3c50;
+  border-color: #e74c3c;
+}
+
+/* 加速/减速 (深蓝色强调) - 保持特殊色 */
+.nav-item-speed-up,
+.nav-item-speed-down {
+  background: #34495e;
+  border-color: #2c3e50;
+  color: #fff;
+}
+
+/* 仿真结果展示 (突出蓝色) - 保持特殊色 */
+.nav-item-result-display { 
+  background: #3498db;
+  color: #fff;
+  border-color: #2980b9;
+  box-shadow: 0 2px 6px #3498db50;
+}
+.nav-item-result-display:hover:not(.nav-disabled) {
+  background: #2980b9;
+  box-shadow: 0 0 8px #3498db50;
+  border-color: #3498db;
+}
+
+/* 禁用状态 */
+.nav-item-center.nav-disabled {
+  color: var(--theme-border); /* **修复：使用边框色作为禁用文字色** */
+  background: var(--theme-secondary-bg); /* **修复：使用次级背景** */
+  border-color: var(--theme-border);
+  cursor: not-allowed;
+  opacity: 0.8;
+  box-shadow: none;
+  transform: none;
+}
+.nav-item-center.nav-disabled:hover {
+  background: var(--theme-secondary-bg);
+  border-color: var(--theme-border);
 }
 </style>

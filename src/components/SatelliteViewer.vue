@@ -10,7 +10,7 @@
  */
 
 <template>
-  <div class="satellite-viewer-container">
+  <div class="satellite-viewer-container" :class="{ 'cesium-lighter': themeMode === 'light' }">
     <!-- 导航栏 -->
     <NavigationBar 
       @simulation-data-selected="handleDataSelection" 
@@ -198,6 +198,8 @@ const username = inject('username', ref(''));
 const isGuestMode = inject('isGuestMode', ref(false));
 const authMethods = inject('authMethods', {});
 const selectedProcessId = inject('selectedProcessId', ref(null));
+// 【新增】注入 themeMode
+const themeMode = inject('themeMode', ref('dark'));
 
 // 从 authMethods 中解构方法
 const { handleLoginSuccess, handleGuestLogin, handleLogout: originalHandleLogout } = authMethods;
@@ -1995,9 +1997,16 @@ defineExpose({
 .main-content {
   display: flex;
   flex: 1;
-  height: calc(100vh - 109px); /* 导航栏总高度: 28px + 80px + 1px边框 = 109px */
+  /* 核心修改: 偏移主内容区域到导航栏下方 (60px 高度 + 1px 边框) */
+  margin-top: 61px;
+  height: calc(100vh - 61px);
   overflow: hidden;
   position: relative;
+}
+
+/* 确保导航栏在最上层 */
+.satellite-viewer-container :deep(.top-combined-navbar) {
+  z-index: 10002; /* 确保导航栏高于所有内容 */
 }
 
 #cesiumContainer {
@@ -2012,7 +2021,7 @@ defineExpose({
 /* 播放速度控制面板 */
 .speed-display-panel {
   position: absolute;
-  top: 15px;
+  top: 15px;/* 相对 CesiumContainer 顶部 15px 偏移 */
   left: 15px;
   z-index: 10000;
   background: rgba(0, 0, 0, 0.8);
@@ -2095,7 +2104,7 @@ defineExpose({
   height: 100%;
   min-width: 300px;
   max-width: 350px;
-  background: transparent;
+  background: transparent; /* 【修复】确保容器透明，让内部组件控制背景色 */
 }
 
 /* Cesium时间轴控件样式调整 - 使用更高的优先级 */

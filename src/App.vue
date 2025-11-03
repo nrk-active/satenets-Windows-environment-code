@@ -26,12 +26,33 @@ const userCredentials = ref({
   token: ''
 });
 
+// 【新增】主题状态管理
+// 默认深色，或根据本地存储恢复。如果本地存储为空，默认为'dark'。
+const isDarkTheme = ref(localStorage.getItem('theme') === 'dark' || !localStorage.getItem('theme'));
+
+function applyTheme(theme) {
+  // 将主题模式应用于 HTML 根元素，触发 CSS 变量切换
+  document.documentElement.setAttribute('data-theme', theme);
+  console.log(`主题已切换到: ${theme}`);
+}
+
+function toggleTheme() {
+  const newTheme = isDarkTheme.value ? 'light' : 'dark';
+  isDarkTheme.value = !isDarkTheme.value;
+  localStorage.setItem('theme', newTheme);
+  applyTheme(newTheme);
+}
+
 // 提供登录状态给子组件
 provide('isLoggedIn', isLoggedIn);
 provide('username', username);
 provide('isGuestMode', isGuestMode);
 provide('userCredentials', userCredentials);
 provide('selectedProcessId', selectedProcessId);
+
+// **【新增】提供主题状态和切换函数给子组件**
+provide('isDarkTheme', isDarkTheme);
+provide('toggleTheme', toggleTheme);
 
 // 处理登录成功
 function handleLoginSuccess(user) {
@@ -113,6 +134,18 @@ function restoreLoginState() {
   }
 }
 
+// 从本地存储恢复主题状态并在DOM上应用
+function restoreThemeState() {
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme) {
+    isDarkTheme.value = savedTheme === 'dark';
+    applyTheme(savedTheme);
+  } else {
+    // 默认应用深色主题
+    applyTheme('dark');
+  }
+}
+
 // 暴露方法给路由组件使用
 provide('authMethods', {
   handleLoginSuccess,
@@ -120,12 +153,39 @@ provide('authMethods', {
   handleLogout
 });
 
-// 在组件挂载时恢复登录状态
+// 在组件挂载时恢复登录和主题状态
 onMounted(() => {
+  restoreThemeState(); // **【新增】调用主题恢复函数**
   restoreLoginState();
 });
 </script>
+
+
 <style>
+/* **[主题功能新增]**：定义 CSS 变量 */
+:root {
+  /* 深色模式变量 (默认) */
+  --theme-main-bg: #232323;      /* 主界面背景 (导航栏, 侧边栏, 底部面板) */
+  --theme-main-text: #fff;      /* 主界面文字 */
+  --theme-secondary-bg: #181818; /* 次级背景 (导航栏顶部细条, 列表项header) */
+  --theme-dialog-bg: #2a2a2a;    /* 对话框主体、列表项背景 */
+  --theme-accent: #f39c12;       /* 强调色/边框色 */
+  --theme-border: #444;          /* 一般边框/分割线 */
+  --theme-shadow: rgba(0,0,0,0.28);
+}
+
+/* 浅色模式覆盖 */
+[data-theme='light'] {
+  --theme-main-bg: #f7f7f7;      /* 浅色背景 (接近白色/浅灰) */
+  --theme-main-text: #222;      /* 黑色文字 */
+  --theme-secondary-bg: #ffffff; /* 白色次级背景 */
+  --theme-dialog-bg: #f0f0f0;    /* 浅灰对话框/列表项背景 */
+  --theme-accent: #1890ff;       /* 强调色改为蓝色系 */
+  --theme-border: #ccc;          /* 浅色边框 */
+  --theme-shadow: rgba(0,0,0,0.1);
+}
+
+/* 确保整个应用的背景也切换 */
 #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -134,6 +194,8 @@ onMounted(() => {
   padding: 0;
   height: 100vh;
   overflow: hidden;
+  background-color: var(--theme-main-bg);
+  color: var(--theme-main-text);
 }
 
 /* 隐藏Cesium原生时间轴和动画控件 */

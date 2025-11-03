@@ -30,20 +30,34 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, inject } from 'vue'
 
 const show = ref(false)
-const theme = ref('light')
+// 【新增】注入全局主题状态和切换函数 (来自 App.vue)
+const isDarkTheme = inject('isDarkTheme', ref(true));
+const toggleTheme = inject('toggleTheme', () => {});
+
+// 本地状态，用于绑定 select，并与全局状态同步
+const theme = ref(isDarkTheme.value ? 'dark' : 'light'); 
 const language = ref('zh')
 
 function open() {
   show.value = true
+  // 【修改】打开时，同步本地主题选择与当前全局主题状态
+  theme.value = isDarkTheme.value ? 'dark' : 'light'; 
 }
 function close() {
   show.value = false
 }
 function save() {
-  // 这里可以触发事件或调用接口保存设置
+  // 根据选择和当前状态判断是否需要切换
+  const targetIsDark = theme.value === 'dark';
+  
+  // 只有在目标主题与当前全局主题不一致时才调用切换函数
+  if (targetIsDark !== isDarkTheme.value) {
+    toggleTheme(); // App.vue 中的函数会处理实际的切换
+  }
+  
   alert(`设置已保存\n主题：${theme.value}\n语言：${language.value === 'zh' ? '中文' : 'English'}`)
   close()
 }
@@ -55,18 +69,19 @@ defineExpose({ open })
 .setting-modal {
   position: fixed;
   left: 0; top: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.3);
+  background: rgba(0,0,0,0.5); /* 确保背景色透明度 */
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  z-index: 100001; /* **修复 1: 提高 Z-index 以确保底板可见** */
 }
 .setting-box {
-  background: #fff;
+  background: var(--theme-secondary-bg); /* **弹窗背景使用次级背景 (浅色下为白色)** */
+  color: var(--theme-main-text); /* **弹窗文字使用主文字色** */
   padding: 32px 28px 18px 28px;
   border-radius: 8px;
   min-width: 300px;
-  box-shadow: 0 2px 16px rgba(0,0,0,0.18);
+  box-shadow: 0 2px 16px var(--theme-shadow);
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -74,6 +89,7 @@ defineExpose({ open })
 .setting-box h3 {
   margin: 0 0 16px 0;
   text-align: center;
+  color: var(--theme-main-text); 
 }
 .setting-group {
   margin-bottom: 18px;
@@ -82,7 +98,7 @@ defineExpose({ open })
 }
 .setting-group label {
   font-size: 15px;
-  color: #222;
+  color: var(--theme-main-text); 
   display: flex;
   align-items: center;
   gap: 10px;
@@ -90,8 +106,10 @@ defineExpose({ open })
 .setting-group select {
   padding: 4px 10px;
   border-radius: 4px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--theme-border);
   font-size: 14px;
+  background: var(--theme-dialog-bg); /* 下拉框背景使用对话框背景 */
+  color: var(--theme-main-text); 
 }
 .setting-actions {
   display: flex;
@@ -102,12 +120,17 @@ defineExpose({ open })
   padding: 5px 18px;
   border: none;
   border-radius: 4px;
-  background: #27ae60;
-  color: #fff;
+  background: var(--theme-accent); 
+  color: #fff; 
   cursor: pointer;
   font-size: 14px;
+  transition: background 0.2s;
+}
+.setting-actions button:hover {
+  opacity: 0.8;
 }
 .setting-actions button:last-child {
-  background: #aaa;
+  background: var(--theme-border); 
+  color: var(--theme-main-text);
 }
 </style>

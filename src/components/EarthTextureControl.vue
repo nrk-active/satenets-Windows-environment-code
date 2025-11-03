@@ -1,17 +1,20 @@
 <template>
   <div class="tooltip-container">
     <button 
-      class="earth-icon"
-      :class="{ active: currentTextureIndex !== 0 }"
-      @click="toggleEarthTexture"
+      class="grid-icon"
+      :class="{ active: gridEnabled }"
+      @click="toggleGrid"
       @mouseenter="showTooltip"
       @mouseleave="hideTooltip"
     >
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-        <path d="M2 12h20" stroke="currentColor" stroke-width="1" opacity="0.6"/>
-        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="currentColor" stroke-width="1" opacity="0.8"/>
-        <circle cx="12" cy="12" r="3" fill="currentColor" opacity="0.7"/>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none"/>
+        <line x1="12" y1="2" x2="12" y2="22" stroke="currentColor" stroke-width="2" opacity="0.8"/>
+        <path d="M 6 2 Q 6 12 6 22" stroke="currentColor" stroke-width="2" fill="none" opacity="0.7"/>
+        <path d="M 18 2 Q 18 12 18 22" stroke="currentColor" stroke-width="2" fill="none" opacity="0.7"/>
+        <line x1="2" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="2" opacity="0.8"/>
+        <line x1="4" y1="7" x2="20" y2="7" stroke="currentColor" stroke-width="2" opacity="0.6"/>
+        <line x1="4" y1="17" x2="20" y2="17" stroke="currentColor" stroke-width="2" opacity="0.6"/>
       </svg>
     </button>
     <div 
@@ -19,11 +22,10 @@
       class="tooltip"
       :class="tooltipPosition"
     >
-      {{ getTooltipText() }}
+      {{ gridEnabled ? '关闭经纬线网格' : '开启经纬线网格' }}
     </div>
   </div>
 </template>
-
 <script setup>
 import { ref, onMounted } from 'vue';
 
@@ -100,16 +102,16 @@ defineExpose({
 .earth-icon {
   width: 40px;
   height: 40px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--theme-border);
+  background: var(--theme-dialog-bg);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  color: #fff;
+  box-shadow: 0 2px 8px var(--theme-shadow);
+  color: var(--theme-main-text);
   outline: none;
   padding: 0;
   overflow: hidden;
@@ -121,16 +123,18 @@ defineExpose({
 }
 
 .earth-icon:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--theme-accent);
+  color: #fff;
   transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 4px 12px var(--theme-shadow);
+  border-color: var(--theme-accent);
 }
 
 .earth-icon.active {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.8);
-  box-shadow: 0 4px 16px rgba(34, 139, 34, 0.5);
+  background: var(--theme-accent);
+  border-color: var(--theme-accent);
+  color: #fff;
+  box-shadow: 0 4px 16px var(--theme-shadow);
   animation: earthGlow 2s infinite alternate;
 }
 

@@ -352,31 +352,31 @@ onMounted(async () => {
 .object-viewer {
   width: 280px;
   height: 100%;
-  background: #232323;
-  border-right: 1px solid #333;
+  background: var(--theme-main-bg); 
+  border-right: 1px solid var(--theme-border);
   display: flex;
   flex-direction: column;
-  color: #f1f1f1;
+  color: var(--theme-main-text);
 }
 .header {
   font-weight: bold;
   padding: 10px 16px;
-  background: #181818;
+  background: var(--theme-secondary-bg);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #333;
-  color: #fff;
+  border-bottom: 1px solid var(--theme-border);
+  color: var(--theme-main-text);
   letter-spacing: 1px;
 }
 .close-btn {
   cursor: pointer;
   font-size: 14px;
-  color: #aaa;
+  color: var(--theme-main-text);
   transition: color 0.2s;
 }
 .close-btn:hover {
-  color: #f39c12;
+  color: var(--theme-accent);
 }
 .content {
   flex: 1;
@@ -384,7 +384,7 @@ onMounted(async () => {
   overflow: auto;
 }
 .category {
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--theme-border);
 }
 .category-header {
   padding: 12px 16px;
@@ -394,10 +394,10 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #2a2a2a;
+  background: var(--theme-dialog-bg); 
 }
 .category-header:hover {
-  background: #333;
+  background: var(--theme-main-bg);
 }
 .toggle-icon {
   margin-right: 8px;
@@ -414,12 +414,34 @@ onMounted(async () => {
   transition: background 0.2s;
 }
 .item:hover {
-  background: #333;
+  background: var(--theme-dialog-bg);
 }
 .item.selected {
-  background: #3498db;
-  color: white;
+  background: var(--theme-accent);
+  color: #fff;
 }
+.item.selected .item-icon {
+  background-color: #fff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+}
+
+/* 重新插入的样式块 */
+.link-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+.item-name {
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .item-icon {
   width: 12px;
   height: 12px;
@@ -448,12 +470,6 @@ onMounted(async () => {
   box-shadow: 0 0 4px rgba(155, 89, 182, 0.5);
 }
 
-/* 选中状态下的特殊效果 */
-.item.selected .item-icon {
-  background-color: #fff;
-  box-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
-}
-
 .link-icon {
   width: 20px;
   height: 20px;
@@ -472,41 +488,41 @@ onMounted(async () => {
 .empty-message {
   padding: 8px 16px 8px 32px;
   font-style: italic;
-  color: #888;
+  color: var(--theme-border);
   font-size: 14px;
 }
 
 .current-process {
   padding: 12px 16px;
-  background: #1a4a7a;
+  background: var(--theme-accent);
   color: #fff;
   font-size: 14px;
   font-weight: bold;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--theme-border);
   margin-bottom: 8px;
 }
 
 .current-folder {
   padding: 12px 16px;
-  background: #1a7a4a;
+  background: var(--theme-accent);
   color: #fff;
   font-size: 14px;
   font-weight: bold;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--theme-border);
   margin-bottom: 8px;
-  border-left: 4px solid #4CAF50;
+  border-left: 4px solid var(--theme-main-text); 
 }
 
 .current-files {
   padding: 8px 16px;
-  background: #2d2d2d;
-  border-bottom: 1px solid #333;
+  background: var(--theme-dialog-bg);
+  border-bottom: 1px solid var(--theme-border);
   margin-bottom: 8px;
 }
 
 .file-info {
   font-size: 12px;
-  color: #ccc;
+  color: var(--theme-main-text);
   margin: 2px 0;
   padding: 2px 0;
   font-family: monospace;
@@ -521,7 +537,7 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #2a2a2a;
+  background: var(--theme-dialog-bg);
 }
 
 .header-left {
@@ -537,9 +553,9 @@ onMounted(async () => {
 
 .control-btn {
   padding: 4px 8px;
-  border: 1px solid #555;
-  background: #404040;
-  color: #ccc;
+  border: 1px solid var(--theme-border);
+  background: var(--theme-dialog-bg);
+  color: var(--theme-main-text);
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
@@ -552,8 +568,8 @@ onMounted(async () => {
 }
 
 .control-btn:hover {
-  background: #505050;
-  border-color: #777;
+  background: var(--theme-main-bg);
+  border-color: var(--theme-accent);
 }
 
 .control-btn.active {

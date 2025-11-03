@@ -7,16 +7,16 @@
       @mouseenter="showTooltip"
       @mouseleave="hideTooltip"
     >
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/>
-        <line x1="12" y1="1" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <line x1="12" y1="21" x2="12" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <line x1="1" y1="12" x2="3" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <line x1="21" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="3"/>
+        <line x1="12" y1="1" x2="12" y2="3" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        <line x1="12" y1="21" x2="12" y2="23" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        <line x1="1" y1="12" x2="3" y2="12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        <line x1="21" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
       </svg>
     </button>
     <div 
@@ -91,16 +91,16 @@ defineExpose({
 .sun-icon {
   width: 40px;
   height: 40px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--theme-border); /* 使用主题边框 */
+  background: var(--theme-dialog-bg);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  color: #fff;
+  box-shadow: 0 2px 8px var(--theme-shadow);
+  color: var(--theme-main-text); 
   outline: none;
   padding: 0;
   overflow: hidden;
@@ -112,16 +112,18 @@ defineExpose({
 }
 
 .sun-icon:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--theme-accent);
+  color: #fff; /* 悬停时文字变为白色，确保高对比度 */
   transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 4px 12px var(--theme-shadow);
+  border-color: var(--theme-accent);
 }
 
 .sun-icon.active {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.8);
-  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.5);
+  background: var(--theme-accent);
+  border-color: var(--theme-accent);
+  color: #fff; /* 激活时文字变为白色，确保高对比度 */
+  box-shadow: 0 4px 16px var(--theme-shadow);
   animation: sunGlow 2s infinite alternate;
 }
 

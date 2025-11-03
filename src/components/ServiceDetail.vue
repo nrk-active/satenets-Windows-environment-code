@@ -112,9 +112,9 @@ function formatFieldValue(value) {
   right: 0;
   width: 300px;
   height: 100%;
-  background-color: rgba(20, 20, 20, 0.95);
-  border-left: 1px solid #555;
-  color: white;
+  background-color: var(--theme-dialog-bg); /* 【修复】使用对话框背景 */
+  border-left: 1px solid var(--theme-border); /* 使用边框色 */
+  color: var(--theme-main-text); /* 使用主文字色 */
   z-index: 1001;
   overflow: hidden;
   display: flex;
@@ -124,11 +124,11 @@ function formatFieldValue(value) {
 
 .service-detail-header {
   padding: 15px;
-  border-bottom: 1px solid #555;
+  border-bottom: 1px solid var(--theme-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: rgba(40, 40, 40, 0.8);
+  background-color: var(--theme-secondary-bg); /* 使用次级背景 */
 }
 
 .service-detail-header h3 {
@@ -140,7 +140,7 @@ function formatFieldValue(value) {
 .close-btn {
   background: none;
   border: none;
-  color: #999;
+  color: var(--theme-border); /* 使用边框色 */
   font-size: 20px;
   cursor: pointer;
   padding: 0;
@@ -154,7 +154,7 @@ function formatFieldValue(value) {
 }
 
 .close-btn:hover {
-  color: white;
+  color: var(--theme-accent); /* 使用强调色 */
   background-color: rgba(255, 255, 255, 0.1);
 }
 
@@ -169,7 +169,7 @@ function formatFieldValue(value) {
 .detail-item {
   margin-bottom: 15px;
   padding-bottom: 10px;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--theme-border);
   animation: fadeIn 0.3s ease-in;
 }
 
@@ -181,14 +181,14 @@ function formatFieldValue(value) {
   display: block;
   font-weight: bold;
   margin-bottom: 5px;
-  color: #aaa;
+  color: var(--theme-border);
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .detail-item span {
-  color: white;
+  color: var(--theme-main-text);
   font-size: 14px;
   line-height: 1.4;
   word-break: break-word;
@@ -239,9 +239,9 @@ function formatFieldValue(value) {
   gap: 8px;
   margin-top: 8px;
   padding: 8px;
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: var(--theme-secondary-bg);
   border-radius: 4px;
-  border-left: 3px solid #2196F3;
+  border-left: 3px solid var(--theme-accent);
 }
 
 .path-node {

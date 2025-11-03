@@ -7,8 +7,8 @@
       @mouseenter="showTooltip"
       @mouseleave="hideTooltip"
     >
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
         <circle cx="12" cy="12" r="2" fill="currentColor"/>
         <circle cx="5" cy="5" r="1" fill="currentColor"/>
         <circle cx="19" cy="5" r="1" fill="currentColor"/>
@@ -88,16 +88,16 @@ defineExpose({
 .sky-icon {
   width: 40px;
   height: 40px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--theme-border);
+  background: var(--theme-dialog-bg);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  color: #fff;
+  box-shadow: 0 2px 8px var(--theme-shadow);
+  color: var(--theme-main-text);
   outline: none;
   padding: 0;
   overflow: hidden;
@@ -109,16 +109,18 @@ defineExpose({
 }
 
 .sky-icon:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--theme-accent);
+  color: #fff;
   transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 4px 12px var(--theme-shadow);
+  border-color: var(--theme-accent);
 }
 
 .sky-icon.active {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.8);
-  box-shadow: 0 4px 16px rgba(100, 149, 237, 0.5);
+  background: var(--theme-accent);
+  border-color: var(--theme-accent);
+  color: #fff;
+  box-shadow: 0 4px 16px var(--theme-shadow);
   animation: skyGlow 2s infinite alternate;
 }
 

@@ -1348,7 +1348,7 @@ export function useCesium() {
     viewer.scene.globe.translucency.enabled = false;
     
     // 额外的地球亮度增强设置
-    viewer.scene.globe.baseColor = Cesium.Color.WHITE.clone(); // 设置基础颜色为白色增强亮度
+    //viewer.scene.globe.baseColor = Cesium.Color.WHITE.clone(); // 设置基础颜色为白色增强亮度
     viewer.scene.globe.luminanceAtZenith = 0.8; // 增加天顶亮度
     
     // 调整地球表面反射率
