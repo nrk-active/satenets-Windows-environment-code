@@ -9,15 +9,15 @@
     >
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <!-- 地球圆形轮廓 -->
-        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none"/>
         <!-- 经线 - 增加更多可见的竖直线 -->
-        <line x1="12" y1="2" x2="12" y2="22" stroke="currentColor" stroke-width="4"/>
-        <path d="M 6 2 Q 6 12 6 22" stroke="currentColor" stroke-width="4" fill="none"/>
-        <path d="M 18 2 Q 18 12 18 22" stroke="currentColor" stroke-width="4" fill="none"/>
+        <line x1="12" y1="2" x2="12" y2="22" stroke="currentColor" stroke-width="2"/>
+        <path d="M 6 2 Q 6 12 6 22" stroke="currentColor" stroke-width="2" fill="none"/>
+        <path d="M 18 2 Q 18 12 18 22" stroke="currentColor" stroke-width="2" fill="none"/>
         <!-- 纬线 -->
-        <line x1="2" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="4"/>
-        <line x1="4" y1="7" x2="20" y2="7" stroke="currentColor" stroke-width="4"/>
-        <line x1="4" y1="17" x2="20" y2="17" stroke="currentColor" stroke-width="4"/>
+        <line x1="2" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="2"/>
+        <line x1="4" y1="7" x2="20" y2="7" stroke="currentColor" stroke-width="2"/>
+        <line x1="4" y1="17" x2="20" y2="17" stroke="currentColor" stroke-width="2"/>
       </svg>
     </button>
     <div 

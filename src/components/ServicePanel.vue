@@ -1391,7 +1391,7 @@ onUnmounted(() => {
 
 .service-route {
   font-size: 9px;
-  color: var(--theme-border);
+  color: var(--theme-aux-text, #bbb); /* 使用辅助文字颜色变量 */
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;

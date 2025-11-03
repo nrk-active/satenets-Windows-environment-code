@@ -15,8 +15,8 @@ const emit = defineEmits(['reopen']);
 .collapsed-sidebar {
   width: 24px;
   height: 100%;
-  background: #181818;
-  border-right: 1px solid #333;
+  background: var(--theme-secondary-bg); /* 修复：使用次级背景 */
+  border-right: 1px solid var(--theme-border);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -27,13 +27,13 @@ const emit = defineEmits(['reopen']);
 }
 
 .collapsed-sidebar:hover {
-  background: #2a2a2a;
+  background: var(--theme-main-bg);
   width: 32px;
 }
 
 .arrow-icon {
   padding: 8px 0;
-  color: #fff;
+  color: var(--theme-main-text);
   font-size: 16px;
   font-weight: bold;
   display: flex;
@@ -44,7 +44,7 @@ const emit = defineEmits(['reopen']);
 .sidebar-text {
   writing-mode: vertical-rl;
   text-orientation: mixed;
-  color: #aaa;
+  color: var(--theme-border);
   font-size: 12px;
   margin-top: 16px;
   user-select: none;

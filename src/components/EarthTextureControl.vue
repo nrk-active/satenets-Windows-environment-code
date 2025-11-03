@@ -1,20 +1,17 @@
 <template>
   <div class="tooltip-container">
     <button 
-      class="grid-icon"
-      :class="{ active: gridEnabled }"
-      @click="toggleGrid"
+      class="earth-icon"
+      :class="{ active: currentTextureIndex !== 0 }"
+      @click="toggleEarthTexture"
       @mouseenter="showTooltip"
       @mouseleave="hideTooltip"
     >
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none"/>
-        <line x1="12" y1="2" x2="12" y2="22" stroke="currentColor" stroke-width="2" opacity="0.8"/>
-        <path d="M 6 2 Q 6 12 6 22" stroke="currentColor" stroke-width="2" fill="none" opacity="0.7"/>
-        <path d="M 18 2 Q 18 12 18 22" stroke="currentColor" stroke-width="2" fill="none" opacity="0.7"/>
-        <line x1="2" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="2" opacity="0.8"/>
-        <line x1="4" y1="7" x2="20" y2="7" stroke="currentColor" stroke-width="2" opacity="0.6"/>
-        <line x1="4" y1="17" x2="20" y2="17" stroke="currentColor" stroke-width="2" opacity="0.6"/>
+        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+        <path d="M2 12h20" stroke="currentColor" stroke-width="1" opacity="1"/>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="currentColor" stroke-width="1" opacity="1"/>
+        <circle cx="12" cy="12" r="3" fill="currentColor" opacity="1"/>
       </svg>
     </button>
     <div 
@@ -22,10 +19,11 @@
       class="tooltip"
       :class="tooltipPosition"
     >
-      {{ gridEnabled ? '关闭经纬线网格' : '开启经纬线网格' }}
+      {{ getTooltipText() }}
     </div>
   </div>
 </template>
+
 <script setup>
 import { ref, onMounted } from 'vue';
 
@@ -122,6 +120,7 @@ defineExpose({
   transition: all 0.3s ease;
 }
 
+/* 悬停样式 - 保持一致，填充强调色 */
 .earth-icon:hover {
   background: var(--theme-accent);
   color: #fff;
@@ -130,6 +129,7 @@ defineExpose({
   border-color: var(--theme-accent);
 }
 
+/* 激活状态样式 - 当 currentTextureIndex != 0 时，显示强调色 */
 .earth-icon.active {
   background: var(--theme-accent);
   border-color: var(--theme-accent);

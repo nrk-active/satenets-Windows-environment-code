@@ -9,15 +9,15 @@
     >
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <!-- 地图轮廓图标 -->
-        <path d="M3 3L21 3L21 21L3 21L3 3Z" stroke="currentColor" stroke-width="4" fill-opacity="0.1"/>
-        <path d="M7 7L7 17" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-        <path d="M11 7L11 17" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-        <path d="M15 7L15 17" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-        <path d="M19 7L19 17" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-        <path d="M7 7L19 7" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-        <path d="M7 11L19 11" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-        <path d="M7 15L19 15" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-        <path d="M7 19L19 19" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        <path d="M3 3L21 3L21 21L3 21L3 3Z" stroke="currentColor" stroke-width="2" fill-opacity="0.1"/>
+        <path d="M7 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M11 7L11 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M15 7L15 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M19 7L19 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M7 7L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M7 11L19 11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M7 15L19 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M7 19L19 19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
       </svg>
     </button>
     <div 
