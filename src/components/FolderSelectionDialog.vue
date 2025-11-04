@@ -71,7 +71,7 @@ async function scanDataFolders() {
     
     // 预定义的可能文件夹列表 - 包含所有已知的文件夹
     const possibleFolders = [
-      'old_60s_360s', 'new_10s_3600s', 'new_60s_3600s', // 新格式文件夹
+      'new_10s_3600s', 'new_60s_3600s', 'old_60s_360s', 'old_10s_3600s', 'old_60s_3600s',  // 新格式文件夹
       'old', 'new', // 兼容旧格式文件夹
     ];
     const validFolders = [];

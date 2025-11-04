@@ -95,9 +95,12 @@ export function useServiceData() {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
-      // 获取文本内容并处�?Infinity
+      // 获取文本内容并处理 Infinity（包括带引号和不带引号的）
       const textData = await response.text();
-      const fixedJsonText = textData.replace(/"Infinity"/g, 'null').replace(/Infinity/g, 'null');
+      const fixedJsonText = textData
+        .replace(/"Infinity"/g, 'null')       // 带引号的 "Infinity"
+        .replace(/:\s*Infinity/g, ': null')   // 不带引号的 Infinity
+        .replace(/:\s*-Infinity/g, ': null'); // 负无穷
       const rawData = JSON.parse(fixedJsonText);
       
       // 处理不同的数据结构格�?
@@ -159,8 +162,11 @@ export function useServiceData() {
       // 读取文件内容
       const textData = await file.text();
       
-      // 处理 Infinity �?
-      const fixedJsonText = textData.replace(/"Infinity"/g, 'null').replace(/Infinity/g, 'null');
+      // 处理 Infinity 值（包括带引号和不带引号的）
+      const fixedJsonText = textData
+        .replace(/"Infinity"/g, 'null')       // 带引号的 "Infinity"
+        .replace(/:\s*Infinity/g, ': null')   // 不带引号的 Infinity
+        .replace(/:\s*-Infinity/g, ': null'); // 负无穷
       const rawData = JSON.parse(fixedJsonText);
       
       // 处理不同的数据结构格�?

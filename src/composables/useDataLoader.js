@@ -165,7 +165,13 @@ export function useDataLoader() {
         throw new Error(`加载API数据失败: ${response.status} ${response.statusText}`);
       }
       
-      const rawData = await response.json();
+      // 修复：处理 JSON 中的 Infinity 值
+      const rawText = await response.text();
+      const sanitizedText = rawText
+        .replace(/:\s*Infinity/g, ': null')  // 将 Infinity 替换为 null
+        .replace(/:\s*-Infinity/g, ': null'); // 将 -Infinity 替换为 null
+      const rawData = JSON.parse(sanitizedText);
+      
       // console.log('API数据加载成功:', rawData);
       console.timeEnd(`加载API数据:${cacheKey}`);
       
@@ -206,7 +212,12 @@ export function useDataLoader() {
         throw new Error(`加载数据失败: ${response.status} ${response.statusText}`);
       }
       
-      const rawData = await response.json();
+      // 修复：处理 JSON 中的 Infinity 值
+      const rawText = await response.text();
+      const sanitizedText = rawText
+        .replace(/:\s*Infinity/g, ': null')  // 将 Infinity 替换为 null
+        .replace(/:\s*-Infinity/g, ': null'); // 将 -Infinity 替换为 null
+      const rawData = JSON.parse(sanitizedText);
 
   
       const processedData = processGraphData(rawData);

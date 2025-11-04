@@ -13,28 +13,28 @@ import { parseFolderName } from './folderParser.js';
  */
 export async function readSatelliteOrbitPoints(folderName, satelliteId) {
   if (!folderName || !satelliteId) {
-    // console.error('orbitReader: 缺少必要参数', { folderName, satelliteId });
+    console.error('orbitReader: 缺少必要参数', { folderName, satelliteId });
     return [];
   }
   
-  // // console.log('orbitReader: 开始读取轨道数据', { folderName, satelliteId });
+  console.log('🛰️ orbitReader: 开始读取轨道数据', { folderName, satelliteId });
   
   // 解析文件夹名称获取配置
   const config = parseFolderName(folderName);
   
   if (config.isDefault) {
-    // console.warn('orbitReader: 未选择有效的数据文件夹');
+    console.warn('orbitReader: 未选择有效的数据文件夹');
     return [];
   }
   
   const { interval, totalDuration, totalFrames } = config;
   
-  // // console.log('orbitReader: 文件夹配置', {
-  //   folderName,
-  //   interval,
-  //   totalDuration,
-  //   totalFrames
-  // });
+  console.log('📊 orbitReader: 文件夹配置', {
+    folderName,
+    interval,
+    totalDuration,
+    totalFrames
+  });
   
   // 计算5个等间隔的帧索引
   // 例如：如果总共360帧，则选择第1, 91, 181, 271, 360帧
@@ -51,12 +51,12 @@ export async function readSatelliteOrbitPoints(folderName, satelliteId) {
     }
   }
   
-  // // console.log(`orbitReader: 读取卫星 ${satelliteId} 的轨道点`, {
-  //   folderName,
-  //   totalFrames,
-  //   frameIndices,
-  //   interval
-  // });
+  console.log(`🎯 orbitReader: 读取卫星 ${satelliteId} 的轨道点`, {
+    folderName,
+    totalFrames,
+    frameIndices,
+    interval
+  });
   
   // 读取各个帧的数据文件
   const positions = [];
@@ -77,7 +77,12 @@ export async function readSatelliteOrbitPoints(folderName, satelliteId) {
         continue;
       }
       
-      const data = await response.json();
+      // 修复：处理 JSON 中的 Infinity 值
+      const rawText = await response.text();
+      const sanitizedText = rawText
+        .replace(/:\s*Infinity/g, ': null')   // 不带引号的 Infinity
+        .replace(/:\s*-Infinity/g, ': null'); // 负无穷
+      const data = JSON.parse(sanitizedText);
       
       // 查找指定卫星的位置数据
       const satelliteData = data?.data?.graph_nodes?.[satelliteId];
@@ -96,7 +101,7 @@ export async function readSatelliteOrbitPoints(folderName, satelliteId) {
         frameIndex: frameIndex
       });
       
-      // // console.log(`orbitReader: 读取帧 ${frameIndex} (时间戳 ${timestamp}s)`, pos);
+      console.log(`✅ orbitReader: 读取帧 ${frameIndex} (时间戳 ${timestamp}s)`, pos);
       
     } catch (error) {
       console.error(`orbitReader: 读取帧 ${frameIndex} 时出错`, error);
@@ -104,11 +109,11 @@ export async function readSatelliteOrbitPoints(folderName, satelliteId) {
   }
   
   if (positions.length < 2) {
-    console.warn(`orbitReader: 轨道点数量不足 (${positions.length} < 2)，无法绘制轨道`);
+    console.warn(`⚠️ orbitReader: 轨道点数量不足 (${positions.length} < 2)，无法绘制轨道`);
     return [];
   }
   
-  // // console.log(`orbitReader: 成功读取 ${positions.length} 个轨道点`, positions);
+  console.log(`✅ orbitReader: 成功读取 ${positions.length} 个轨道点`, positions);
   return positions;
 }
 
