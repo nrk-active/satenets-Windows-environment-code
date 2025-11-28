@@ -19,7 +19,7 @@ export function useCesium() {
   const { getCurrentDataFolder } = useDataLoader();
   
   // 光照状态 10.27新增
-  const lightingEnabled = ref(true);
+  const lightingEnabled = ref(false); // 默认关闭光照
   //新增结束
   
   // 国界线状态 10.27新增
@@ -173,9 +173,11 @@ export function useCesium() {
       }
       
       // 直接使用本地图片文件，不通过复杂的Provider
-      // 创建一个简单的纹理URL
-      const textureUrl = window.location.origin + '/texture/earth.jpg';
-      // console.log('尝试加载纹理URL:', textureUrl);
+      // 🎨 根据borderEnabled切换带/不带国界线的地图
+      const textureUrl = window.location.origin + (borderEnabled.value 
+        ? '/texture/earth_with_borders.jpg'  // 带国界线的地图
+        : '/texture/earth.jpg');              // 原始地图无国界线
+      console.log(`🌍 加载地球贴图 (国界线: ${borderEnabled.value ? '开' : '关'}):`, textureUrl);
       
       // 使用最简单的方式：UrlTemplateImageryProvider配置为单张图片
       const earthImageryProvider = new Cesium.UrlTemplateImageryProvider({
@@ -186,7 +188,7 @@ export function useCesium() {
           numberOfLevelZeroTilesY: 1
         }),
         maximumLevel: 0,
-        credit: 'Natural Earth'
+        credit: 'Natural Earth with Borders'
       });
       
       viewer.imageryLayers.addImageryProvider(earthImageryProvider);
@@ -197,7 +199,14 @@ export function useCesium() {
       useBackupEarthRendering();
     }
 
+    // 🛡️ 初始化前清理：确保没有残留的DataSource/Primitive/Entity导致内存泄漏
+    viewer.dataSources.removeAll();
+    viewer.scene.primitives.removeAll();
+    viewer.entities.removeAll();
+    console.log('🧹 Cesium初始化：已清理残留对象');
+    
     // 初始化经纬线网格 10.28新增 - 使用自定义实体方式
+    // 🧪 测试1：只启用经纬线网格，定位是否为泄漏源
     let gridEntities = null;
     try {
       // 创建经纬线网格数据源
@@ -210,12 +219,7 @@ export function useCesium() {
       // 根据初始状态设置可见性
       gridEntities.show = gridEnabled.value;
       
-      // 移除相机移动事件监听器，避免频繁重新生成网格线导致闪烁
-      // viewer.camera.moveEnd.addEventListener(function() {
-      //   updateGridDensity(gridEntities);
-      // });
-      
-      // console.log('Cesium: 经纬线网格初始化完成');
+      console.log('✅ 测试1: 经纬线网格已启用，监控内存变化...');
     } catch (error) {
       console.warn('Cesium: 经纬线网格初始化失败', error);
     }
@@ -231,6 +235,7 @@ export function useCesium() {
     viewer.scene.globe.showGroundAtmosphere = false;
     
     // 初始化星空背景 10.28新增
+    // 🧪 测试2：启用星空背景，定位是否为泄漏源
     viewer.scene.skyBox = new Cesium.SkyBox({
       sources: {
         positiveX: 'https://zimiao.oss-cn-beijing.aliyuncs.com/images/tycho2t3_80_px.jpg',
@@ -243,6 +248,7 @@ export function useCesium() {
     });
     // 根据初始状态设置星空可见性
     viewer.scene.skyBox.show = skyEnabled.value;
+    console.log('✅ 测试2: 星空背景已启用，监控内存变化...');
     //新增结束
     
     // 基础渲染质量优化
@@ -1486,15 +1492,33 @@ export function useCesium() {
     // 添加场景模式变化监听，处理2D模式的实体位置问题
     setupSceneModeHandling(viewer);
     
-    // 延迟加载国界线数据，确保地球纹理先加载完成
+    // ========== 国界线功能已改为地图切换实现 ==========
+    // 
+    // 📝 原因：动态加载GeoJSON国界线会导致严重内存泄漏
+    // 测试结果：
+    //   - polygon.outline → 每帧重建outline几何体 (18 MB/s)
+    //   - polygon + polyline → 实体翻倍 (17.3 MB/s)
+    //   - heightReference/clampToGround → 每帧地形计算
+    //
+    // ✅ 解决方案：将国界线烘焙到地球贴图（earth_with_borders.jpg）
+    //   - 无运行时开销
+    //   - 无内存泄漏
+    //   - 通过borderEnabled切换地图文件实现开/关
+    //
+    // 🔧 生成方法：运行 python add_boarders.py
+    //
+    console.log(`✅ 国界线已采用地图切换方式，当前状态: ${borderEnabled.value ? '开启' : '关闭'}`);
+    
+    // ========== 以下为旧的GeoJSON加载代码（已禁用） ==========
+    /*
     setTimeout(() => {
       if (viewer && borderEnabled.value) {
-        // console.log('开始延迟加载国界线...');
         loadLocalCountryBorders().catch(error => {
           console.error('延迟加载国界线失败:', error);
         });
       }
     }, 2000);
+    */
     
     // 将光照控制方法挂载到window对象，便于其他组件访问 10.27新增
     window.toggleLighting = function(enabled) {
@@ -1805,6 +1829,8 @@ export function useCesium() {
     viewer.scene.requestRender();
   }
 
+  // ========== 以下函数已禁用，国界线改用地图切换 ==========
+  /*
   // 加载本地矢量国界线数据，9月28日修改了边界线表现形式，由青色改为白与黑色
   async function loadLocalCountryBorders() {
     if (!viewer) return;
@@ -1814,10 +1840,10 @@ export function useCesium() {
       
       // 加载本地GeoJSON文件
       const dataSource = await Cesium.GeoJsonDataSource.load('/maps/countries.geo.json', {
-        strokeColor: Cesium.Color.DARKSLATEGRAY.withAlpha(1.0),  // 亮黑色
-        strokeWidth: 15,  // 调细线宽
+        strokeColor: Cesium.Color.DARKSLATEGRAY.withAlpha(1.0),
+        strokeWidth: 2,  // 使用较细线宽
         fillColor: Cesium.Color.TRANSPARENT,
-        clampToGround: true  // 贴地显示
+        clampToGround: false  // 🛡️ 关键修复：禁用贴地避免每帧重建几何体
       });
       
       // 立即标记为国界线数据源
@@ -1833,26 +1859,59 @@ export function useCesium() {
       
       // 设置显示样式  
       const entities = dataSource.entities.values;
+      console.log(`📊 国界线实体总数: ${entities.length}`);
+      
+      let polygonCount = 0;
+      let polylineCount = 0;
+      
       for (let i = 0; i < entities.length; i++) {
         const entity = entities[i];
+        
         if (entity.polygon) {
-          entity.polygon.material = Cesium.Color.TRANSPARENT;
-          entity.polygon.outline = true;
-          entity.polygon.outlineColor = Cesium.Color.DIMGRAY.withAlpha(1.0); // 亮黑色
-          entity.polygon.outlineWidth = 15;
-          entity.polygon.height = 0;  // 贴地显示
+          polygonCount++;
+          // 🛡️ 关键优化：polygon显示，但禁用outline + 不贴地 = 避免每帧重建
+          entity.polygon.show = true;
+          entity.polygon.material = Cesium.Color.TRANSPARENT; // 透明填充
+          entity.polygon.outline = false; // ❌ 禁用outline（这是泄漏源）
+          entity.polygon.outlineColor = undefined;
+          entity.polygon.outlineWidth = undefined;
+          entity.polygon.height = 0;
           entity.polygon.extrudedHeight = 0;
+          entity.polygon.heightReference = Cesium.HeightReference.NONE; // ❌ 不贴地（避免地形计算）
+          
+          // 🎨 替代方案：创建一个简单的polyline边框来显示国界
+          // 从polygon的positions创建polyline
+          if (entity.polygon.hierarchy && entity.polygon.hierarchy.getValue) {
+            const hierarchy = entity.polygon.hierarchy.getValue(Cesium.JulianDate.now());
+            if (hierarchy && hierarchy.positions) {
+              // 为每个polygon添加一个polyline边界
+              const positions = hierarchy.positions;
+              // 闭合路径
+              const closedPositions = [...positions, positions[0]];
+              
+              viewer.entities.add({
+                polyline: {
+                  positions: closedPositions,
+                  width: 1,
+                  material: Cesium.Color.WHITE.withAlpha(0.6),
+                  clampToGround: false
+                },
+                show: borderEnabled.value
+              });
+            }
+          }
         }
+        
         if (entity.polyline) {
-          entity.polyline.material = new Cesium.PolylineGlowMaterialProperty({
-            glowPower: 3,  // 荧光强度
-            taperPower: 0.8, // 渐变效果
-            color: Cesium.Color.DIMGRAY  // 亮黑色作为主色
-          });
-          entity.polyline.width = 5;  // 稍微加宽以突出荧光效果
-          entity.polyline.clampToGround = true;
+          polylineCount++;
+          entity.polyline.show = true;
+          entity.polyline.material = new Cesium.ColorMaterialProperty(Cesium.Color.WHITE.withAlpha(0.8));
+          entity.polyline.width = 2;
+          entity.polyline.clampToGround = false;
         }
       }
+      
+      console.log(`✅ 国界线配置完成: ${polygonCount} 个polygon（已转换为polyline边框）, ${polylineCount} 个polyline`);
       // 9月28日国界线修改到此结束👆
 
       // console.log(`本地国界线数据加载成功，共加载 ${entities.length} 个国家/地区边界`);
@@ -1870,6 +1929,8 @@ export function useCesium() {
       console.warn('加载本地国界线数据失败:', error);
     }
   }
+  */
+  // ========== 禁用代码结束 ==========
 
   // 调试时间轴元素的函数
   function debugTimelineElements() {
@@ -3501,53 +3562,41 @@ export function useCesium() {
     getLightingEnabled: function() {
       return lightingEnabled.value;
     },
-    // 切换国界线显示 10.27新增 - 修复国界线按钮不工作问题
+    // 切换国界线显示 10.27新增 - 修改为地图切换实现
     toggleBorder: function(enabled) {
-      if (viewer && viewer.dataSources) {
-        // 直接标记国界线可见性状态
-        borderEnabled.value = enabled;
+      if (!viewer || !viewer.imageryLayers) return;
+      
+      borderEnabled.value = enabled;
+      
+      // 🎨 切换地球贴图（有/无国界线）
+      const newTextureUrl = window.location.origin + (enabled 
+        ? '/texture/earth_with_borders.jpg'  // 带国界线
+        : '/texture/earth.jpg');              // 无国界线
+      
+      console.log(`🔄 切换国界线: ${enabled ? '开启' : '关闭'} - 加载贴图: ${newTextureUrl}`);
+      
+      try {
+        // 移除当前图层
+        viewer.imageryLayers.removeAll();
         
-        // 遍历所有数据源，查找并控制国界线
-        let found = false;
-        for (let i = 0; i < viewer.dataSources.length; i++) {
-          const dataSource = viewer.dataSources.get(i);
-          
-          // 优先检查已标记的数据源
-          if (dataSource._isCountryBorderDataSource) {
-            dataSource.show = enabled;
-            found = true;
-            // console.log(`国界线显示已${enabled ? '开启' : '关闭'}`);
-            break;
-          }
-          
-          // 标记国界线数据源以便后续查找
-          if (!dataSource._isCountryBorderDataSource && dataSource.entities && dataSource.entities.values.length > 0) {
-            const firstEntity = dataSource.entities.values[0];
-            // 判断是否为GeoJSON加载的国界线数据
-            if ((firstEntity.polygon || firstEntity.polyline) && 
-                ((firstEntity.polygon && firstEntity.polygon.outline) || 
-                 (firstEntity.polyline && firstEntity.polyline.width > 10))) {
-              dataSource._isCountryBorderDataSource = true;
-              dataSource.show = enabled;
-              found = true;
-              // console.log(`识别到国界线数据源，显示已${enabled ? '开启' : '关闭'}`);
-              break;
-            }
-          }
-        }
+        // 添加新图层
+        const newProvider = new Cesium.UrlTemplateImageryProvider({
+          url: newTextureUrl,
+          rectangle: Cesium.Rectangle.fromDegrees(-180.0, -90.0, 180.0, 90.0),
+          tilingScheme: new Cesium.GeographicTilingScheme({
+            numberOfLevelZeroTilesX: 1,
+            numberOfLevelZeroTilesY: 1
+          }),
+          maximumLevel: 0,
+          credit: enabled ? 'Natural Earth with Borders' : 'Natural Earth'
+        });
         
-        // 如果未找到且开启状态，尝试重新加载国界线数据
-        if (!found && enabled) {
-          console.warn('未找到国界线数据源，尝试重新加载...');
-          loadLocalCountryBorders().catch(error => {
-            console.error('重新加载国界线失败:', error);
-          });
-        } else if (!found && !enabled) {
-          // console.log('国界线数据源未加载，无需关闭');
-        }
-        
-        // 强制刷新场景
+        viewer.imageryLayers.addImageryProvider(newProvider);
         viewer.scene.requestRender();
+        
+        console.log(`✅ 国界线已${enabled ? '开启' : '关闭'}（地图切换完成）`);
+      } catch (error) {
+        console.error('切换国界线地图失败:', error);
       }
     },
     // 获取国界线状态 10.27新增

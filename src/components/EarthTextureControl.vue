@@ -33,7 +33,7 @@ const emit = defineEmits(['toggle-earth-texture']);
 // 地球纹理状态
 const currentTextureIndex = ref(0);
 const textures = [
-  { name: 'earth.jpg', path: '/texture/earth.jpg' },
+  { name: 'earth.jpg', path: '/texture/earth_with_borders.jpg' },
   { name: 'earth1.jpg', path: '/texture/earth1.jpg' }
 ];
 

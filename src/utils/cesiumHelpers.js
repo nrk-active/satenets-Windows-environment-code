@@ -52,11 +52,9 @@ export function createSatelliteEntity(node, show = true) {
     id: node.id,
     name: node.id,
     show,
-    // 使用 CallbackProperty 创建动态位置，即使初始时是静态的
-    // 这样在动画时可以无缝切换到动态位置
-    position: new Cesium.CallbackProperty(function(time, result) {
-      return initialPosition;
-    }, false),
+    // 性能优化：初始位置使用ConstantPositionProperty，动画时会被替换为CallbackProperty
+    // 避免静态卫星每帧执行position回调导致几何体重建
+    position: new Cesium.ConstantPositionProperty(initialPosition),
     point: {
       pixelSize: 3,
       // 使用CallbackProperty创建随机闪烁效果
@@ -105,14 +103,8 @@ export function createStationEntity(node, show = true) {
     position: cartesianPosition,
     point: {
       pixelSize: 2,
-      // 使用CallbackProperty创建随机闪烁效果
-      color: new Cesium.CallbackProperty(function(time) {
-        // 计算闪烁周期，加入随机相位和速度
-        const timeValue = Cesium.JulianDate.secondsDifference(time, Cesium.JulianDate.now());
-        // 确保透明度在0.7到1.0之间，使闪烁效果稍微明显一点
-        const alpha = 0.7 + 0.3 * (0.5 + 0.5 * Math.sin(timeValue * Math.PI * randomSpeed + randomPhase));
-        return Cesium.Color.RED.withAlpha(alpha);   // 地面站颜色
-      }, false),
+      // 性能优化：地面站使用静态颜色，避免每帧CallbackProperty导致几何体重建
+      color: Cesium.Color.RED.withAlpha(0.85),
       outlineWidth: 0,
       // 改为NONE，避免2D模式下的贴地问题
       heightReference: Cesium.HeightReference.NONE
@@ -153,15 +145,8 @@ export function createRoadmEntity(node, show = true) {
     position: cartesianPosition,
     point: {
       pixelSize: 2,
-      // 使用CallbackProperty创建随机闪烁效果
-      color: new Cesium.CallbackProperty(function(time) {
-        // 计算闪烁周期，加入随机相位和速度
-        const timeValue = Cesium.JulianDate.secondsDifference(time, Cesium.JulianDate.now());
-        // 确保透明度在0.68到1.0之间，使闪烁效果稍微明显一点
-        const alpha = 0.68 + 0.32 * (0.5 + 0.5 * Math.sin(timeValue * Math.PI * randomSpeed + randomPhase));
-        // return Cesium.Color.GREENYELLOW.withAlpha(alpha); // ROADM颜色
-        return Cesium.Color.fromCssColorString('#a1daf5ff').withAlpha(alpha); // ROADM颜色
-      }, false),
+      // 性能优化：ROADM使用静态颜色，避免每帧CallbackProperty导致几何体重建
+      color: Cesium.Color.fromCssColorString('#a1daf5ff').withAlpha(0.85),
       outlineWidth: 0,
       // 改为NONE，避免2D模式下的贴地问题
       heightReference: Cesium.HeightReference.NONE

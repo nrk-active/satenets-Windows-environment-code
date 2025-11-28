@@ -36,7 +36,7 @@ import { ref, onMounted } from 'vue';
 const emit = defineEmits(['toggle-lighting']);
 
 // 光照状态
-const lightingEnabled = ref(true);
+const lightingEnabled = ref(false); // 默认关闭光照
 
 // 工具提示状态
 const tooltipVisible = ref(false);
