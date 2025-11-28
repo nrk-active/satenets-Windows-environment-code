@@ -10,26 +10,30 @@ import { useApi } from './useApi.js';
 import { LRUCache } from '../utils/lruCache.js';
 import { CACHE_CONFIG } from '../constants/index.js';
 
+// 🔥 关键修复：全局单例状态，确保所有组件共享同一个文件夹设置
+const globalSelectedDataFolder = ref(null);
+const globalDataCache = new LRUCache(CACHE_CONFIG.MAX_NETWORK_CACHE);
+
 export function useDataLoader() {
   const nodeCount = ref(0);
   const linkCount = ref(0);
   
-  // 使用 LRU 缓存，从配置中获取最大缓存数量
-  const dataCache = new LRUCache(CACHE_CONFIG.MAX_NETWORK_CACHE);
+  // 🔥 使用全局缓存，而不是每次创建新的
+  const dataCache = globalDataCache;
   
   // 获取认证和API工具
   const { getTokens } = useAuth();
   const { getCsrfToken } = useApi();
 
-  // 全局数据文件夹设置
-  const selectedDataFolder = ref(null); // 默认为null，表示未选择
+  // 🔥 使用全局状态，确保所有组件共享同一个文件夹设置
+  const selectedDataFolder = globalSelectedDataFolder;
 
   // 设置数据文件夹
   function setDataFolder(folderName) {
     selectedDataFolder.value = folderName;
     // 保存到本地存储
     localStorage.setItem('selectedDataFolder', folderName);
-    // console.log(`数据文件夹已设置为: ${folderName}`);
+    console.log(`✅ 数据文件夹已设置为: ${folderName} (全局状态)`);
   }
 
   // 从本地存储恢复文件夹设置
@@ -37,15 +41,17 @@ export function useDataLoader() {
     const savedFolder = localStorage.getItem('selectedDataFolder');
     if (savedFolder) {
       selectedDataFolder.value = savedFolder;
-      // console.log(`从本地存储恢复数据文件夹设置: ${savedFolder}`);
+      console.log(`✅ 从本地存储恢复数据文件夹设置: ${savedFolder} (全局状态)`);
     } else {
-      // console.log('未找到保存的文件夹设置');
+      console.log('⚠️ 未找到保存的文件夹设置');
     }
   }
 
   // 获取当前选择的数据文件夹
   function getCurrentDataFolder() {
-    return selectedDataFolder.value; // 返回null如果没有设置
+    const folder = selectedDataFolder.value;
+    console.log(`📁 getCurrentDataFolder 返回: ${folder} (全局状态)`);
+    return folder; // 返回null如果没有设置
   }
 
   // 检查登录状态的函数

@@ -9,6 +9,7 @@ import { ref } from 'vue';
 import * as Cesium from "cesium";
 import { ANIMATION_CONFIG, SIMULATION_CONFIG } from '../constants/index.js';
 import { useDataLoader } from './useDataLoader.js';
+import { parseFolderName } from '../utils/folderParser.js'; // 🔥 关键：统一使用folderParser.js中的parseFolderName
 
 export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () => 1) {
   const isPlaying = ref(false);
@@ -23,62 +24,8 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
   // 获取数据加载器功能
   const { getCurrentDataFolder } = useDataLoader();
 
-  // 解析文件夹名称格式：{类型}_{切片间隔}_{总时长}
-  // 自动识别仿真类型、切片间隔、总时长和播放间隔，支持新旧格式，保证动画参数与仿真数据同步
-  function parseFolderName(folderName) {
-    // 默认配置
-    const defaultConfig = {
-      type: 'unknown',
-      interval: 60,  // 秒
-      totalDuration: 360, // 秒
-      playbackInterval: 3000 // 毫秒，播放间隔
-    };
-    
-    if (!folderName) {
-      return defaultConfig;
-    }
-    
-    // 尝试解析新格式：如 "old_60s_360s"
-    const newFormatMatch = folderName.match(/^(\w+)_(\d+)s_(\d+)s$/);
-    if (newFormatMatch) {
-      const [, type, intervalStr, durationStr] = newFormatMatch;
-      const interval = parseInt(intervalStr, 10);
-      const totalDuration = parseInt(durationStr, 10);
-      
-      // 根据切片间隔计算播放间隔：
-      // 60秒间隔 -> 3000ms播放间隔（慢）
-      // 10秒间隔 -> 1000ms播放间隔（快）
-      const playbackInterval = interval >= 60 ? 3000 : 1000;
-      
-      return {
-        type: type,
-        interval: interval,
-        totalDuration: totalDuration,
-        playbackInterval: playbackInterval
-      };
-    }
-    
-    // 兼容旧格式
-    if (folderName === 'new') {
-      return {
-        type: 'new',
-        interval: 10,
-        totalDuration: 3600,
-        playbackInterval: 1000
-      };
-    } else if (folderName === 'old') {
-      return {
-        type: 'old', 
-        interval: 60,
-        totalDuration: 360,
-        playbackInterval: 3000
-      };
-    }
-    
-    // 如果无法解析，返回默认值
-    console.warn(`无法解析文件夹名称格式: ${folderName}，使用默认配置`);
-    return defaultConfig;
-  }
+  // 🔥 parseFolderName 已从 '../utils/folderParser.js' 导入，不再在此定义
+  // 这样确保整个系统使用统一的文件夹配置解析逻辑，包括 totalFrames 字段
   
   // 将动画状态暴露到全局，供时间轴检查
   window.animationInProgress = animationInProgress.value;
@@ -648,29 +595,25 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
       return;
     }
     
-    if (animationInProgress.value) {
-      if (continuousMode.value) {
-        // 连续运动模式：创建重叠动画，不等待当前动画完成
-        // console.log('连续运动模式：创建重叠动画，无缝衔接');
-        // 继续执行，允许多个动画同时进行
-      } else {
-        // 传统模式：等待当前动画完成
-        // console.log('传统模式：等待动画完成后继续播放');
-        const currentSpeed = getPlaybackSpeed();
-        const checkInterval = Math.max(5, 20 / currentSpeed);
-        playbackTimer = setTimeout(() => playNextFrame(onFrameLoad), checkInterval);
-        return;
-      }
-    }
-    
     // 根据当前文件夹动态计算最大帧数
     const currentFolder = getCurrentDataFolder();
     const folderConfig = parseFolderName(currentFolder);
     const maxFrames = folderConfig.totalFrames; // 完全依赖配置解析
     
+    // 🔥 调试日志：显示文件夹解析结果
+    console.log(`📊 文件夹配置解析:`, {
+      '文件夹名': currentFolder,
+      '时间片间隔': folderConfig.interval + '秒',
+      '总时长': folderConfig.totalDuration + '秒',
+      '总帧数': maxFrames,
+      '计算公式': `${folderConfig.totalDuration} ÷ ${folderConfig.interval} = ${maxFrames}`
+    });
+    
     // 检查是否播放完成：到达最后一帧时停止播放
+    console.log(`🔍 检查停止条件: 当前帧=${timeFrame.value}, maxFrames=${maxFrames}`);
+    
     if (timeFrame.value >= maxFrames) {
-      // console.log(`🏁 播放完成！已播放到最后一帧 (${maxFrames}/${maxFrames})，停止播放`);
+      console.log(`播放完成！停止播放，最后一帧: ${timeFrame.value}`);
       isPlaying.value = false;
       
       // 禁用时间轴动画
@@ -687,7 +630,29 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
       return; // 停止播放循环
     }
     
+    if (animationInProgress.value) {
+      if (continuousMode.value) {
+        // 连续运动模式：创建重叠动画，不等待当前动画完成
+        // console.log('连续运动模式：创建重叠动画，无缝衔接');
+        // 继续执行，允许多个动画同时进行
+      } else {
+        // 传统模式：等待当前动画完成
+        // console.log('传统模式：等待动画完成后继续播放');
+        const currentSpeed = getPlaybackSpeed();
+        const checkInterval = Math.max(5, 20 / currentSpeed);
+        playbackTimer = setTimeout(() => playNextFrame(onFrameLoad), checkInterval);
+        return;
+      }
+    }
+    
     const nextTimeFrame = timeFrame.value + 1;
+    
+    // 关键修复: 检查下一帧是否会超出范围
+    if (nextTimeFrame > maxFrames) {
+      console.log(`下一帧(${nextTimeFrame})超出范围，停止设置定时器`);
+      isPlaying.value = false;
+      return;
+    }
     
     // 只在关键帧（每10帧或接近完成）时输出日志
     if (nextTimeFrame % 10 === 1 || nextTimeFrame === 1 || nextTimeFrame >= maxFrames - 5) {
@@ -712,25 +677,44 @@ export function useAnimation(timelineControlRef = null, getPlaybackSpeed = () =>
       // console.log(`传统模式 - 播放间隔: ${playbackInterval}ms (基础间隔: ${baseInterval}ms, 预估动画时长: ${estimatedAnimationDuration}ms, 播放速度: ${currentSpeed}x)`);
     }
     
-    // 启动下一次播放的定时器
-    if (continuousMode.value) {
-      // 连续模式：提前启动下一帧，在当前动画完成前就准备
-      const advanceTime = Math.min(200, playbackInterval * 0.2); // 提前20%的时间
-      const actualInterval = Math.max(50, playbackInterval - advanceTime);
-      // // console.log(`连续模式：提前${advanceTime}ms启动下一帧，实际间隔${actualInterval}ms`);
+    // 关键修复: 判断是否应该继续设置下一帧
+    const shouldScheduleNext = nextTimeFrame < maxFrames;
+    
+    if (shouldScheduleNext) {
+      // 启动下一次播放的定时器
+      if (continuousMode.value) {
+        // 连续模式：提前启动下一帧，在当前动画完成前就准备
+        const advanceTime = Math.min(200, playbackInterval * 0.2); // 提前20%的时间
+        const actualInterval = Math.max(50, playbackInterval - advanceTime);
+        // // console.log(`连续模式：提前${advanceTime}ms启动下一帧，实际间隔${actualInterval}ms`);
+        
+        playbackTimer = setTimeout(() => {
+          if (isPlaying.value) {
+            playNextFrame(onFrameLoad);
+          }
+        }, actualInterval);
+      } else {
+        // 传统模式：正常间隔
+        playbackTimer = setTimeout(() => {
+          if (isPlaying.value) {
+            playNextFrame(onFrameLoad);
+          }
+        }, playbackInterval);
+      }
       
-      playbackTimer = setTimeout(() => {
-        if (isPlaying.value) {
-          playNextFrame(onFrameLoad);
-        }
-      }, actualInterval);
+      console.log(`已设置定时器，${playbackInterval}ms 后播放帧 ${nextTimeFrame + 1}`);
     } else {
-      // 传统模式：正常间隔
-      playbackTimer = setTimeout(() => {
-        if (isPlaying.value) {
-          playNextFrame(onFrameLoad);
+      console.log(`这是最后一帧(${nextTimeFrame})，播放完成后自动停止`);
+      // 播放到最后一帧后,在动画完成后自动停止播放
+      setTimeout(() => {
+        isPlaying.value = false;
+        console.log(`播放已自动停止`);
+        
+        // 禁用时间轴动画
+        if (timelineControlRef && timelineControlRef.setTimelineAnimation) {
+          timelineControlRef.setTimelineAnimation(false);
         }
-      }, playbackInterval);
+      }, 100);
     }
     
     // 立即更新timeFrame的值，确保状态同步

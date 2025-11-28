@@ -185,6 +185,7 @@ import TrafficMatrix from './traffic_matrix.vue' // 确认路径和文件名一�
 import ConstellationSetting from './constellation_setting.vue'
 import ProcessSelectionDialog from './ProcessSelectionDialog.vue' // 新增
 import FolderSelectionDialog from './FolderSelectionDialog.vue' // 新增文件夹选择对话框
+import { useDataLoader } from '../composables/useDataLoader.js'; // 🔥 导入useDataLoader统一管理文件夹状态
 
 // 接收从父组件传递的登录状态和用户名
 const props = defineProps({
@@ -229,7 +230,8 @@ const selectedProcessId = ref(null);
 
 // 文件夹选择弹窗状态
 const showFolderDialog = ref(false);
-const selectedDataFolder = ref(null); // 初始不设置默认值，等待用户选择
+// 🔥 使用 useDataLoader 中的全局 selectedDataFolder，不再定义本地状态
+const { selectedDataFolder } = useDataLoader();
 
 // 仿真进度和时间
 const simulationProgress = inject('simulationProgress', ref(0));
@@ -648,12 +650,11 @@ function handleFolderSelected(folderInfo) {
   
   selectedDataFolder.value = folderInfo.name;
   
-  // 通知useDataLoader更新文件夹设置
-  // 我们需要从composable中导入setDataFolder函数
-  localStorage.setItem('selectedDataFolder', folderInfo.name);
-  localStorage.setItem('hasUserSelectedFolder', 'true'); // 标记用户已主动选择
+  // 🔥 关键修复：不要在这里调用 setDataFolder，让 SatelliteViewer 统一处理
+  // 只保存用户已选择的标记
+  localStorage.setItem('hasUserSelectedFolder', 'true');
   
-  // console.log(`数据文件夹已设置为: ${folderInfo.name}`);
+  console.log(`📁 navigation-bar: 处理文件夹选择 ${folderInfo.name}`);
   
   // 发送自定义事件通知其他组件文件夹已更改
   const event = new CustomEvent('data-folder-changed', {
@@ -661,6 +662,7 @@ function handleFolderSelected(folderInfo) {
   });
   window.dispatchEvent(event);
   
+  console.log(`✅ 文件夹选择事件已发送，等待 SatelliteViewer 处理`);
   alert(`已选择数据文件夹: ${folderInfo.name}`);
 }
 

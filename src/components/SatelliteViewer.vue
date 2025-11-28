@@ -1563,7 +1563,15 @@ onMounted(async () => {
     
     // 关键修复：设置时间轴控制，传入数据加载回调
     setupTimelineControl((frame) => {
-      // console.log(`时间轴拖拽触发数据加载: 帧${frame}`);
+      console.log(`时间轴回调触发 - 帧号: ${frame}, 当前 timeFrame: ${timeFrame.value}, isPlaying: ${isPlaying.value}`);
+      
+      // 关键修复: 如果正在播放,不要让时间轴回调干扰 playNextFrame 的控制
+      if (isPlaying.value) {
+        console.log(`播放模式下忽略时间轴回调,避免冲突`);
+        return;
+      }
+      
+      // 后面是原有的处理逻辑
       timeFrame.value = frame;
       
       // 拖拽时使用瞬间模式，避免动画插值导致的位置错误
@@ -1853,6 +1861,19 @@ onMounted(async () => {
     if (savedFolder && savedFolder !== 'new') { // 'new'是默认值，说明没有真正选择过
       // console.log(`检测到已保存的文件夹设置: ${savedFolder}，立即配置时钟范围`);
       resetClockRange(savedFolder);
+    } else {
+      // 🔥 如果没有保存的文件夹，设置默认文件夹为 new_60s_3600s
+      const defaultFolder = 'new_60s_3600s';
+      console.log(`⚠️ 未检测到已保存的文件夹，设置默认文件夹: ${defaultFolder}`);
+      setDataFolder(defaultFolder);
+      resetClockRange(defaultFolder);
+      
+      // 同步更新时间轴
+      if (window.simulationTimelineControl) {
+        const config = parseFolderName(defaultFolder);
+        window.simulationTimelineControl.setTotalFrames(config.totalFrames);
+        console.log(`✅ 默认文件夹配置完成: ${defaultFolder}, 总帧数: ${config.totalFrames}`);
+      }
     }
     
     // 不再自动加载默认数据，等待用户选择文件夹
