@@ -280,6 +280,21 @@ function onToggleEarthTexture(textureType) {
   // console.log(`切换地球纹理类型: ${textureType}`);
   if (window.toggleEarthTexture) {
     window.toggleEarthTexture(textureType);
+    
+    // 同步更新国界线状态
+    // 检查切换到的纹理是否包含国界线  12.4Fix texture新增
+    const hasBorders = textureType.includes('earth_with_borders.jpg');
+    
+    // 更新borderEnabled状态
+    if (window.setBorderEnabled) {
+      window.setBorderEnabled(hasBorders);
+    }
+    
+    // 通知BorderControl组件更新按钮状态
+    if (borderControlRef.value && borderControlRef.value.setBorderState) {
+      borderControlRef.value.setBorderState(hasBorders);
+    } 
+    // 12.4Fix texture新增结束
   } else {
     console.warn('window.toggleEarthTexture方法未找到');
   }
@@ -535,6 +550,7 @@ const {
   parseFolderName,
   toggleLighting, // 10.27新增
   toggleBorder, // 10.27新增
+  setBorderEnabled, // 12.4Fix texture新增
   toggleGrid, // 10.28新增
   toggleSky // 10.28新增，对应星空背景功能部分
 } = useCesium();
@@ -1929,6 +1945,17 @@ onMounted(async () => {
         console.error('切换国界线显示状态失败:', error);
       }
     };
+    
+    // 暴露设置国界线状态方法给window对象 12.4Fix texture新增
+    window.setBorderEnabled = (enabled) => {
+      try {
+        setBorderEnabled(enabled);
+        // console.log(`国界线状态已设置为: ${enabled}`);
+      } catch (error) {
+        console.error('设置国界线状态失败:', error);
+      }
+    };
+    //12.4Fix texture新增结束
     
     // // console.log('缓存调试功能已添加：');
     // // console.log('- 使用 window.debugCache() 查看缓存状态');

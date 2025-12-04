@@ -3603,6 +3603,13 @@ export function useCesium() {
     getBorderEnabled: function() {
       return borderEnabled.value;
     },
+    // 设置国界线状态 - 新增方法，用于从外部更新状态 12.4Fix texture新增
+    setBorderEnabled: function(enabled) {
+      borderEnabled.value = enabled;
+      console.log(`国界线状态已更新为: ${enabled ? '开启' : '关闭'}`);
+    },
+    // 12.4Fix texture新增结束
+    
     // 切换经纬线网格显示 10.28新增
     toggleGrid: function(enabled) {
       if (viewer && viewer.dataSources) {
